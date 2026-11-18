@@ -740,7 +740,7 @@ export default function PlannerPage() {
                       onClick={() => setSavedTab(t.id)}
                       className={clsx(
                         "text-xl md:text-[26px] leading-tight transition-colors whitespace-nowrap",
-                        savedTab === t.id ? "text-ink underline decoration-accent-soft decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
+                        savedTab === t.id ? "text-ink underline decoration-accent decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
                       )}
                     >
                       {t.label}
@@ -838,7 +838,7 @@ export default function PlannerPage() {
                   onClick={() => setTab(t)}
                   className={clsx(
                     "text-xl md:text-[26px] leading-tight transition-colors",
-                    tab === t ? "text-ink underline decoration-accent-soft decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
+                    tab === t ? "text-ink underline decoration-accent decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
                   )}
                 >
                   {t === "itinerary" ? "Itinerary" : "Map"}
