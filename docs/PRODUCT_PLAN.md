@@ -63,10 +63,13 @@ A fixed left sidebar with icon navigation:
   across a refresh in the same tab).
 - Each result row: route, flight number, times, date, price, and **Add to trip**
   (choose an existing trip or create one).
-- Powered by the **Skyscanner Flights Live Prices API (v3)** through a
-  server-side route (`/api/flights/search`) so the API key never reaches the
-  browser. Without a key the route returns realistic mock data so the UI is
-  fully usable in preview.
+- Powered by **Google Flights via SearchApi.io** through server-side routes
+  (`/api/flights/search`, `/api/flights/returns`) so the API key never reaches
+  the browser. Skyscanner's partner API is supported as an alternative. Without
+  a key the routes return realistic mock data so the UI is fully usable.
+- Round trips are two-step, like Google Flights: results list outbound flights
+  with a "round trip from" price; **Choose return** loads that flight's return
+  options (one search credit), each with its own price, **Book** and **+**.
 
 ### 3.3 Stays (`/stays`)
 - Search: city / hotel / landmark, check-in/out dates, guests.
@@ -131,7 +134,8 @@ check-out).
 
 | Service | Used for | Config |
 |---|---|---|
-| Skyscanner Travel API | Live flight search, price refresh, booking deep links | `SKYSCANNER_API_KEY` (server only) |
+| SearchApi.io (Google Flights) | Live flight search, return flights, price refresh | `SEARCHAPI_API_KEY` (server only) |
+| Skyscanner Travel API (optional) | Alternative provider if accepted as a partner | `SKYSCANNER_API_KEY` (server only) |
 | Supabase | Persistence | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 | OpenStreetMap / CARTO tiles via Leaflet | Maps | none |
 

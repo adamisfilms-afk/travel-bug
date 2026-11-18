@@ -27,6 +27,8 @@ export interface FlightSession {
   backDepart: HourRange;
   backArrive: HourRange;
   sort: FlightSort;
+  /** Return options loaded per round-trip outbound offer id (Google Flights two-step search). */
+  returns?: Record<string, FlightOffer[]>;
   /** Trip id the form was last prefilled from (so returning to the page doesn't re-prefill). */
   prefilledFor: string | null;
 }

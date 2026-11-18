@@ -1,5 +1,6 @@
 import "server-only";
 import { AIRPORTS, findAirport } from "./airports";
+import { searchApiEnabled, searchApiReturns, searchApiSearch } from "./searchapi";
 import type { Cabin, FlightLeg, FlightOffer, Place, SavedFlight } from "./types";
 
 export interface FlightSearchParams {
@@ -13,32 +14,59 @@ export interface FlightSearchParams {
 
 const SKY_BASE = "https://partners.api.skyscanner.net/apiservices/v3";
 
-export function skyscannerEnabled() {
-  return Boolean(process.env.SKYSCANNER_API_KEY);
+export type FlightSource = "searchapi" | "skyscanner" | "mock";
+
+/** Which provider to use: FLIGHT_PROVIDER if set, else whichever API key is present, else demo data. */
+export function flightSource(): FlightSource {
+  const forced = process.env.FLIGHT_PROVIDER as FlightSource | undefined;
+  if (forced === "searchapi" && searchApiEnabled()) return "searchapi";
+  if (forced === "skyscanner" && process.env.SKYSCANNER_API_KEY) return "skyscanner";
+  if (forced === "mock") return "mock";
+  if (searchApiEnabled()) return "searchapi";
+  if (process.env.SKYSCANNER_API_KEY) return "skyscanner";
+  return "mock";
 }
 
-export async function searchFlights(p: FlightSearchParams): Promise<{ offers: FlightOffer[]; source: "skyscanner" | "mock" }> {
-  if (skyscannerEnabled()) {
-    return { offers: await skyscannerSearch(p), source: "skyscanner" };
-  }
-  return { offers: mockSearch(p), source: "mock" };
+export async function searchFlights(p: FlightSearchParams): Promise<{ offers: FlightOffer[]; source: FlightSource }> {
+  const source = flightSource();
+  if (source === "searchapi") return { offers: await searchApiSearch(p), source };
+  if (source === "skyscanner") return { offers: await skyscannerSearch(p), source };
+  return { offers: mockSearch(p), source };
 }
+
+/** Return options for a round-trip outbound flight (only needed for Google Flights results). */
+export async function searchReturnFlights(p: FlightSearchParams, outbound: FlightOffer): Promise<FlightOffer[]> {
+  const source = flightSource();
+  if (source === "searchapi") return searchApiReturns(p, outbound);
+  if (source === "mock") return mockReturns(p, outbound);
+  return [];
+}
+
+const numKey = (legs: FlightLeg[]) => legs.map((l) => l.flightNumber.replace(/\s/g, "")).join("|");
 
 /** Returns the latest price for a saved flight, or null if it can no longer be found. */
 export async function refreshFlightPrice(f: SavedFlight): Promise<number | null> {
-  if (!skyscannerEnabled()) return mockDrift(f.id, f.priceSaved);
+  const source = flightSource();
+  if (source === "mock") return mockDrift(f.id, f.priceSaved);
   const out = f.legs[0];
   const back = f.legs[1];
-  const offers = await skyscannerSearch({
+  const params: FlightSearchParams = {
     from: out.from.code,
     to: out.to.code,
     depart: out.depart.slice(0, 10),
     returnDate: back?.depart.slice(0, 10),
     adults: f.passengers,
     cabin: f.cabin,
-  });
-  const key = f.legs.map((l) => l.flightNumber.replace(/\s/g, "")).join("|");
-  const match = offers.find((o) => o.legs.map((l) => l.flightNumber.replace(/\s/g, "")).join("|") === key);
+  };
+  if (source === "searchapi") {
+    const outbound = (await searchApiSearch(params)).find((o) => numKey(o.legs) === numKey([out]));
+    if (!outbound) return null;
+    if (!back) return outbound.price;
+    const full = (await searchApiReturns(params, outbound)).find((o) => numKey(o.legs) === numKey(f.legs));
+    return full ? full.price : null;
+  }
+  const offers = await skyscannerSearch(params);
+  const match = offers.find((o) => numKey(o.legs) === numKey(f.legs));
   return match ? match.price : null;
 }
 
@@ -264,8 +292,6 @@ function mockSearch(p: FlightSearchParams): FlightOffer[] {
   for (let i = 0; i < 14; i++) {
     const airline = CARRIERS[Math.floor(r() * CARRIERS.length)];
     const legs = [mockLeg(from, to, p.depart, r, airline)];
-    // Most return fares fly the same airline both ways.
-    if (p.returnDate) legs.push(mockLeg(to, from, p.returnDate, r, r() < 0.8 ? airline : undefined));
     const base = (45 + km * 0.075) * (0.75 + r() * 0.8) * CABIN_MULT[p.cabin] * (p.returnDate ? 1.75 : 1);
     const stopDiscount = legs.some((l) => l.stops) ? 0.82 : 1;
     const price = Math.round(base * stopDiscount * p.adults);
@@ -277,8 +303,26 @@ function mockSearch(p: FlightSearchParams): FlightOffer[] {
       cabin: p.cabin,
       passengers: p.adults,
       bookingUrl: `https://www.skyscanner.net/transport/flights/${p.from.toLowerCase()}/${p.to.toLowerCase()}/${p.depart.slice(2).replace(/-/g, "")}/${p.returnDate ? p.returnDate.slice(2).replace(/-/g, "") + "/" : ""}`,
-      provider: "Skyscanner (demo data)",
+      provider: "Demo data",
+      // Round trips work like Google Flights: pick an outbound, then load its returns.
+      ...(p.returnDate ? { departureToken: `mock-${i}`, returnDate: p.returnDate } : {}),
     });
+  }
+  return offers.sort((a, b) => a.price - b.price);
+}
+
+/** Demo return options for a round-trip outbound flight; the cheapest matches the outbound's "from" price. */
+function mockReturns(p: FlightSearchParams, outbound: FlightOffer): FlightOffer[] {
+  const from = findAirport(p.to) ?? AIRPORTS[6];
+  const to = findAirport(p.from) ?? AIRPORTS[0];
+  const r = rng(`${outbound.id}-returns`);
+  const out = outbound.legs[0];
+  const sameAirline = CARRIERS.find(([, code]) => out.flightNumber.startsWith(code + " "));
+  const offers: FlightOffer[] = [];
+  for (let i = 0; i < 5; i++) {
+    const back = mockLeg(from, to, p.returnDate!, r, i < 3 && sameAirline ? sameAirline : undefined);
+    const extra = i === 0 ? 0 : Math.round((10 + r() * 90) * outbound.passengers);
+    offers.push({ ...outbound, id: `${outbound.id}-r${i}`, legs: [out, back], price: outbound.price + extra, departureToken: undefined, returnDate: undefined });
   }
   return offers.sort((a, b) => a.price - b.price);
 }

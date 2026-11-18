@@ -25,6 +25,8 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Flight search failed. Please try again." }, { status: 502 });
+    // Surface the provider's message (e.g. invalid key, out of credits) so it's actionable.
+    const msg = e instanceof Error ? e.message : "";
+    return NextResponse.json({ error: msg ? `Flight search failed: ${msg}` : "Flight search failed. Please try again." }, { status: 502 });
   }
 }

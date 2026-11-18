@@ -32,6 +32,9 @@ export interface FlightOffer {
   passengers: number;
   bookingUrl: string;
   provider: string;
+  /** Round trip still waiting for a return flight to be chosen (Google Flights two-step search). */
+  departureToken?: string;
+  returnDate?: string;
 }
 
 export interface Trip {

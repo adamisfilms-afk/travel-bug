@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { refreshFlightPrice } from "@/lib/flights-server";
+import { flightSource, refreshFlightPrice } from "@/lib/flights-server";
 import { findHotel } from "@/lib/hotels";
 import { daysBetween } from "@/lib/format";
 import type { SavedFlight, SavedStay } from "@/lib/types";
@@ -23,8 +23,14 @@ export async function POST(req: Request) {
   const flights: SavedFlight[] = Array.isArray(body.flights) ? body.flights.slice(0, 30) : [];
   const stays: SavedStay[] = Array.isArray(body.stays) ? body.stays.slice(0, 30) : [];
 
+  // Live providers cost a search credit per check (two for round trips), so re-check each
+  // saved flight at most every 12 hours, and never re-price the demo trips' flights.
+  const live = flightSource() !== "mock";
+  const fresh = (f: SavedFlight) => f.priceCheckedAt && Date.now() - Date.parse(f.priceCheckedAt) < 12 * 3_600_000;
+
   const flightPrices = await Promise.all(
     flights.map(async (f) => {
+      if (live && (f.id.startsWith("seed-") || fresh(f))) return { id: f.id, price: null };
       try {
         return { id: f.id, price: await refreshFlightPrice(f) };
       } catch (e) {
