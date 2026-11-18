@@ -18,6 +18,12 @@ export interface CuratedPlace {
    * Unset = automatic (photos uploaded by the place itself first).
    */
   photo?: number;
+  /** Curated write-up shown in the place view. */
+  description?: string;
+  /** 1–4 ($–$$$$). Google's price level is used when this isn't set. */
+  priceLevel?: number;
+  /** Curated social posts (Instagram post/Reel, TikTok, YouTube Short URLs). */
+  social?: string[];
 }
 
 export interface CuratedSection {
@@ -47,6 +53,14 @@ export function placeFactory(city: string, category: ActivityCategory) {
     lng,
     category: cat,
   });
+}
+
+/** Add curated write-ups / price levels to a guide's places by id. */
+export function withDetails(guide: CuratedGuide, details: Record<string, Partial<Pick<CuratedPlace, "description" | "priceLevel" | "social" | "photo">>>): CuratedGuide {
+  return {
+    ...guide,
+    sections: guide.sections.map((s) => ({ ...s, places: s.places.map((p) => ({ ...p, ...details[p.id] })) })),
+  };
 }
 
 export function findGuide<T extends CuratedGuide>(guides: T[], slug: string | null | undefined) {

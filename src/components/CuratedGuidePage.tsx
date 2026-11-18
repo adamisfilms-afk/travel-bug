@@ -4,6 +4,7 @@ import { CaretLeft, CaretRight, Copy, MagnifyingGlass, type Icon } from "@phosph
 import clsx from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
 import { PageTitle, SectionTitle, useClickOutside } from "@/components/ui";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
@@ -54,6 +55,7 @@ function PlaceCard({
   pick,
   onPick,
   EmptyIcon,
+  onOpen,
 }: {
   place: CuratedPlace;
   index: number;
@@ -63,6 +65,8 @@ function PlaceCard({
   pick?: number;
   onPick: (i: number) => void;
   EmptyIcon: Icon;
+  /** Open the place view. */
+  onOpen: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const cached = photoCache.get(photoKey(place.mapsQuery, pick));
@@ -120,7 +124,20 @@ function PlaceCard({
     <div ref={ref} className="group shrink-0 w-[230px] md:w-[270px] snap-start">
       {/* Image (clipped) with the add-to-trip button outside the clip so its menu can open */}
       <div className="relative">
-        <div className={clsx("relative h-[170px] md:h-[190px] rounded-2xl overflow-hidden", PLACEHOLDERS[index % PLACEHOLDERS.length])}>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Open ${place.name}`}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("button")) return; // curation arrows
+            onOpen();
+          }}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onOpen())}
+          className={clsx(
+            "relative h-[170px] md:h-[190px] rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            PLACEHOLDERS[index % PLACEHOLDERS.length],
+          )}
+        >
           {photo && !failed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -130,7 +147,7 @@ function PlaceCard({
               title={photo.attribution ? `Photo: ${photo.attribution.name} · Google` : undefined}
               loading="lazy"
               onError={() => setFailed(true)}
-              className="absolute inset-0 size-full object-cover"
+              className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
             <span className="absolute inset-0 grid place-items-center text-ink/25">
@@ -169,17 +186,12 @@ function PlaceCard({
           />
         </div>
       </div>
-      <a
-        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapsQuery)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-2.5 px-0.5"
-      >
+      <button type="button" onClick={onOpen} className="block w-full text-left mt-2.5 px-0.5">
         <p className="text-[15px] font-semibold leading-tight truncate hover:underline underline-offset-2">{place.name}</p>
         <p className="text-[13px] text-ink-muted truncate">
           {place.tagline} · {place.neighbourhood}
         </p>
-      </a>
+      </button>
     </div>
   );
 }
@@ -291,6 +303,23 @@ export function CuratedGuidePage({
   const params = useSearchParams();
   const guide = findGuide(params.get("city"));
   const curate = params.get("curate") === "1";
+  const placeId = params.get("place");
+  const openPlace = guide?.sections.flatMap((s) => s.places).find((p) => p.id === placeId);
+  const openedHere = useRef(false);
+  const cityUrl = (slug: string) => `/${kind}?city=${slug}${curate ? "&curate=1" : ""}`;
+  const open = (p: CuratedPlace) => {
+    if (!guide) return;
+    openedHere.current = true;
+    router.push(`${cityUrl(guide.slug)}&place=${p.id}`, { scroll: false });
+  };
+  // Back button closes it; if the place was opened from a shared link, drop it from the URL instead
+  const close = useCallback(() => {
+    if (openedHere.current) {
+      openedHere.current = false;
+      router.back();
+    } else if (guide) router.replace(cityUrl(guide.slug), { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guide, router]);
   const base = `/${kind}`;
 
   // Coming back via the sidebar (no ?city=): reopen the guide you were last looking at.
@@ -364,12 +393,18 @@ export function CuratedGuidePage({
               <div className="rounded-xl bg-surface px-4 py-3 text-[13px] max-w-md">
                 <p className="font-semibold">Curating photos</p>
                 <p className="text-ink-muted">
-                  Use the arrows on each image to choose its photo. {Object.keys(picks).length} picked in this browser.
+                  Use the arrows on each image to choose its photo, and open a place to add social posts. {Object.keys(picks).length} photos picked in this browser.
                 </p>
                 <button
                   type="button"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(JSON.stringify(picks, null, 2)).catch(() => {});
+                    let social: Record<string, string[]> = {};
+                    try {
+                      social = JSON.parse(localStorage.getItem(`travel-bug:social-picks:${kind}:${guide.slug}`) ?? "{}");
+                    } catch {
+                      /* ignore */
+                    }
+                    await navigator.clipboard.writeText(JSON.stringify({ photos: picks, social }, null, 2)).catch(() => {});
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   }}
@@ -380,6 +415,18 @@ export function CuratedGuidePage({
               </div>
             )}
           </div>
+          {openPlace && (
+            <PlaceModal
+              key={openPlace.id}
+              place={openPlace}
+              guide={guide}
+              kind={kind}
+              curate={curate}
+              photoPick={pickFor(openPlace)}
+              EmptyIcon={EmptyIcon}
+              onClose={close}
+            />
+          )}
           {guide.sections.map((section) => (
             <section key={section.id} className="space-y-4">
               <SectionTitle>{section.title}</SectionTitle>
@@ -393,6 +440,7 @@ export function CuratedGuidePage({
                     curate={curate}
                     pick={pickFor(p)}
                     onPick={(n) => setPick(p.id, n)}
+                    onOpen={() => open(p)}
                     EmptyIcon={EmptyIcon}
                   />
                 ))}

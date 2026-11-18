@@ -2,7 +2,7 @@
  * Curated food guides (sample content until guides move into the database).
  * Photo picks (`photo`) come from the ?curate=1 mode on the Food page.
  */
-import { findGuide, matchGuides as match, placeFactory, type CuratedGuide } from "../curated/types";
+import { findGuide, matchGuides as match, placeFactory, withDetails, type CuratedGuide } from "../curated/types";
 
 export type { CuratedGuide as FoodGuide, CuratedPlace as FoodPlace } from "../curated/types";
 
@@ -125,7 +125,31 @@ const NEW_YORK: CuratedGuide = {
   ],
 };
 
-export const FOOD_GUIDES: CuratedGuide[] = [NEW_YORK];
+/** Curated write-ups and price levels (1–4) — sample copy. */
+const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
+  "ny-carbone": { priceLevel: 4, description: "Red-sauce theatre at its most polished — tuxedoed captains, tableside Caesar and the spicy rigatoni everyone posts about. Booking is a sport, but the night lives up to it." },
+  "ny-le-bernardin": { priceLevel: 4, description: "Eric Ripert's temple to seafood, where fish is treated with almost religious restraint. Calm, formal and flawless — the special-occasion meal that never feels stuffy." },
+  "ny-via-carota": { priceLevel: 3, description: "A candlelit West Village trattoria that feels like it's been here forever. No reservations, so put your name down, have a drink nearby and come back for the cacio e pepe and the insalata verde." },
+  "ny-lilia": { priceLevel: 3, description: "Missy Robbins' wood-fired Williamsburg favourite, set in an old auto-body shop. The pastas are the reason to go — the sheep's milk agnolotti especially — with a lovely café counter by day." },
+  "ny-atomix": { priceLevel: 4, description: "An intimate counter serving a tasting menu that reimagines Korean cooking, with each course explained on a small card. Precise, personal and one of the city's most memorable meals." },
+  "ny-peter-luger": { priceLevel: 4, description: "The old-school Brooklyn steakhouse since 1887: porterhouse for two, creamed spinach, gruff waiters and a cash-and-card-only legend. Go for the ritual as much as the steak." },
+  "ny-don-angie": { priceLevel: 3, description: "A playful take on Italian-American cooking in a cosy West Village corner — the pinwheel lasagna for two is the dish to order, and the room is made for date nights." },
+  "ny-gramercy-tavern": { priceLevel: 4, description: "A warm, timeless New York institution. Book the dining room for the seasonal tasting menu, or walk into the front tavern for a more relaxed meal by the fire." },
+  "ny-thai-diner": { priceLevel: 2, description: "A cheerful, kitschy all-day spot mixing Thai flavours with American diner classics — the Thai disco fries and the khao soi are worth the wait." },
+  "ny-keens": { priceLevel: 4, description: "Clay pipes on the ceiling, mutton chops on the plate and over a century of history in every wood-panelled room. A uniquely New York steakhouse." },
+  "ny-balthazar": { description: "Keith McNally's SoHo brasserie looks lifted straight from Paris — zinc bar, mirrors, bread baskets. Brunch here is a New York rite of passage." },
+  "ny-clinton-st": { description: "The blueberry pancakes with warm maple butter have drawn queues for years. Small, bright and friendly — go early or go on a weekday." },
+  "ny-russ-daughters-cafe": { description: "A sit-down offshoot of the century-old appetizing shop: smoked fish boards, bagels and latkes served in a retro diner-style room." },
+  "ny-katzs": { description: "The pastrami on rye that made a deli famous. Take a ticket, tip your carver and soak up one of the city's great old-school rooms." },
+  "ny-joes-pizza": { description: "The benchmark New York slice — thin, foldable and perfectly balanced. Grab one standing up and eat it on the corner." },
+  "ny-levain": { description: "Famously huge, gooey-centred cookies that are more like small cakes. The chocolate chip walnut is the classic." },
+  "ny-dominique-ansel": { description: "The SoHo bakery behind the Cronut, still making a limited run each day alongside plenty of other inventive pastries." },
+  "ny-double-chicken": { description: "A buzzy Lower East Side bar with a front room for drinks on tap and a back room where cocktails are designed to taste like dishes. Inventive, fun and frequently ranked among the world's best." },
+  "ny-pdt": { description: "Walk into a hot-dog shop, step into the phone booth and dial in — it's the original modern speakeasy. Reservations help." },
+  "ny-bemelmans": { description: "A gilded piano bar in The Carlyle, wrapped in Ludwig Bemelmans' whimsical murals. Classic martinis, live music and old New York glamour." },
+};
+
+export const FOOD_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS)];
 
 export const guideBySlug = (slug: string | null | undefined) => findGuide(FOOD_GUIDES, slug);
 export const matchGuides = (q: string) => match(FOOD_GUIDES, q);

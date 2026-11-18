@@ -95,6 +95,15 @@ A fixed left sidebar with icon navigation:
   category and location).
 - Curators add `?curate=1` to flip through each place's Google photos and pick
   one; "Copy picks" exports the choices to save into the guide data.
+- Clicking a card opens the **place view** (modal over a blurred, darkened page;
+  `&place=<id>` in the URL so it can be shared and the back button closes it):
+  name, area · cuisine/type · price level, a carousel of up to 10 Google photos
+  (curated pick first), the curated write-up, Google rating and review count,
+  Google's AI review summary ("Summarized with Gemini", linked), up to 5 Google
+  reviews with authors, opening hours, website / Google Maps links, add-to-trip,
+  and a horizontal row of embedded social posts (Instagram posts/Reels, TikTok,
+  YouTube Shorts). In curate mode, posts are added by pasting links and
+  exported with "Copy picks".
 
 ### 3.5 Your trips (`/trips`)
 - Trip chips at the top (+ Add new trip).

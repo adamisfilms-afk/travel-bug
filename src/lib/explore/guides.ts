@@ -2,7 +2,7 @@
  * Curated things-to-do guides for Explore (sample content until guides move into the database).
  * Photo picks (`photo`) come from the ?curate=1 mode on the Explore page.
  */
-import { findGuide, matchGuides as match, placeFactory, type CuratedGuide } from "../curated/types";
+import { findGuide, matchGuides as match, placeFactory, withDetails, type CuratedGuide } from "../curated/types";
 
 const p = placeFactory("New York, NY", "sight");
 
@@ -94,7 +94,23 @@ const NEW_YORK: CuratedGuide = {
   ],
 };
 
-export const EXPLORE_GUIDES: CuratedGuide[] = [NEW_YORK];
+/** Curated write-ups — sample copy. */
+const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
+  "nyx-statue-of-liberty": { description: "Book the ferry from Battery Park early in the day (and crown or pedestal tickets well ahead). The stop at Ellis Island is worth the extra hour." },
+  "nyx-brooklyn-bridge": { description: "Walk it from Manhattan to Brooklyn so the skyline is behind you when you turn around — early morning is quietest, golden hour is the most beautiful." },
+  "nyx-top-of-the-rock": { description: "Arguably the best skyline view, because the Empire State Building and Central Park are both in it. Time it for sunset." },
+  "nyx-grand-central": { description: "Look up at the celestial ceiling in the Main Concourse, whisper across the Whispering Gallery, and grab a drink in the Campbell bar." },
+  "nyx-met": { description: "One of the world's great museums — don't try to see it all. Pick a few wings (the Temple of Dendur, the Impressionists) and finish on the Roof Garden in season." },
+  "nyx-moma": { description: "Starry Night, Monet's Water Lilies and a century of modern art and design. Go at opening or on a weekday evening to beat the crowds." },
+  "nyx-guggenheim": { description: "Frank Lloyd Wright's spiral is the star — take the lift to the top and walk down the ramp through the exhibition." },
+  "nyx-amnh": { description: "Dinosaur halls, the blue whale and the planetarium. Brilliant with kids, and just as good without them." },
+  "nyx-hamilton": { description: "Still one of Broadway's hottest tickets. Enter the digital lottery for cheap seats, or book well in advance." },
+  "nyx-comedy-cellar": { description: "The Greenwich Village basement where big-name comics drop in unannounced. Book ahead — shows sell out most nights." },
+  "nyx-central-park": { description: "Rent a bike or wander from the Mall to Bethesda Terrace and the Bow Bridge. In winter, skate at the Wollman Rink." },
+  "nyx-high-line": { description: "A park built on an old elevated rail line, running from the Meatpacking District to Hudson Yards. Walk it north to south and finish in Chelsea Market." },
+};
+
+export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS)];
 
 export const exploreGuideBySlug = (slug: string | null | undefined) => findGuide(EXPLORE_GUIDES, slug);
 export const matchExploreGuides = (q: string) => match(EXPLORE_GUIDES, q);
