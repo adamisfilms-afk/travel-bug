@@ -13,6 +13,8 @@ export interface FlightLeg {
   from: Place;
   to: Place;
   carrier: string; // "Air Canada"
+  carrierCode?: string; // IATA airline code, "AC"
+  carrierLogo?: string; // logo URL from the provider, when it gives one
   flightNumber: string; // "AC 855"
   depart: string; // ISO local datetime "2026-12-23T07:30"
   arrive: string;

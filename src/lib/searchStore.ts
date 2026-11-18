@@ -7,6 +7,8 @@ import type { Cabin, FlightOffer, Hotel, Place } from "./types";
 export type HourRange = [number, number];
 export const FULL_DAY: HourRange = [0, 24];
 
+export type FlightSort = "price" | "depart" | "arrive" | "duration";
+
 export interface FlightSession {
   from: Place | null;
   to: Place | null;
@@ -24,6 +26,7 @@ export interface FlightSession {
   outArrive: HourRange;
   backDepart: HourRange;
   backArrive: HourRange;
+  sort: FlightSort;
   /** Trip id the form was last prefilled from (so returning to the page doesn't re-prefill). */
   prefilledFor: string | null;
 }

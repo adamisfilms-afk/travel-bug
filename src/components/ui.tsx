@@ -54,11 +54,16 @@ export function FilterChip({
   active,
   children,
   onClear,
+  align = "left",
+  icon,
 }: {
   label: string;
   active?: boolean;
-  children?: ReactNode;
+  children?: ReactNode | ((close: () => void) => ReactNode);
   onClear?: () => void;
+  /** Which edge the popover lines up with (use "right" for chips at the right edge). */
+  align?: "left" | "right";
+  icon?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -73,6 +78,7 @@ export function FilterChip({
           active ? "bg-accent text-white" : "bg-surface hover:bg-white",
         )}
       >
+        {icon}
         {label}
         {active && onClear && (
           <span
@@ -89,7 +95,14 @@ export function FilterChip({
         )}
       </button>
       {open && children && (
-        <div className="absolute z-30 mt-2 min-w-64 rounded-xl bg-surface-strong shadow-lg border border-line p-4 text-[14px]">{children}</div>
+        <div
+          className={clsx(
+            "absolute z-30 mt-2 min-w-64 rounded-xl bg-surface-strong shadow-lg border border-line p-4 text-[14px]",
+            align === "right" ? "right-0" : "left-0",
+          )}
+        >
+          {typeof children === "function" ? children(() => setOpen(false)) : children}
+        </div>
       )}
     </div>
   );

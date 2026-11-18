@@ -5,7 +5,7 @@ const LHR = findAirport("LHR")!;
 const JFK = findAirport("JFK")!;
 
 function leg(from: typeof LHR, to: typeof LHR, carrier: string, flightNumber: string, depart: string, arrive: string, durationMins: number): FlightLeg {
-  return { from, to, carrier, flightNumber, depart, arrive, stops: 0, durationMins };
+  return { from, to, carrier, carrierCode: flightNumber.split(" ")[0], flightNumber, depart, arrive, stops: 0, durationMins };
 }
 
 const now = "2026-11-01T10:00:00.000Z";

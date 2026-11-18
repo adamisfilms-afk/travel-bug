@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowsLeftRight, CalendarBlank } from "@phosphor-icons/react";
+import { ArrowsDownUp, ArrowsLeftRight, CalendarBlank, Check } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { AirlineLogo } from "@/components/AirlineLogo";
 import { AirportInput } from "@/components/AirportInput";
 import { PriceRange } from "@/components/PriceRange";
 import { RangeSlider } from "@/components/RangeSlider";
@@ -11,7 +12,7 @@ import { AddToTripButton } from "@/components/trips";
 import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { AIRPORTS, findAirport } from "@/lib/airports";
 import { addDays, durationLabel, hhmm, money, shortDate, toDay } from "@/lib/format";
-import { FULL_DAY, useSearchStore, type FlightSession, type HourRange } from "@/lib/searchStore";
+import { FULL_DAY, useSearchStore, type FlightSession, type FlightSort, type HourRange } from "@/lib/searchStore";
 import { useStore } from "@/lib/store";
 import type { Cabin, FlightOffer, Place } from "@/lib/types";
 
@@ -22,8 +23,31 @@ const CABINS: { value: Cabin; label: string }[] = [
   { value: "first", label: "First" },
 ];
 
+/** Result row columns: route | airline | flight no. | times | date | duration (later ones hide on small screens). */
+const ROW_COLS =
+  "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_60px_96px] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_60px_96px_92px] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_60px_96px_92px_110px]";
+
 const segCls = "flex items-center gap-2 h-11 px-4";
 const selectCls = "bg-transparent outline-none text-[14px] cursor-pointer";
+
+const SORTS: { value: FlightSort; label: string; short: string }[] = [
+  { value: "price", label: "Price (lowest first)", short: "Price" },
+  { value: "depart", label: "Departure time (earliest first)", short: "Departure" },
+  { value: "arrive", label: "Arrival time (earliest first)", short: "Arrival" },
+  { value: "duration", label: "Journey time (shortest first)", short: "Journey time" },
+];
+
+const totalMins = (o: FlightOffer) => o.legs.reduce((n, l) => n + l.durationMins, 0);
+
+function sortOffers(offers: FlightOffer[], sort: FlightSort) {
+  const by: Record<FlightSort, (a: FlightOffer, b: FlightOffer) => number> = {
+    price: (a, b) => a.price - b.price,
+    depart: (a, b) => a.legs[0].depart.localeCompare(b.legs[0].depart),
+    arrive: (a, b) => a.legs[0].arrive.localeCompare(b.legs[0].arrive),
+    duration: (a, b) => totalMins(a) - totalMins(b),
+  };
+  return [...offers].sort((a, b) => by[sort](a, b) || a.price - b.price);
+}
 
 const hourLabel = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const isFull = (r: HourRange) => r[0] === 0 && r[1] === 24;
@@ -57,6 +81,7 @@ function initialSession(): FlightSession {
     outArrive: FULL_DAY,
     backDepart: FULL_DAY,
     backArrive: FULL_DAY,
+    sort: "price",
     prefilledFor: null,
   };
 }
@@ -164,7 +189,8 @@ function FlightsInner() {
   const allAirlines = useMemo(() => [...new Set((offers ?? []).flatMap((o) => o.legs.map((l) => l.carrier)))].sort(), [offers]);
   const hasReturn = (offers ?? []).some((o) => o.legs.length > 1);
 
-  const filtered = (offers ?? []).filter((o) => {
+  const sort = session.sort ?? "price";
+  const matching = (offers ?? []).filter((o) => {
     const [out, back] = o.legs;
     if (price && (o.price < price[0] || o.price > price[1])) return false;
     if (stops === "0" && o.legs.some((l) => l.stops > 0)) return false;
@@ -174,6 +200,7 @@ function FlightsInner() {
     if (back && (!inHours(back.depart, session.backDepart) || !inHours(back.arrive, session.backArrive))) return false;
     return true;
   });
+  const filtered = sortOffers(matching, sort);
 
   const savedKey = (legs: FlightOffer["legs"]) => legs.map((l) => `${l.flightNumber}@${l.depart}`).join("|");
   const savedTrips = (o: FlightOffer) => saved.filter((s) => savedKey(s.legs) === savedKey(o.legs)).map((s) => s.tripId);
@@ -247,7 +274,8 @@ function FlightsInner() {
       {error && <p className="text-price-up text-[14px]">{error}</p>}
 
       {offers && (
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap gap-3 items-center flex-1 min-w-0">
           <FilterChip label={price ? `${money(price[0])} - ${money(price[1])}` : "Price"} active={!!price} onClear={() => set({ price: null })}>
             <PriceRange bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
           </FilterChip>
@@ -298,9 +326,37 @@ function FlightsInner() {
               onChange={(d, a) => set({ backDepart: d, backArrive: a })}
             />
           )}
-          <span className="ml-auto text-[13px] text-ink-muted">
-            {filtered.length} of {offers.length} results{source === "mock" && " · demo data (add SKYSCANNER_API_KEY for live prices)"}
+        </div>
+        {/* Sort stays pinned top-right even when the filter chips wrap */}
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="hidden md:inline text-[13px] text-ink-muted">
+            {filtered.length} of {offers.length} results{source === "mock" && " · demo data"}
           </span>
+          <FilterChip
+            align="right"
+            icon={<ArrowsDownUp className="size-3.5" />}
+            label={`Sort: ${SORTS.find((x) => x.value === sort)?.short}`}
+          >
+            {(close) => (
+              <div className="-m-2 flex flex-col">
+                {SORTS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => {
+                      set({ sort: o.value });
+                      close();
+                    }}
+                    className="flex items-center justify-between gap-6 rounded-lg px-3 py-2 text-left whitespace-nowrap hover:bg-surface"
+                  >
+                    {o.label}
+                    {sort === o.value && <Check weight="bold" className="size-3.5 text-accent-ink" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </FilterChip>
+        </div>
         </div>
       )}
 
@@ -313,28 +369,46 @@ function FlightsInner() {
           <div key={o.id} className="rounded-[10px] bg-surface border border-transparent hover:dashed-accent px-4 py-2.5 flex items-center gap-3">
             <div className="flex-1 min-w-0 space-y-1">
               {o.legs.map((leg, i) => (
-                <div
-                  key={i}
-                  className="text-[14px] leading-6 flex flex-wrap gap-x-4 lg:grid lg:grid-cols-[minmax(0,1fr)_130px_64px_100px_96px_120px] lg:gap-x-4"
-                >
+                // One fixed grid at every width so airline / flight number / times always line up;
+                // lower-priority columns drop out on narrower screens.
+                <div key={i} className={clsx("text-[14px] leading-6 grid gap-x-4 items-center", ROW_COLS)}>
                   <span className="truncate">
-                    {leg.from.name} ({leg.from.code}) - {leg.to.name} ({leg.to.code})
+                    <span className="font-medium">
+                      {leg.from.code} - {leg.to.code}
+                    </span>
+                    <span className="hidden sm:inline text-ink-muted">
+                      {" "}
+                      · {leg.from.city} to {leg.to.city}
+                    </span>
                   </span>
-                  <span className="text-ink-muted truncate">{leg.carrier}</span>
-                  <span className="text-ink-muted whitespace-nowrap">{leg.flightNumber}</span>
+                  <span className="flex items-center gap-2 min-w-0 text-ink-muted">
+                    <AirlineLogo leg={leg} />
+                    <span className="truncate">{leg.carrier}</span>
+                  </span>
+                  <span className="hidden md:block text-ink-muted whitespace-nowrap">{leg.flightNumber}</span>
                   <span className="text-ink-muted whitespace-nowrap tabular-nums">
                     {hhmm(leg.depart)} - {hhmm(leg.arrive)}
                   </span>
-                  <span className="text-ink-muted whitespace-nowrap">{shortDate(leg.depart)}</span>
-                  <span className="text-ink-muted whitespace-nowrap text-[13px]">
+                  <span className="hidden lg:block text-ink-muted whitespace-nowrap">{shortDate(leg.depart)}</span>
+                  <span className="hidden xl:block text-ink-muted whitespace-nowrap text-[13px]">
                     {durationLabel(leg.durationMins)} · {leg.stops ? `${leg.stops} stop` : "Direct"}
                   </span>
                 </div>
               ))}
             </div>
             <span className="w-[72px] text-right font-semibold text-[15px] leading-6 tabular-nums self-start">{money(o.price, o.currency)}</span>
-            <div className="self-start h-6 flex items-center">
+            <div className="self-start h-6 flex items-center gap-2">
+              <a
+                href={o.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Book on Skyscanner"
+                className="h-8 px-4 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover inline-flex items-center"
+              >
+                Book
+              </a>
               <AddToTripButton
+                compact
                 addedTo={savedTrips(o)}
                 defaults={{
                   destination: o.legs[0].to.city,

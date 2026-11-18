@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus } from "@phosphor-icons/react";
+import { Check, Plus } from "@phosphor-icons/react";
+import clsx from "clsx";
 import { useRef, useState } from "react";
 import { addDays, toDay } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -137,9 +138,12 @@ export function AddToTripButton({
   label = "Add to trip",
   addedTo,
   defaults,
+  compact,
 }: {
   onAdd: (tripId: string) => void;
   label?: string;
+  /** Round icon-only button. */
+  compact?: boolean;
   addedTo?: string[];
   defaults?: Partial<Trip>;
 }) {
@@ -152,14 +156,29 @@ export function AddToTripButton({
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="h-8 px-3.5 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover inline-flex items-center gap-1.5 whitespace-nowrap"
-      >
-        <Plus weight="bold" className="size-3.5" />
-        {added ? "Added" : label}
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          aria-label={added ? `${label} (saved to ${added} trip${added > 1 ? "s" : ""})` : label}
+          title={added ? "Saved — add to another trip" : label}
+          onClick={() => setOpen((o) => !o)}
+          className={clsx(
+            "grid place-items-center size-8 rounded-full border transition-colors",
+            added ? "bg-accent-soft/40 border-accent-soft text-accent-ink" : "bg-white border-accent-soft text-accent-ink hover:bg-accent hover:text-white hover:border-accent",
+          )}
+        >
+          {added ? <Check weight="bold" className="size-3.5" /> : <Plus weight="bold" className="size-3.5" />}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="h-8 px-3.5 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover inline-flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <Plus weight="bold" className="size-3.5" />
+          {added ? "Added" : label}
+        </button>
+      )}
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl bg-surface-strong shadow-lg border border-line py-2">
           <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Add to…</p>

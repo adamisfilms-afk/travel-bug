@@ -158,6 +158,8 @@ async function skyscannerSearch(p: FlightSearchParams): Promise<FlightOffer[]> {
         from: toPlace(leg.originPlaceId),
         to: toPlace(leg.destinationPlaceId),
         carrier: carrier.name ?? "Unknown airline",
+        carrierCode: carrier.iata ?? carrier.displayCode,
+        carrierLogo: carrier.imageUrl,
         flightNumber: `${carrier.iata ?? carrier.displayCode ?? ""} ${firstSeg.marketingFlightNumber ?? ""}`.trim(),
         depart: fromSkyDate(leg.departureDateTime),
         arrive: fromSkyDate(leg.arrivalDateTime),
@@ -233,17 +235,18 @@ function addMinutes(isoDay: string, mins: number) {
   return dt.toISOString().slice(0, 16);
 }
 
-function mockLeg(from: Place, to: Place, day: string, r: () => number): FlightLeg {
+function mockLeg(from: Place, to: Place, day: string, r: () => number, airline?: readonly [string, string]): FlightLeg {
   const km = distanceKm(from, to);
   const stops = km > 2500 && r() < 0.35 ? 1 : 0;
   const duration = Math.round(40 + km / 13.5 + stops * (70 + r() * 120));
   const departMins = Math.round((5.5 + r() * 16) * 12) * 5; // 05:30 - 21:30 on 5-min steps
   const tzShift = Math.round((to.lng - from.lng) / 15) * 60;
-  const [carrier, code] = CARRIERS[Math.floor(r() * CARRIERS.length)];
+  const [carrier, code] = airline ?? CARRIERS[Math.floor(r() * CARRIERS.length)];
   return {
     from,
     to,
     carrier,
+    carrierCode: code,
     flightNumber: `${code} ${Math.floor(10 + r() * 980)}`,
     depart: addMinutes(day, departMins),
     arrive: addMinutes(day, departMins + duration + tzShift),
@@ -259,8 +262,10 @@ function mockSearch(p: FlightSearchParams): FlightOffer[] {
   const km = distanceKm(from, to);
   const offers: FlightOffer[] = [];
   for (let i = 0; i < 14; i++) {
-    const legs = [mockLeg(from, to, p.depart, r)];
-    if (p.returnDate) legs.push(mockLeg(to, from, p.returnDate, r));
+    const airline = CARRIERS[Math.floor(r() * CARRIERS.length)];
+    const legs = [mockLeg(from, to, p.depart, r, airline)];
+    // Most return fares fly the same airline both ways.
+    if (p.returnDate) legs.push(mockLeg(to, from, p.returnDate, r, r() < 0.8 ? airline : undefined));
     const base = (45 + km * 0.075) * (0.75 + r() * 0.8) * CABIN_MULT[p.cabin] * (p.returnDate ? 1.75 : 1);
     const stopDiscount = legs.some((l) => l.stops) ? 0.82 : 1;
     const price = Math.round(base * stopDiscount * p.adults);

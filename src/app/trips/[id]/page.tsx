@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowLeft, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -183,17 +183,21 @@ function AddActivity({ trip }: { trip: Trip }) {
         }}
       >
         <input className={clsx(inputCls, "!w-auto !h-10 flex-1 min-w-48")} placeholder="Add something to do…" value={name} onChange={(e) => setName(e.target.value)} />
-        <select
-          className="h-10 rounded-lg bg-surface px-3 text-[14px] outline-none border border-transparent focus:border-accent-soft"
-          value={category}
-          onChange={(e) => setCategory(e.target.value as ActivityCategory)}
-        >
-          {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            aria-label="Category"
+            className="h-10 appearance-none rounded-lg bg-surface pl-3.5 pr-10 text-[14px] outline-none border border-transparent focus:border-accent-soft cursor-pointer"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ActivityCategory)}
+          >
+            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <CaretDown weight="bold" className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-3.5 text-ink/60" />
+        </div>
         <button type="submit" className="h-10 px-4 rounded-lg bg-accent text-white text-[14px] hover:bg-accent-hover">
           Add
         </button>
