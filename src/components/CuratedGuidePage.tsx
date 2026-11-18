@@ -18,6 +18,12 @@ interface Photo {
   attribution: { name: string; uri?: string } | null;
 }
 
+// --- Photo cache: photos already looked up this session, so returning to a guide is instant
+// and doesn't repeat Google requests ------------------------------------------------------------
+
+const photoCache = new Map<string, Photo | "failed">();
+const photoKey = (q: string, pick?: number) => `${q}|${pick ?? "auto"}`;
+
 // --- Curation picks (?curate=1): which Google photo to use per place --------------------------
 
 const picksKey = (kind: string, slug: string) => `travel-bug:photo-picks:${kind}:${slug}`;
@@ -59,9 +65,10 @@ function PlaceCard({
   EmptyIcon: Icon;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [photo, setPhoto] = useState<Photo | null>(null);
-  const [failed, setFailed] = useState(false);
+  const cached = photoCache.get(photoKey(place.mapsQuery, pick));
+  const [visible, setVisible] = useState(!!cached);
+  const [photo, setPhoto] = useState<Photo | null>(cached && cached !== "failed" ? cached : null);
+  const [failed, setFailed] = useState(cached === "failed");
   const activities = useStore((s) => s.activities);
   const addActivity = useStore((s) => s.addActivity);
   const addedTo = activities.filter((a) => a.name === place.name).map((a) => a.tripId);
@@ -77,17 +84,28 @@ function PlaceCard({
 
   useEffect(() => {
     if (!visible) return;
+    const key = photoKey(place.mapsQuery, pick);
+    const hit = photoCache.get(key);
+    if (hit) {
+      setPhoto(hit === "failed" ? null : hit);
+      setFailed(hit === "failed");
+      return;
+    }
     let cancelled = false;
     const qs = new URLSearchParams({ q: place.mapsQuery, w: "800" });
     if (pick != null) qs.set("index", String(pick));
     fetch(`/api/curated/photo?${qs}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d: Photo) => {
+        photoCache.set(key, d);
         if (cancelled) return;
         setPhoto(d);
         setFailed(false);
       })
-      .catch(() => !cancelled && setFailed(true));
+      .catch(() => {
+        photoCache.set(key, "failed");
+        if (!cancelled) setFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -275,6 +293,33 @@ export function CuratedGuidePage({
   const curate = params.get("curate") === "1";
   const base = `/${kind}`;
 
+  // Coming back via the sidebar (no ?city=): reopen the guide you were last looking at.
+  const lastKey = `travel-bug:guide-city:${kind}`;
+  const [restoring, setRestoring] = useState(!params.get("city"));
+  useEffect(() => {
+    if (params.get("city")) {
+      setRestoring(false);
+      return;
+    }
+    let last: string | null = null;
+    try {
+      last = sessionStorage.getItem(lastKey);
+    } catch {
+      /* ignore */
+    }
+    if (last && findGuide(last)) router.replace(`${base}?city=${last}${curate ? "&curate=1" : ""}`, { scroll: false });
+    else setRestoring(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+  useEffect(() => {
+    if (!guide) return;
+    try {
+      sessionStorage.setItem(lastKey, guide.slug);
+    } catch {
+      /* ignore */
+    }
+  }, [guide, lastKey]);
+
   // Curator photo picks for this guide (this browser), layered over picks saved in the guide data.
   const [picks, setPicks] = useState<Record<string, number>>({});
   useEffect(() => setPicks(guide ? readPicks(kind, guide.slug) : {}), [guide, kind]);
@@ -306,7 +351,7 @@ export function CuratedGuidePage({
         <hr className="border-line" />
       </div>
 
-      {!guide && <p className="text-ink-muted">{prompt}</p>}
+      {!guide && !restoring && <p className="text-ink-muted">{prompt}</p>}
 
       {guide && (
         <div className="space-y-9">

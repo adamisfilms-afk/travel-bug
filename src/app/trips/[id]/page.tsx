@@ -28,7 +28,7 @@ import { tripMapPoints } from "@/components/tripPoints";
 import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { LocationPicker } from "@/components/LocationPicker";
-import { Field, inputCls, Modal, PriceTag, PrimaryButton, SectionTitle } from "@/components/ui";
+import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
 import { AIRPORTS } from "@/lib/airports";
 import { dayMonth, daysBetween, durationLabel, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
@@ -436,6 +436,12 @@ function usePriceRefresh(tripId: string | undefined) {
 }
 
 type PanelTab = "itinerary" | "map";
+type SavedTab = "flights" | "stays" | "activities";
+const SAVED_TABS: { id: SavedTab; label: string }[] = [
+  { id: "flights", label: "Flights" },
+  { id: "stays", label: "Stays" },
+  { id: "activities", label: "Things to do" },
+];
 
 export default function PlannerPage() {
   const { id } = useParams<{ id: string }>();
@@ -449,6 +455,24 @@ export default function PlannerPage() {
   const trip = trips.find((t) => t.id === id);
   const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState<PanelTab>("itinerary");
+  const [savedTab, setSavedTabState] = useState<SavedTab>("flights");
+  // Remember the chosen tab per trip for this browser session
+  useEffect(() => {
+    try {
+      const t = sessionStorage.getItem(`travel-bug:planner-tab:${id}`) as SavedTab | null;
+      if (t && SAVED_TABS.some((x) => x.id === t)) setSavedTabState(t);
+    } catch {
+      /* ignore */
+    }
+  }, [id]);
+  const setSavedTab = (t: SavedTab) => {
+    setSavedTabState(t);
+    try {
+      sessionStorage.setItem(`travel-bug:planner-tab:${id}`, t);
+    } catch {
+      /* ignore */
+    }
+  };
   const [active, setActive] = useState<{ kind: ItemKind; refId: string; day?: string } | null>(null);
   const { status: priceStatus, refresh: refreshPrices } = usePriceRefresh(trip?.id);
 
@@ -586,52 +610,82 @@ export default function PlannerPage() {
         </header>
 
         <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-9 min-w-0">
-            <section className="space-y-4">
-              <div className="flex items-baseline justify-between">
-                <SectionTitle>Flights</SectionTitle>
+          <div className="min-w-0">
+            {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+              <div role="tablist" aria-label="Saved items" className="flex items-baseline gap-5">
+                {SAVED_TABS.map((t) => {
+                  const count = t.id === "flights" ? tripFlights.length : t.id === "stays" ? tripStays.length : tripActivities.length;
+                  return (
+                    <button
+                      key={t.id}
+                      role="tab"
+                      type="button"
+                      aria-selected={savedTab === t.id}
+                      onClick={() => setSavedTab(t.id)}
+                      className={clsx(
+                        "text-xl md:text-[26px] leading-tight transition-colors whitespace-nowrap",
+                        savedTab === t.id ? "text-ink underline decoration-accent-soft decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
+                      )}
+                    >
+                      {t.label}
+                      {count > 0 && <span className="ml-1 inline-block align-super text-[12px] tabular-nums text-ink-muted">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {savedTab === "flights" && (
                 <Link href={`/flights?trip=${trip.id}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
                   Find flights
                 </Link>
-              </div>
-              {tripFlights.length === 0 && <Empty>No flights saved yet.</Empty>}
-              <div className="space-y-3">
+              )}
+              {savedTab === "stays" && (
+                <Link href={`/stays?trip=${trip.id}&q=${encodeURIComponent(trip.destination)}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
+                  Find stays
+                </Link>
+              )}
+              {savedTab === "activities" && (
+                <Link href="/explore" className="text-accent-ink underline underline-offset-4 text-[14px]">
+                  Explore ideas
+                </Link>
+              )}
+            </div>
+
+            {savedTab === "flights" && (
+              <section role="tabpanel" aria-label="Flights" className="space-y-3">
+                {tripFlights.length === 0 && <Empty>No flights saved yet.</Empty>}
                 {tripFlights.map((f) => (
                   <RowShell key={f.id} kind="flight" refId={f.id} onRemove={() => removeFlight(f.id)} scheduled={scheduled.has(`flight:${f.id}`)}>
                     <FlightRowBody f={f} />
                   </RowShell>
                 ))}
-              </div>
-            </section>
+              </section>
+            )}
 
-            <section className="space-y-4">
-              <div className="flex items-baseline justify-between">
-                <SectionTitle>Stays</SectionTitle>
-                <Link href={`/stays?trip=${trip.id}&q=${encodeURIComponent(trip.destination)}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  Find stays
-                </Link>
-              </div>
-              {tripStays.length === 0 && <Empty>No stays saved yet.</Empty>}
-              <div className="space-y-3">
+            {savedTab === "stays" && (
+              <section role="tabpanel" aria-label="Stays" className="space-y-3">
+                {tripStays.length === 0 && <Empty>No stays saved yet.</Empty>}
                 {tripStays.map((s) => (
                   <RowShell key={s.id} kind="stay" refId={s.id} onRemove={() => removeStay(s.id)} scheduled={scheduled.has(`stay:${s.id}`)}>
                     <StayRowBody s={s} />
                   </RowShell>
                 ))}
-              </div>
-            </section>
+              </section>
+            )}
 
-            <section className="space-y-4">
-              <SectionTitle>Things to do</SectionTitle>
-              <div className="space-y-2.5">
-                {tripActivities.map((a) => (
-                  <RowShell key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
-                    <ActivityRowBody a={a} near={tripCentre} />
-                  </RowShell>
-                ))}
-              </div>
-              <AddActivity trip={trip} />
-            </section>
+            {savedTab === "activities" && (
+              <section role="tabpanel" aria-label="Things to do" className="space-y-4">
+                <div className="space-y-2.5">
+                  {tripActivities.length === 0 && <Empty>Nothing saved yet — add something below or from Food and Explore.</Empty>}
+                  {tripActivities.map((a) => (
+                    <RowShell key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
+                      <ActivityRowBody a={a} near={tripCentre} />
+                    </RowShell>
+                  ))}
+                </div>
+                <AddActivity trip={trip} />
+              </section>
+            )}
           </div>
 
           <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
