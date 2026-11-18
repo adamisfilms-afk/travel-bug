@@ -79,7 +79,8 @@ function legOf(leg: Json, fallbackDay: string): FlightLeg | null {
   };
 }
 
-const NAME_KEY = /^(name|title|display_?name|seller(_?name)?|agent(_?name)?|vendor(_?name)?|provider(_?name)?|partner(_?name)?|merchant(_?name)?|site(_?name)?|source|company|brand|booking_?site|ota)$/i;
+const NAME_KEY = /^(name|title|label|display_?name|seller(_?name)?|agent(_?name)?|vendor(_?name)?|provider(_?name)?|partner(_?name)?|merchant(_?name)?|site(_?name)?|website(_?name)?|source|company|brand|booking_?(site|partner)|ota|operator|airline)$/i;
+const ID_KEY = /^(agent|seller|provider|partner|vendor|merchant|booking_partner)_?(id|ids|code)?$|^id$/i;
 
 /** Find a seller name anywhere in a booking option (any depth), ignoring URLs and prices. */
 function findName(o: Json, depth = 0): string | undefined {
@@ -139,21 +140,80 @@ function nameFromUrl(url: string): string | undefined {
   return undefined;
 }
 
-function sellersOf(it: Json): BookingOption[] {
+/**
+ * Seller directory from the response, if sellers are listed once and referenced by id
+ * (Skyscanner's own format: `agents: { "expd": { name: "Expedia" } }`), as id → name.
+ */
+export function sellerDirectory(data: Json): Map<string, string> {
+  const dir = new Map<string, string>();
+  for (const key of ["agents", "sellers", "providers", "booking_partners", "partners", "vendors"]) {
+    const v = data?.[key] ?? data?.content?.results?.[key];
+    if (!v || typeof v !== "object") continue;
+    const entries: [string, Json][] = Array.isArray(v) ? v.map((x: Json) => [String(x?.id ?? x?.code ?? x?.agent_id ?? ""), x]) : Object.entries(v);
+    for (const [id, x] of entries) {
+      const name = typeof x === "string" ? x : findName(x);
+      if (id && name) dir.set(id.toLowerCase(), name);
+    }
+  }
+  return dir;
+}
+
+/** Seller id referenced by an option (agent_id, seller_id, agent: "expd", agent_ids: [...]) */
+function sellerIdsOf(o: Json): string[] {
+  const ids: string[] = [];
+  for (const [k, v] of Object.entries(o ?? {})) {
+    if (!ID_KEY.test(k)) continue;
+    if (typeof v === "string" || typeof v === "number") ids.push(String(v));
+    else if (Array.isArray(v)) v.forEach((x) => (typeof x === "string" || typeof x === "number") && ids.push(String(x)));
+    else if (v && typeof v === "object" && (v as Json).id) ids.push(String((v as Json).id));
+  }
+  return ids.map((x) => x.toLowerCase());
+}
+
+/** Skyscanner booking links carry the seller id: /transport_deeplink/4.0/UK/en-GB/GBP/{seller}/... */
+function sellerIdFromUrl(url: string): string | undefined {
+  const m = url.match(/transport_deeplink\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/([^/?#]+)/i);
+  return m?.[1]?.toLowerCase();
+}
+
+let lastUnnamedDump = 0;
+
+function sellersOf(it: Json, dir: Map<string, string>, raw?: Json): BookingOption[] {
   const lists: Json[][] = [it?.booking_options, it?.pricing_options, it?.sellers, it?.agents, it?.offers, it?.deals, it?.providers].filter(Array.isArray);
   const out: BookingOption[] = [];
   for (const list of lists) {
     for (const o of list) {
       const url = str(o?.link, o?.url, o?.booking_link, o?.deep_link, o?.deeplink, o?.tracking_link, o?.items?.[0]?.url, o?.items?.[0]?.deep_link);
       if (!url) continue;
-      const name = findName(o) ?? nameFromUrl(url) ?? "Book";
+      const byId = [...sellerIdsOf(o), sellerIdFromUrl(url)].map((id) => id && dir.get(id)).find(Boolean);
+      const name = byId ?? findName(o) ?? nameFromUrl(url) ?? "Book";
       out.push({ name, price: num(o?.price ?? o?.amount ?? o?.total_price), url });
     }
   }
-  if (process.env.SEARCHAPI_DEBUG && out.some((o) => o.name === "Book")) {
-    console.log("[searchapi:skyscanner_flights] seller without a recognisable name:", JSON.stringify(lists.flat()[0]).slice(0, 1500));
-  }
+  if (out.some((o) => o.name === "Book")) dumpForDebugging(it, raw);
   return out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+}
+
+/**
+ * In development, when a seller name can't be found, save one sample response to
+ * .debug/skyscanner-sample.json (git-ignored) so the real field names can be checked.
+ */
+function dumpForDebugging(it: Json, raw?: Json) {
+  if (process.env.NODE_ENV === "production" || Date.now() - lastUnnamedDump < 60_000) return;
+  lastUnnamedDump = Date.now();
+  void (async () => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const dir = path.join(process.cwd(), ".debug");
+      await fs.mkdir(dir, { recursive: true });
+      const sample = { top_level_keys: Object.keys(raw ?? {}), first_itinerary: it, other_top_level: Object.fromEntries(Object.entries(raw ?? {}).filter(([k]) => k !== "itineraries" && k !== "search_metadata")) };
+      await fs.writeFile(path.join(dir, "skyscanner-sample.json"), JSON.stringify(sample, null, 2));
+      console.warn("[searchapi:skyscanner_flights] Seller names not found — saved a sample to .debug/skyscanner-sample.json");
+    } catch (e) {
+      console.warn("[searchapi:skyscanner_flights] could not save debug sample:", e);
+    }
+  })();
 }
 
 /** Wrap Skyscanner links in the affiliate tracking template, if one is configured ("{url}" placeholder). */
@@ -185,11 +245,12 @@ export async function skyscannerViaSearchApi(p: SearchApiParams): Promise<Flight
     currency: p.currency,
   });
   const itineraries: Json[] = data?.itineraries ?? data?.results ?? [];
+  const dir = sellerDirectory(data);
   const offers: FlightOffer[] = [];
   itineraries.forEach((it, i) => {
     const rawLegs: Json[] = it?.legs ?? [];
     const legs = rawLegs.map((l, j) => legOf(l, j === 0 ? p.depart : p.returnDate ?? p.depart)).filter(Boolean) as FlightLeg[];
-    const sellers = sellersOf(it).map((s) => ({ ...s, url: affiliate(s.url) }));
+    const sellers = sellersOf(it, dir, data).map((s) => ({ ...s, url: affiliate(s.url) }));
     const price = num(it?.price) ?? sellers[0]?.price ?? null;
     if (!legs.length || price == null) return;
     const itineraryLink = str(it?.tracking_link, it?.link, it?.url, it?.booking_link);

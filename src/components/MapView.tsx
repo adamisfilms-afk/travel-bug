@@ -38,6 +38,29 @@ function pinIcon(p: MapPoint) {
   });
 }
 
+/**
+ * Map tiles. With NEXT_PUBLIC_MAPBOX_TOKEN set, uses Mapbox (any Mapbox Studio style via
+ * NEXT_PUBLIC_MAPBOX_STYLE, e.g. "your-username/your-style-id"); otherwise CARTO's free
+ * Voyager tiles, which are fine for development.
+ */
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const MAPBOX_STYLE = process.env.NEXT_PUBLIC_MAPBOX_STYLE || "mapbox/light-v11";
+
+const TILES = MAPBOX_TOKEN
+  ? {
+      url: `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+      tileSize: 512,
+      zoomOffset: -1,
+      maxZoom: 20,
+      attribution:
+        '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank"><strong>Improve this map</strong></a>',
+    }
+  : {
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    };
+
 function FitBounds({ points }: { points: MapPoint[] }) {
   const map = useMap();
   const key = points.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
@@ -62,10 +85,7 @@ export default function MapView({
 }) {
   return (
     <MapContainer center={[40.73, -73.98]} zoom={12} scrollWheelZoom className="h-full w-full" zoomControl>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-      />
+      <TileLayer key={TILES.url} {...TILES} />
       <FitBounds points={points} />
       {route && points.length > 1 && (
         <Polyline positions={points.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: "#5e9a50", weight: 2, dashArray: "4 6" }} />

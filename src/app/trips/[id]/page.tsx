@@ -541,8 +541,11 @@ export default function PlannerPage() {
             <Link href={`/trips?trip=${trip.id}`} aria-label="Back to your trips" className="p-1.5 -ml-1.5 rounded-full hover:bg-surface">
               <ArrowLeft className="size-5" />
             </Link>
-            <h1 className="text-[28px] md:text-[30px] leading-tight font-extrabold tracking-tight truncate">{trip.name}</h1>
-            <span className="text-[16px] md:text-[17px] text-ink-muted whitespace-nowrap">{rangeLabel(trip.startDate, trip.endDate)}</span>
+            {/* Title and dates share a text baseline */}
+            <div className="flex items-baseline gap-3 min-w-0">
+              <h1 className="text-[28px] md:text-[30px] leading-tight font-extrabold tracking-tight truncate">{trip.name}</h1>
+              <span className="text-[14px] md:text-[15px] text-ink-muted whitespace-nowrap">{rangeLabel(trip.startDate, trip.endDate)}</span>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-4 text-[13px] text-ink-muted">
             {priceStatus === "checking" && <span>Checking latest prices…</span>}

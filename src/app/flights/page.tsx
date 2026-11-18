@@ -466,7 +466,7 @@ function FlightsInner() {
             </select>
           </label>
         </div>
-        <div className="ml-auto flex flex-col items-end gap-1">
+        <div className="ml-auto">
           <PrimaryButton type="submit" aria-busy={loading} className="relative overflow-hidden !h-11">
             {loading ? "Searching…" : "Search"}
             {progress && (
@@ -482,11 +482,6 @@ function FlightsInner() {
               </span>
             )}
           </PrimaryButton>
-          {pairs.length > 1 && (
-            <span className="text-[12px] text-ink-muted whitespace-nowrap">
-              {progress && progress.total > 1 ? `${progress.done} of ${progress.total} airports searched` : `Searches ${pairs.length} airport routes (${pairs.length} credits)`}
-            </span>
-          )}
         </div>
       </form>
 
