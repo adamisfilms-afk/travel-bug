@@ -56,6 +56,31 @@ interface SearchState {
  * Flight and stay search state that survives moving between pages (kept in memory,
  * and in sessionStorage so a refresh within the tab keeps it too).
  */
+/** sessionStorage that never throws (quota exceeded, private mode, blocked storage). */
+const safeSessionStorage = {
+  getItem: (k: string) => {
+    try {
+      return sessionStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (k: string, v: string) => {
+    try {
+      sessionStorage.setItem(k, v);
+    } catch {
+      /* not critical: state is still kept in memory */
+    }
+  },
+  removeItem: (k: string) => {
+    try {
+      sessionStorage.removeItem(k);
+    } catch {
+      /* ignore */
+    }
+  },
+};
+
 export const useSearchStore = create<SearchState>()(
   persist(
     (set) => ({
@@ -66,8 +91,13 @@ export const useSearchStore = create<SearchState>()(
     }),
     {
       name: "travel-bug:search",
-      storage: createJSONStorage(() => sessionStorage),
-      partialize: (s) => ({ flight: s.flight, stay: s.stay }),
+      storage: createJSONStorage(() => safeSessionStorage),
+      // Only the form and filters go to sessionStorage. Results (which can be several MB with
+      // live seller links) stay in memory: they survive page changes, not a full reload.
+      partialize: (s) => ({
+        flight: s.flight && { ...s.flight, offers: null, returns: {}, source: "" },
+        stay: s.stay && { ...s.stay, hotels: null },
+      }),
       skipHydration: true, // rehydrated on mount by StoreProvider to avoid SSR mismatches
     },
   ),

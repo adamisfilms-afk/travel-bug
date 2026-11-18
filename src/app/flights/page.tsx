@@ -361,8 +361,10 @@ function FlightsInner() {
     <div className="space-y-5">
       <PageTitle>Flights</PageTitle>
 
+      {/* Search bar, notices, filter chips and divider stay pinned while results scroll */}
+      <div className="sticky top-0 z-20 bg-canvas -mx-5 px-5 md:-mx-12 md:px-12 pt-4 space-y-5">
       <form
-        className="pt-2 flex flex-wrap items-start gap-3"
+        className="flex flex-wrap items-start gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           void search();
@@ -524,6 +526,7 @@ function FlightsInner() {
       )}
 
       <hr className="border-line" />
+      </div>
 
       {offers && filtered.length === 0 && <p className="text-ink-muted">No flights match these filters.</p>}
 

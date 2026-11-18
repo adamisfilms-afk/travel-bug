@@ -18,7 +18,29 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: "travel-bug:settings",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (k) => {
+          try {
+            return localStorage.getItem(k);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (k, v) => {
+          try {
+            localStorage.setItem(k, v);
+          } catch {
+            /* keep in memory */
+          }
+        },
+        removeItem: (k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch {
+            /* ignore */
+          }
+        },
+      })),
       partialize: (s) => ({ currency: s.currency }),
       skipHydration: true, // rehydrated on mount by StoreProvider to avoid SSR mismatches
     },
