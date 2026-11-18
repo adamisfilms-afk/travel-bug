@@ -144,7 +144,8 @@ function ratingOf(h: Json): { rating: number; reviews: number } {
 
 let lastDump = 0;
 function dumpForDebugging(data: Json, reason: string) {
-  if (process.env.NODE_ENV === "production" || Date.now() - lastDump < 60_000) return;
+  // Only when asked for: writing into the project folder can make the dev server reload the page.
+  if (!process.env.SEARCHAPI_DEBUG || process.env.NODE_ENV === "production" || Date.now() - lastDump < 60_000) return;
   lastDump = Date.now();
   void (async () => {
     try {
@@ -218,7 +219,9 @@ export async function skyscannerHotelsPage(p: HotelSearchParams): Promise<HotelP
   });
   if (!hotels.length && list.length) {
     dumpForDebugging(data, "Hotels in an unexpected format");
-    throw new Error("SearchApi returned hotels in an unexpected format (see .debug/skyscanner-hotels-sample.json).");
+    throw new Error(
+      "SearchApi returned hotels in an unexpected format. Add SEARCHAPI_DEBUG=1 to .env.local, restart, and search again to save a sample to .debug/skyscanner-hotels-sample.json.",
+    );
   }
   if (missingCoords || missingPartners) {
     dumpForDebugging(data, `${missingCoords} hotels without coordinates, ${missingPartners} without partner offers`);

@@ -224,7 +224,8 @@ function sellersOf(it: Json, dir: Map<string, string>, raw?: Json): BookingOptio
  * .debug/skyscanner-sample.json (git-ignored) so the real field names can be checked.
  */
 function dumpForDebugging(it: Json, raw?: Json) {
-  if (process.env.NODE_ENV === "production" || Date.now() - lastUnnamedDump < 60_000) return;
+  // Only when asked for: writing into the project folder can make the dev server reload the page.
+  if (!process.env.SEARCHAPI_DEBUG || process.env.NODE_ENV === "production" || Date.now() - lastUnnamedDump < 60_000) return;
   lastUnnamedDump = Date.now();
   void (async () => {
     try {

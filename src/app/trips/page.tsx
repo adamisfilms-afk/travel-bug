@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, Suspense, useMemo } from "react";
 import { ItineraryEntry, makeLookup } from "@/components/itinerary";
 import { Map } from "@/components/Map";
-import { itineraryPoints } from "@/components/tripPoints";
+import { tripMapPoints } from "@/components/tripPoints";
 import { TripChips } from "@/components/trips";
 import { PageTitle } from "@/components/ui";
 import { longDay, rangeLabel } from "@/lib/format";
@@ -27,8 +27,8 @@ function TripsInner() {
   const byDay = useMemo(() => (trip ? itineraryByDay(itinerary, trip.id) : {}), [itinerary, trip]);
   const days = Object.keys(byDay).sort();
   const points = useMemo(
-    () => (trip ? itineraryPoints(itinerary.filter((i) => i.tripId === trip.id), lookup) : []),
-    [itinerary, trip, lookup],
+    () => (trip ? tripMapPoints(trip.id, { itinerary, stays, activities }, lookup) : []),
+    [itinerary, stays, activities, trip, lookup],
   );
 
   return (
@@ -81,7 +81,7 @@ function TripsInner() {
           </section>
 
           <section className="h-[360px] lg:h-[calc(100vh-200px)] lg:min-h-[460px] lg:sticky lg:top-8 overflow-hidden rounded-[10px]">
-            <Map points={points} route />
+            <Map points={points} route legend />
           </section>
         </div>
       )}

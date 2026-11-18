@@ -330,21 +330,19 @@ function StaysInner() {
     }
   };
 
-  // Search on arrival when coming from a trip ("Find stays"), or when there's a saved query but no
-  // results yet. An empty box never searches by itself (live searches cost a credit).
+  // The only automatic search: arriving from a trip's "Find stays" (once per trip). Otherwise the
+  // page waits for Search — a reload or returning later never re-runs a live (paid) search.
+  const autoSearched = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready) return;
-    const current = useSearchStore.getState().stay;
-    if (presetTrip && current?.prefilledFor !== presetTrip.id) {
-      void search(params.get("q") ?? presetTrip.destination, {
-        checkIn: presetTrip.startDate,
-        checkOut: presetTrip.endDate,
-        guests: presetTrip.travellers,
-        prefilledFor: presetTrip.id,
-      });
-    } else if (!current?.hotels && (params.get("q") ?? current?.q)) {
-      void search(params.get("q") ?? current!.q);
-    }
+    if (!ready || !presetTrip || autoSearched.current === presetTrip.id) return;
+    autoSearched.current = presetTrip.id;
+    if (useSearchStore.getState().stay?.prefilledFor === presetTrip.id) return;
+    void search(params.get("q") ?? presetTrip.destination, {
+      checkIn: presetTrip.startDate,
+      checkOut: presetTrip.endDate,
+      guests: presetTrip.travellers,
+      prefilledFor: presetTrip.id,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, presetTrip?.id]);
 
@@ -546,7 +544,17 @@ function StaysInner() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="space-y-3 min-w-0">
-          {!hotels && !loading && !error && <p className="text-ink-muted">Search for a city, area, hotel or landmark.</p>}
+          {!hotels && !loading && !error && (
+            <p className="text-ink-muted">
+              {q ? (
+                <>
+                  Press <span className="font-medium text-ink">Search</span> to see stays in {q}.
+                </>
+              ) : (
+                "Search for a city, area, hotel or landmark."
+              )}
+            </p>
+          )}
           {loading && !hotels?.length &&
             [0, 1, 2].map((i) => <div key={i} className="h-[190px] rounded-xl bg-surface-strong/70 animate-pulse" />)}
           {hotels && !loading && filtered.length === 0 && (

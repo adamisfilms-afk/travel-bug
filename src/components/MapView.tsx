@@ -13,6 +13,12 @@ export interface MapPoint {
   highlighted?: boolean;
   /** Short text shown instead of a pin, e.g. a nightly price ("£75"). */
   badge?: string;
+  /** Marker shape: map pin (default) or a circle (itinerary events). */
+  shape?: "pin" | "circle";
+  /** On the trip's itinerary (green) or only saved (grey). Undefined = use the kind's colour. */
+  scheduled?: boolean;
+  /** Visit order on the itinerary; points with an order are joined by the route line. */
+  order?: number;
   /** Optional sequence number shown inside the pin. */
   n?: number;
 }
@@ -35,8 +41,25 @@ function badgeIcon(p: MapPoint) {
   });
 }
 
+const GREEN = "#5e9a50";
+const GREY = "#9a9d97";
+
+/** Circle marker for events: green and numbered when on the itinerary, hollow grey when not. */
+function circleIcon(p: MapPoint) {
+  const size = p.n != null ? 24 : 18;
+  const on = p.scheduled !== false;
+  return L.divIcon({
+    className: "tb-pin",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;display:grid;place-items:center;box-sizing:border-box;
+      background:${on ? GREEN : "#fff"};border:2px solid ${on ? "#fff" : GREY};box-shadow:0 1px 3px rgba(0,0,0,.35);
+      color:#fff;font:600 11px/1 Inter,sans-serif">${p.n ?? ""}</div>`,
+  });
+}
+
 function pinIcon(p: MapPoint) {
-  const color = p.highlighted ? "#7ab06b" : KIND_COLOR[p.kind];
+  const color = p.highlighted ? "#7ab06b" : p.scheduled === true ? GREEN : p.scheduled === false ? GREY : KIND_COLOR[p.kind];
   const size = p.highlighted ? 34 : 28;
   const inner = p.n != null ? `<span style="position:absolute;top:5px;left:0;right:0;text-align:center;color:#fff;font:600 11px/1 Inter,sans-serif">${p.n}</span>` : "";
   return L.divIcon({
@@ -104,6 +127,7 @@ export default function MapView({
   onPointHover,
   onPointClick,
   highlightedId,
+  legend,
 }: {
   points: MapPoint[];
   /** Draw a dashed line through the points in order. */
@@ -112,15 +136,20 @@ export default function MapView({
   onPointClick?: (id: string) => void;
   /** Highlights this point without rebuilding its marker (rebuilding under the cursor left hovers stuck). */
   highlightedId?: string | null;
+  /** Show a key explaining pins/circles and green/grey. */
+  legend?: boolean;
 }) {
   // Icons are only rebuilt when what they show changes, never on hover.
-  const iconKey = points.map((p) => `${p.id}|${p.badge ?? ""}|${p.n ?? ""}|${p.kind}|${p.highlighted ? 1 : 0}`).join(",");
+  const iconKey = points.map((p) => `${p.id}|${p.badge ?? ""}|${p.n ?? ""}|${p.kind}|${p.shape ?? ""}|${p.scheduled ?? ""}|${p.highlighted ? 1 : 0}`).join(",");
   const icons = useMemo(
-    () => new Map(points.map((p) => [p.id, p.badge ? badgeIcon(p) : pinIcon(p)])),
+    () => new Map(points.map((p) => [p.id, p.badge ? badgeIcon(p) : p.shape === "circle" ? circleIcon(p) : pinIcon(p)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [iconKey],
   );
   const markers = useRef(new Map<string, L.Marker>());
+  // Route through the itinerary in visit order (points with `order`), or through all points if none have one.
+  const ordered = points.filter((p) => p.order != null).sort((a, b) => a.order! - b.order!);
+  const routeLine = (ordered.length ? ordered : points).map((p) => [p.lat, p.lng] as [number, number]);
 
   useEffect(() => {
     markers.current.forEach((m, id) => {
@@ -131,13 +160,26 @@ export default function MapView({
   }, [highlightedId, icons]);
 
   return (
+    <div className="relative h-full w-full">
+    {legend && (
+      <div className="absolute left-2 bottom-6 z-[500] rounded-lg bg-white/95 shadow px-2.5 py-2 text-[11px] leading-tight space-y-1 pointer-events-none">
+        <div className="flex items-center gap-1.5">
+          <svg viewBox="0 0 24 24" width="12" height="12"><path fill={GREEN} d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z" /></svg>
+          Stay
+          <span className="ml-2 inline-block size-2.5 rounded-full" style={{ background: GREEN }} />
+          Event
+        </div>
+        <div className="flex items-center gap-1.5 text-ink-muted">
+          <span className="inline-block size-2.5 rounded-full" style={{ background: GREEN }} /> On itinerary
+          <span className="ml-2 inline-block size-2.5 rounded-full border-2" style={{ borderColor: GREY }} /> Saved only
+        </div>
+      </div>
+    )}
     <MapContainer center={[40.73, -73.98]} zoom={12} scrollWheelZoom className="h-full w-full" zoomControl>
       <TileLayer key={TILES.url} {...TILES} />
       <FitBounds points={points} />
       <HoverReset onLeave={onPointHover ? () => onPointHover(null) : undefined} />
-      {route && points.length > 1 && (
-        <Polyline positions={points.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: "#5e9a50", weight: 2, dashArray: "4 6" }} />
-      )}
+      {route && routeLine.length > 1 && <Polyline positions={routeLine} pathOptions={{ color: "#5e9a50", weight: 2, dashArray: "4 6" }} />}
       {points.map((p) => (
         <Marker
           key={p.id}
@@ -160,5 +202,6 @@ export default function MapView({
         </Marker>
       ))}
     </MapContainer>
+    </div>
   );
 }

@@ -24,7 +24,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_ICON, ItineraryEntry, legForDay, makeLookup, type Lookup } from "@/components/itinerary";
 import { Map, type MapPoint } from "@/components/Map";
-import { itineraryPoints } from "@/components/tripPoints";
+import { tripMapPoints } from "@/components/tripPoints";
 import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -477,17 +477,10 @@ export default function PlannerPage() {
     return dest ? { lat: dest.lat, lng: dest.lng } : null;
   }, [stays, activities, id, trip]);
 
-  const mapPoints = useMemo<MapPoint[]>(() => {
-    const pts = itineraryPoints(itinerary.filter((i) => i.tripId === id), lookup);
-    if (pts.length) return pts;
-    // Nothing scheduled yet: show everything saved that has a location.
-    return [
-      ...stays.filter((s) => s.tripId === id).map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, label: s.name, kind: "stay" as const })),
-      ...activities
-        .filter((a) => a.tripId === id && a.lat != null && a.lng != null)
-        .map((a) => ({ id: a.id, lat: a.lat!, lng: a.lng!, label: a.name, kind: "activity" as const })),
-    ];
-  }, [itinerary, id, lookup, stays, activities]);
+  const mapPoints = useMemo<MapPoint[]>(
+    () => tripMapPoints(id, { itinerary, stays, activities }, lookup),
+    [itinerary, id, lookup, stays, activities],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -667,7 +660,7 @@ export default function PlannerPage() {
               </div>
             ) : (
               <div className="rounded-[10px] overflow-hidden dashed-accent h-[460px] lg:h-[calc(100vh-110px)]">
-                <Map points={mapPoints} route />
+                <Map points={mapPoints} route legend />
               </div>
             )}
           </aside>
