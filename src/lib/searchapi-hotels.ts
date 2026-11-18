@@ -19,6 +19,16 @@ export interface HotelSearchParams {
   checkOut: string;
   adults: number;
   currency: string;
+  /** 1-based results page (Skyscanner returns about 35 hotels per page). */
+  page?: number;
+}
+
+export interface HotelPage {
+  hotels: Hotel[];
+  page: number;
+  /** Total matching hotels, when the provider reports it. */
+  total?: number;
+  hasMore: boolean;
 }
 
 const COLORS = ["#C9B8A4", "#B9C4CC", "#C7CBB5", "#D3C2B0", "#B7C7BD", "#CDBFCB"];
@@ -152,12 +162,18 @@ function dumpForDebugging(data: Json, reason: string) {
 }
 
 export async function skyscannerHotels(p: HotelSearchParams): Promise<Hotel[]> {
+  return (await skyscannerHotelsPage(p)).hotels;
+}
+
+export async function skyscannerHotelsPage(p: HotelSearchParams): Promise<HotelPage> {
+  const page = Math.max(1, p.page ?? 1);
   const data = await searchApiCall("skyscanner_hotels", {
     q: p.q,
     check_in_date: p.checkIn,
     check_out_date: p.checkOut,
     adults: p.adults,
     currency: p.currency,
+    page: page > 1 ? page : undefined,
   });
   const list: Json[] = data?.hotels ?? data?.properties ?? data?.results ?? data?.items ?? [];
   const hotels: Hotel[] = [];
@@ -206,7 +222,12 @@ export async function skyscannerHotels(p: HotelSearchParams): Promise<Hotel[]> {
   if (missingCoords || missingPartners) {
     dumpForDebugging(data, `${missingCoords} hotels without coordinates, ${missingPartners} without partner offers`);
   }
-  return hotels;
+  const info = data?.search_information ?? {};
+  const total = num(info.total_results ?? info.total ?? info.results_count ?? info.total_hotels ?? info.count) ?? undefined;
+  const nextFlag = data?.pagination?.next ?? data?.serpapi_pagination?.next ?? info.next_page ?? info.has_more;
+  // More pages if the provider says so, or if the total says so, or (no signal) this page was full.
+  const hasMore = nextFlag != null ? Boolean(nextFlag) : total != null ? page * Math.max(list.length, 1) < total : list.length >= 20;
+  return { hotels, page, total, hasMore };
 }
 
 export interface StayPriceCheck {

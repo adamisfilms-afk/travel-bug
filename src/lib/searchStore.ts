@@ -7,6 +7,8 @@ import type { Cabin, FlightOffer, Hotel, Place } from "./types";
 export type HourRange = [number, number];
 export const FULL_DAY: HourRange = [0, 24];
 
+export type StaySort = "recommended" | "price" | "price_desc" | "rating" | "stars" | "reviews";
+
 export type FlightSort = "price" | "depart" | "arrive" | "duration";
 
 export interface FlightSession {
@@ -40,6 +42,14 @@ export interface StaySession {
   checkOut: string;
   guests: number;
   hotels: Hotel[] | null;
+  /** Last results page loaded, whether more exist, and the provider's total (if given). */
+  page?: number;
+  hasMore?: boolean;
+  total?: number;
+  sort?: StaySort;
+  chains?: string[];
+  /** Parameters of the last search (used to load further pages). */
+  searched?: { q: string; checkIn: string; checkOut: string; guests: number };
   price: [number, number] | null;
   amenities: string[];
   minStars: number;

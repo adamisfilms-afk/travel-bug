@@ -46,7 +46,8 @@ Every search is live (no caching), so prices match the provider. Each request us
 - **Book** opens the seller's booking page directly (Skyscanner) — no credit used.
 - **Saved stays** found through live search are re-priced like flights (1 credit each when the
   planner opens, skipping any checked in the last 5 minutes; **Refresh prices** forces it).
-- **Hotel search:** 1 credit per search. The Stays page only searches when you press Search
+- **Hotel search:** 1 credit per search (one page of about 35 hotels); **Show more stays** loads
+  the next page for 1 more credit. The Stays page only searches when you press Search
   (or arrive from a trip's "Find stays"), never on an empty box.
 
 ### Supabase setup

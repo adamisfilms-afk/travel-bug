@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 
 export interface MapPoint {
@@ -11,6 +11,8 @@ export interface MapPoint {
   label: string;
   kind: "flight" | "stay" | "activity" | "hotel";
   highlighted?: boolean;
+  /** Short text shown instead of a pin, e.g. a nightly price ("£75"). */
+  badge?: string;
   /** Optional sequence number shown inside the pin. */
   n?: number;
 }
@@ -21,6 +23,17 @@ const KIND_COLOR: Record<MapPoint["kind"], string> = {
   hotel: "#111111",
   activity: "#5e9a50",
 };
+
+const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+/** Price label marker; positioned by CSS (.tb-price) so its size follows the text. */
+function badgeIcon(p: MapPoint) {
+  return L.divIcon({
+    className: "tb-price-pin",
+    iconSize: undefined,
+    html: `<div class="tb-price">${esc(p.badge!)}</div>`,
+  });
+}
 
 function pinIcon(p: MapPoint) {
   const color = p.highlighted ? "#7ab06b" : KIND_COLOR[p.kind];
@@ -73,20 +86,55 @@ function FitBounds({ points }: { points: MapPoint[] }) {
   return null;
 }
 
+/** Clears hover when the pointer leaves the map (covers fast exits that skip a marker's mouseout). */
+function HoverReset({ onLeave }: { onLeave?: () => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!onLeave) return;
+    const el = map.getContainer();
+    el.addEventListener("mouseleave", onLeave);
+    return () => el.removeEventListener("mouseleave", onLeave);
+  }, [map, onLeave]);
+  return null;
+}
+
 export default function MapView({
   points,
   route,
   onPointHover,
+  onPointClick,
+  highlightedId,
 }: {
   points: MapPoint[];
   /** Draw a dashed line through the points in order. */
   route?: boolean;
   onPointHover?: (id: string | null) => void;
+  onPointClick?: (id: string) => void;
+  /** Highlights this point without rebuilding its marker (rebuilding under the cursor left hovers stuck). */
+  highlightedId?: string | null;
 }) {
+  // Icons are only rebuilt when what they show changes, never on hover.
+  const iconKey = points.map((p) => `${p.id}|${p.badge ?? ""}|${p.n ?? ""}|${p.kind}|${p.highlighted ? 1 : 0}`).join(",");
+  const icons = useMemo(
+    () => new Map(points.map((p) => [p.id, p.badge ? badgeIcon(p) : pinIcon(p)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [iconKey],
+  );
+  const markers = useRef(new Map<string, L.Marker>());
+
+  useEffect(() => {
+    markers.current.forEach((m, id) => {
+      const on = id === highlightedId;
+      m.getElement()?.classList.toggle("is-active", on);
+      m.setZIndexOffset(on ? 1000 : 0);
+    });
+  }, [highlightedId, icons]);
+
   return (
     <MapContainer center={[40.73, -73.98]} zoom={12} scrollWheelZoom className="h-full w-full" zoomControl>
       <TileLayer key={TILES.url} {...TILES} />
       <FitBounds points={points} />
+      <HoverReset onLeave={onPointHover ? () => onPointHover(null) : undefined} />
       {route && points.length > 1 && (
         <Polyline positions={points.map((p) => [p.lat, p.lng] as [number, number])} pathOptions={{ color: "#5e9a50", weight: 2, dashArray: "4 6" }} />
       )}
@@ -94,11 +142,19 @@ export default function MapView({
         <Marker
           key={p.id}
           position={[p.lat, p.lng]}
-          icon={pinIcon(p)}
+          icon={icons.get(p.id)!}
           zIndexOffset={p.highlighted ? 1000 : 0}
-          eventHandlers={{ mouseover: () => onPointHover?.(p.id), mouseout: () => onPointHover?.(null) }}
+          ref={(m) => {
+            if (m) markers.current.set(p.id, m);
+            else markers.current.delete(p.id);
+          }}
+          eventHandlers={{
+            mouseover: () => onPointHover?.(p.id),
+            mouseout: () => onPointHover?.(null),
+            click: () => onPointClick?.(p.id),
+          }}
         >
-          <Tooltip direction="top" offset={[0, -28]}>
+          <Tooltip direction="top" offset={p.badge ? [0, -30] : [0, -28]}>
             {p.label}
           </Tooltip>
         </Marker>
