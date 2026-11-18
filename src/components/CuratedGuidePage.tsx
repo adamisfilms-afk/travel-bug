@@ -105,7 +105,15 @@ function PlaceCard({
         <div className={clsx("relative h-[170px] md:h-[190px] rounded-2xl overflow-hidden", PLACEHOLDERS[index % PLACEHOLDERS.length])}>
           {photo && !failed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo.url} alt={place.name} loading="lazy" onError={() => setFailed(true)} className="absolute inset-0 size-full object-cover" />
+            <img
+              src={photo.url}
+              alt={place.name}
+              // Photographer credit kept only as a hover tooltip (not shown on screen)
+              title={photo.attribution ? `Photo: ${photo.attribution.name} · Google` : undefined}
+              loading="lazy"
+              onError={() => setFailed(true)}
+              className="absolute inset-0 size-full object-cover"
+            />
           ) : (
             <span className="absolute inset-0 grid place-items-center text-ink/25">
               <EmptyIcon weight="fill" className="size-10" />
@@ -134,6 +142,7 @@ function PlaceCard({
         >
           <AddToTripButton
             compact
+            tone="dark"
             addedTo={addedTo}
             defaults={{ destination: guide.city }}
             onAdd={(tripId) =>
@@ -153,12 +162,6 @@ function PlaceCard({
           {place.tagline} · {place.neighbourhood}
         </p>
       </a>
-      {/* Google requires crediting its photos; kept small and off the image */}
-      {photo && !failed && photo.attribution && (
-        <a href={photo.attribution.uri} target="_blank" rel="noopener noreferrer" className="block px-0.5 text-[10.5px] text-ink/35 truncate hover:text-ink-muted">
-          Photo: {photo.attribution.name} · Google
-        </a>
-      )}
     </div>
   );
 }

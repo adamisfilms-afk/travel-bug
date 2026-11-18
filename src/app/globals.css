@@ -27,6 +27,17 @@ body {
   color: var(--color-ink);
 }
 
+/* Tailwind v4 resets buttons to the default arrow cursor; show a hand on anything clickable */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for],
+  select {
+    cursor: pointer;
+  }
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   font-size: 15px;

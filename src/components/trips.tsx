@@ -139,11 +139,14 @@ export function AddToTripButton({
   addedTo,
   defaults,
   compact,
+  tone = "light",
 }: {
   onAdd: (tripId: string) => void;
   label?: string;
   /** Round icon-only button. */
   compact?: boolean;
+  /** Compact style: "light" (white, green outline) or "dark" (black, for use over photos). */
+  tone?: "light" | "dark";
   addedTo?: string[];
   defaults?: Partial<Trip>;
 }) {
@@ -163,8 +166,12 @@ export function AddToTripButton({
           title={added ? "Saved — add to another trip" : label}
           onClick={() => setOpen((o) => !o)}
           className={clsx(
-            "grid place-items-center size-8 rounded-full border transition-colors",
-            added ? "bg-accent-soft/40 border-accent-soft text-accent-ink" : "bg-white border-accent-soft text-accent-ink hover:bg-accent hover:text-white hover:border-accent",
+            "grid place-items-center size-8 rounded-full border transition-colors cursor-pointer",
+            added
+              ? "bg-accent-soft/40 border-accent-soft text-accent-ink"
+              : tone === "dark"
+                ? "bg-ink border-ink text-white hover:bg-accent hover:border-accent"
+                : "bg-white border-accent-soft text-accent-ink hover:bg-accent hover:text-white hover:border-accent",
           )}
         >
           {added ? <Check weight="bold" className="size-3.5" /> : <Plus weight="bold" className="size-3.5" />}
