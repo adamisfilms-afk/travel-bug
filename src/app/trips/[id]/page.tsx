@@ -27,8 +27,10 @@ import { Map, type MapPoint } from "@/components/Map";
 import { itineraryPoints } from "@/components/tripPoints";
 import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
+import { LocationPicker } from "@/components/LocationPicker";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton, SectionTitle } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
+import { AIRPORTS } from "@/lib/airports";
 import { dayMonth, daysBetween, durationLabel, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
 import { itineraryByDay, useStore } from "@/lib/store";
 import type { ActivityCategory, BookingOption, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
@@ -175,18 +177,31 @@ function StayRowBody({ s }: { s: SavedStay }) {
           {dayMonth(s.checkIn)} - {dayMonth(s.checkOut)}
         </span>
       </div>
-      <PriceAndBook kind="stay" saved={s.priceSaved} current={s.priceCurrent} currency={s.currency} href={s.bookingUrl} />
+      <PriceAndBook
+        kind="stay"
+        saved={s.priceSaved}
+        current={s.priceCurrent}
+        currency={s.currency}
+        href={s.bookingUrl}
+        // Partner prices are per night; show each partner's whole-stay price to match the row.
+        options={s.bookingOptions?.map((o) => ({ ...o, price: o.total ?? (o.price != null ? Math.round(o.price * Math.max(1, nights)) : null) }))}
+      />
     </div>
   );
 }
 
-function ActivityRowBody({ a }: { a: SavedActivity }) {
-  const Icon = CATEGORY_ICON[a.category];
+function ActivityRowBody({ a, near }: { a: SavedActivity; near: { lat: number; lng: number } | null }) {
+  const Icon = CATEGORY_ICON[a.category] ?? CATEGORY_ICON.other;
+  const setActivityLocation = useStore((s) => s.setActivityLocation);
   return (
     <div className={clsx(ROW_TEXT, "flex items-center gap-2.5")}>
       <Icon className="size-4 text-ink/50" />
-      <span className="flex-1 truncate font-medium">{a.name}</span>
-      <span className="text-ink-muted text-[13px]">{CATEGORY_LABEL[a.category]}</span>
+      <span className="flex-1 min-w-0 truncate">
+        <span className="font-medium">{a.name}</span>
+        {a.place && a.place !== a.name && <span className="text-ink-muted text-[13px]"> · {a.place}</span>}
+      </span>
+      <span className="text-ink-muted text-[13px]">{CATEGORY_LABEL[a.category] ?? "Other"}</span>
+      <LocationPicker activity={a} near={near} onPick={(loc) => setActivityLocation(a.id, loc)} />
     </div>
   );
 }
@@ -451,6 +466,17 @@ export default function PlannerPage() {
     return [...set].sort();
   }, [trip, byDay]);
 
+  /** Rough centre of the trip, to bias place searches: stays, then located events, then the destination airport. */
+  const tripCentre = useMemo(() => {
+    const pts = [
+      ...stays.filter((s) => s.tripId === id && (s.lat || s.lng)),
+      ...activities.filter((a) => a.tripId === id && a.lat != null && a.lng != null),
+    ] as { lat: number; lng: number }[];
+    if (pts.length) return { lat: pts.reduce((n, p) => n + p.lat, 0) / pts.length, lng: pts.reduce((n, p) => n + p.lng, 0) / pts.length };
+    const dest = trip && AIRPORTS.find((a) => a.city.toLowerCase() === trip.destination.toLowerCase());
+    return dest ? { lat: dest.lat, lng: dest.lng } : null;
+  }, [stays, activities, id, trip]);
+
   const mapPoints = useMemo<MapPoint[]>(() => {
     const pts = itineraryPoints(itinerary.filter((i) => i.tripId === id), lookup);
     if (pts.length) return pts;
@@ -607,7 +633,7 @@ export default function PlannerPage() {
               <div className="space-y-2.5">
                 {tripActivities.map((a) => (
                   <RowShell key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
-                    <ActivityRowBody a={a} />
+                    <ActivityRowBody a={a} near={tripCentre} />
                   </RowShell>
                 ))}
               </div>

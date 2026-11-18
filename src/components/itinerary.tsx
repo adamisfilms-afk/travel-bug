@@ -1,6 +1,6 @@
 "use client";
 
-import { Airplane, AirplaneTakeoff, Bed, Clock, ForkKnife, MaskHappy, Mountains, ShoppingBag, Star, Users } from "@phosphor-icons/react";
+import { Airplane, AirplaneTakeoff, Bed, Clock, ForkKnife, MaskHappy, Mountains, ShoppingBag, Star, Users, Train } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useState } from "react";
 import { daysBetween, hhmm } from "@/lib/format";
@@ -13,6 +13,7 @@ export const CATEGORY_ICON: Record<ActivityCategory, typeof Star> = {
   show: MaskHappy,
   outdoors: Mountains,
   shopping: ShoppingBag,
+  travel: Train,
   other: Star,
 };
 
@@ -171,7 +172,8 @@ export function ItineraryEntry({
     const a = lookup.activities.get(item.refId);
     if (!a) return null;
     name = a.name;
-    Icon = CATEGORY_ICON[a.category];
+    Icon = CATEGORY_ICON[a.category] ?? Star;
+    sub = a.place && a.place !== a.name ? a.place : null;
   }
 
   // Row 1: [time pill or blank][icon][name] all centred on a 24px line; row 2: sub-text under the name.

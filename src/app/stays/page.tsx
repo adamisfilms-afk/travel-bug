@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsDownUp, ArrowSquareOut, CalendarBlank, CaretDown, CaretLeft, CaretRight, Check, Heart, Star } from "@phosphor-icons/react";
+import { ArrowsDownUp, ArrowSquareOut, CalendarBlank, CaretDown, CaretLeft, CaretRight, Check, Star } from "@phosphor-icons/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Map, type MapPoint } from "@/components/Map";
@@ -154,7 +154,6 @@ function HotelCard({
       <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-[16px] font-semibold leading-tight">{h.name}</h3>
-          <Heart weight={savedTo.length ? "fill" : "regular"} className={`size-4 shrink-0 ${savedTo.length ? "text-price-up" : "text-ink"}`} aria-label={savedTo.length ? "Saved" : "Not saved"} />
         </div>
         {h.stars > 0 && (
           <div className="flex gap-0.5 text-[#e8604c]" aria-label={`${h.stars} stars`}>
@@ -196,12 +195,13 @@ function HotelCard({
             href={h.bookingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 h-8 rounded-md bg-[#05203c] text-white text-[13px] font-semibold grid place-items-center hover:bg-[#0b2f56]"
+            className="flex-1 min-w-0 h-8 rounded-md bg-[#05203c] text-white text-[13px] font-semibold grid place-items-center hover:bg-[#0b2f56] whitespace-nowrap"
           >
             Go to site
           </a>
           <AddToTripButton
-            label="Add"
+            compact
+            label="Add to trip"
             addedTo={savedTo}
             defaults={{ destination: h.city, startDate: checkIn, endDate: checkOut }}
             onAdd={(tripId) => {
@@ -385,9 +385,10 @@ function StaysInner() {
     () =>
       filtered
         .filter((h) => h.lat || h.lng)
-        .map((h) => ({ id: h.id, lat: h.lat, lng: h.lng, label: h.name, badge: money(h.pricePerNight, h.currency), kind: "hotel" as const })),
+        // Label = whole-stay price for the searched dates
+        .map((h) => ({ id: h.id, lat: h.lat, lng: h.lng, label: `${h.name} · ${money(h.pricePerNight, h.currency)} a night`, badge: money(h.totalPrice ?? h.pricePerNight * nights, h.currency), kind: "hotel" as const })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filtered.map((h) => h.id + h.pricePerNight).join()],
+    [filtered.map((h) => h.id + h.pricePerNight).join(), nights],
   );
 
   /** Map pin clicked: bring that hotel's card into view and flash it. */

@@ -97,6 +97,7 @@ function offersOf(h: Json): BookingOption[] {
       out.push({
         name,
         price: priceOf(o, NIGHTLY),
+        total: priceOf(o, TOTAL),
         url: affiliate(url),
         room: str(o?.room_name, o?.room, o?.room_type),
         terms: termsOf(o),

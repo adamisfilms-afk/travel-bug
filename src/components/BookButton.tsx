@@ -46,6 +46,9 @@ export function BookButton({ href, options, currency }: { href: string; options?
             >
               <span className="flex-1 min-w-0">
                 <span className="block truncate">{o.name}</span>
+                {(o.room || o.terms) && (
+                  <span className="block truncate text-[12px] text-ink-muted">{[o.room, o.terms].filter(Boolean).join(" · ")}</span>
+                )}
                 {o.rating != null && (
                   <span className="flex items-center gap-1 text-[12px] text-ink-muted">
                     <Star weight="fill" className="size-3 text-[#e8a13c]" />

@@ -37,6 +37,8 @@ interface State extends TripData {
 
   addActivity(tripId: string, a: { name: string; category: ActivityCategory; lat?: number | null; lng?: number | null; notes?: string }): SavedActivity;
   removeActivity(id: string): void;
+  /** Set or clear an activity's location (place name + coordinates). */
+  setActivityLocation(id: string, loc: { place: string; lat: number; lng: number } | null): void;
 
   addToItinerary(tripId: string, day: string, kind: ItemKind, refId: string, index?: number, time?: string | null): void;
   moveItineraryItem(id: string, day: string, index: number): void;
@@ -209,6 +211,16 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({ activities: [...s.activities, act] }));
     persist(get, { activities: [act] });
     return act;
+  },
+
+  setActivityLocation(id, loc) {
+    set((s) => ({
+      activities: s.activities.map((a) =>
+        a.id === id ? { ...a, place: loc?.place ?? null, lat: loc?.lat ?? null, lng: loc?.lng ?? null } : a,
+      ),
+    }));
+    const a = get().activities.find((x) => x.id === id);
+    if (a) persist(get, { activities: [a] });
   },
 
   removeActivity(id) {

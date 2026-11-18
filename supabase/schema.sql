@@ -61,6 +61,7 @@ create table if not exists saved_activities (
   notes text not null default '',
   saved_at timestamptz not null default now()
 );
+alter table saved_activities add column if not exists place text;
 
 create table if not exists itinerary_items (
   id text primary key,

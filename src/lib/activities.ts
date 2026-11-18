@@ -53,5 +53,6 @@ export const CATEGORY_LABEL: Record<ActivityCategory, string> = {
   show: "Show",
   outdoors: "Outdoors",
   shopping: "Shopping",
+  travel: "Travel",
   other: "Other",
 };

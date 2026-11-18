@@ -46,6 +46,8 @@ export interface BookingOption {
   /** Seller rating out of 5 and number of reviews, when the provider gives them. */
   rating?: number;
   reviews?: number;
+  /** Whole-stay price for hotel offers (`price` is per night). */
+  total?: number | null;
   /** Room description for hotel offers ("Double room"). */
   room?: string;
   /** Short terms for hotel offers, e.g. "Room only · Pay now". */
@@ -147,7 +149,7 @@ export interface SavedStay {
   savedAt: string;
 }
 
-export type ActivityCategory = "sight" | "food" | "show" | "outdoors" | "shopping" | "other";
+export type ActivityCategory = "sight" | "food" | "show" | "outdoors" | "shopping" | "travel" | "other";
 
 export interface SavedActivity {
   id: string;
@@ -156,6 +158,8 @@ export interface SavedActivity {
   category: ActivityCategory;
   lat: number | null;
   lng: number | null;
+  /** Name/address of the location picked for this event, when it has one. */
+  place?: string | null;
   notes: string;
   savedAt: string;
 }
