@@ -102,7 +102,7 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
 
   return (
     <div
-      className="group/c relative h-[300px] sm:h-[440px] md:h-[500px] rounded-2xl overflow-hidden select-none"
+      className="group/c relative h-[240px] sm:h-[352px] md:h-[400px] rounded-2xl overflow-hidden select-none"
       onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
       onTouchEnd={(e) => {
         if (touch.current == null) return;
@@ -119,7 +119,7 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
               Math.abs(n - i) <= 1 && <Slide name={slides[n].name} alt={`${alt} — photo ${n + 1}`} />
             ) : (
               <span className="absolute inset-0 grid place-items-center text-ink/20">
-                <EmptyIcon weight="fill" className="size-16" />
+                <EmptyIcon weight="fill" className="size-12" />
               </span>
             )}
           </div>
@@ -134,12 +134,12 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
               aria-label={dir === "prev" ? "Previous photo" : "Next photo"}
               onClick={() => go(dir === "next" ? 1 : -1)}
               className={clsx(
-                "absolute top-1/2 -translate-y-1/2 grid place-items-center size-10 rounded-full bg-white/90 text-ink shadow transition-opacity",
+                "absolute top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 text-ink shadow transition-opacity",
                 "opacity-100 md:opacity-0 md:group-hover/c:opacity-100 focus-visible:opacity-100",
                 dir === "prev" ? "left-3" : "right-3",
               )}
             >
-              {dir === "prev" ? <CaretLeft weight="bold" className="size-5" /> : <CaretRight weight="bold" className="size-5" />}
+              {dir === "prev" ? <CaretLeft weight="bold" className="size-4" /> : <CaretRight weight="bold" className="size-4" />}
             </button>
           ))}
           <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
@@ -153,7 +153,7 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
               />
             ))}
           </div>
-          <span className="absolute top-3 right-3 rounded-full bg-ink/60 text-white text-[12px] px-2 py-0.5 tabular-nums">
+          <span className="absolute top-2.5 right-2.5 rounded-full bg-ink/60 text-white text-[11px] px-2 py-0.5 tabular-nums">
             {i + 1}/{count}
           </span>
         </>
@@ -191,13 +191,30 @@ export function socialEmbed(url: string): { src: string; platform: string; w: nu
   return null;
 }
 
-function SocialRow({ posts, name, curate, onAdd, onRemove }: { posts: string[]; name: string; curate: boolean; onAdd: (url: string) => void; onRemove: (url: string) => void }) {
+const EMBED_SCALE = 0.8;
+
+function SocialRow({
+  posts,
+  removable,
+  name,
+  curate,
+  onAdd,
+  onRemove,
+}: {
+  posts: string[];
+  /** Posts added in this browser (only these can be removed here; guide posts are edited in the data). */
+  removable: string[];
+  name: string;
+  curate: boolean;
+  onAdd: (url: string) => void;
+  onRemove: (url: string) => void;
+}) {
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const embeds = posts.map((u) => ({ url: u, e: socialEmbed(u) })).filter((x) => x.e);
   return (
-    <section className="space-y-4">
-      <h3 className="text-[26px] leading-tight">On social</h3>
+    <section className="space-y-3">
+      <h3 className="text-[21px] leading-tight">On social</h3>
       {curate && (
         <form
           className="flex flex-wrap gap-2"
@@ -221,18 +238,24 @@ function SocialRow({ posts, name, curate, onAdd, onRemove }: { posts: string[]; 
           {error && <p className="w-full text-[13px] text-price-up">{error}</p>}
         </form>
       )}
-      <div className="-mx-6 md:-mx-14 px-6 md:px-14 scroll-px-6 md:scroll-px-14 flex gap-4 overflow-x-auto pb-2 snap-x">
+      <div className="-mx-5 md:-mx-11 px-5 md:px-11 scroll-px-5 md:scroll-px-11 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
         {embeds.map(({ url, e }) => (
-          <div key={url} className="relative shrink-0 snap-start rounded-xl overflow-hidden bg-white border border-line" style={{ width: e!.w, height: e!.h }}>
+          <div
+            key={url}
+            className="relative shrink-0 snap-start rounded-xl overflow-hidden bg-white border border-line"
+            style={{ width: e!.w * EMBED_SCALE, height: e!.h * EMBED_SCALE }}
+          >
+            {/* Embeds have a minimum width (Instagram ~326px), so render full size and scale down */}
             <iframe
               src={e!.src}
               title={`${e!.platform} post about ${name}`}
               loading="lazy"
               allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
               allowFullScreen
-              className="absolute inset-0 size-full border-0"
+              className="absolute top-0 left-0 border-0 origin-top-left"
+              style={{ width: e!.w, height: e!.h, transform: `scale(${EMBED_SCALE})` }}
             />
-            {curate && (
+            {curate && removable.includes(url) && (
               <button
                 type="button"
                 aria-label="Remove post"
@@ -246,8 +269,8 @@ function SocialRow({ posts, name, curate, onAdd, onRemove }: { posts: string[]; 
         ))}
         {embeds.length === 0 &&
           ["Instagram", "TikTok", "Instagram"].map((p, i) => (
-            <div key={i} className="shrink-0 w-[260px] h-[400px] rounded-xl border border-dashed border-line bg-white/50 grid place-items-center text-center px-6">
-              <p className="text-[13px] text-ink-muted">
+            <div key={i} className="shrink-0 w-[208px] h-[320px] rounded-xl border border-dashed border-line bg-white/50 grid place-items-center text-center px-5">
+              <p className="text-[12px] text-ink-muted">
                 {p} posts featuring {name} will appear here{curate ? " — paste a link above to add one." : "."}
               </p>
             </div>
@@ -337,7 +360,7 @@ export function PlaceModal({
         aria-modal="true"
         aria-label={place.name}
         onMouseDown={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[1110px] rounded-2xl bg-surface border border-line shadow-2xl px-6 md:px-14 py-8 md:py-12 space-y-8"
+        className="relative w-full max-w-[888px] rounded-2xl bg-surface border border-line shadow-2xl px-5 md:px-11 py-7 md:py-10 space-y-6"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <AddToTripButton
@@ -353,8 +376,8 @@ export function PlaceModal({
         </div>
 
         <header className="pr-24">
-          <h2 className="text-[36px] md:text-[48px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
-          <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-1 text-[15px]">
+          <h2 className="text-[30px] md:text-[38px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px]">
             <span>
               {place.neighbourhood}, {guide.city}, {guide.country}
             </span>
@@ -370,11 +393,11 @@ export function PlaceModal({
 
         <Carousel photos={photos} alt={place.name} EmptyIcon={EmptyIcon} />
 
-        {place.description && <p className="text-[16px] leading-relaxed max-w-3xl">{place.description}</p>}
+        {place.description && <p className="text-[14px] leading-relaxed max-w-[620px]">{place.description}</p>}
 
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h3 className="text-[26px] leading-tight">Reviews</h3>
+            <h3 className="text-[21px] leading-tight">Reviews</h3>
             <div className="flex flex-wrap gap-4 text-[13px]">
               {d?.website && (
                 <a href={d.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink underline underline-offset-2">
@@ -399,15 +422,15 @@ export function PlaceModal({
           {d && (
             <>
               {d.rating != null && (
-                <p className="flex items-center gap-2 text-[16px]">
+                <p className="flex items-center gap-2 text-[14px]">
                   <Star weight="fill" className="size-4" />
                   <span className="font-semibold">{d.rating.toFixed(1)}</span>
                   {d.ratingCount != null && <span className="text-ink-muted">{fmtCount(d.ratingCount)} reviews on Google</span>}
                 </p>
               )}
               {d.summary && (
-                <div className="rounded-xl bg-white/70 border border-line p-4 max-w-3xl">
-                  <p className="text-[15px] leading-relaxed">{d.summary.text}</p>
+                <div className="rounded-xl bg-white/70 border border-line p-3.5 max-w-[620px]">
+                  <p className="text-[13px] leading-relaxed">{d.summary.text}</p>
                   <p className="mt-2 text-[12px] text-ink-muted flex flex-wrap gap-x-3">
                     <span>{d.summary.disclosure}</span>
                     {d.summary.reviewsUrl && (
@@ -424,15 +447,15 @@ export function PlaceModal({
                 </div>
               )}
               {d.reviews.length > 0 && (
-                <div className="-mx-6 md:-mx-14 px-6 md:px-14 scroll-px-6 md:scroll-px-14 flex gap-4 overflow-x-auto pb-2 snap-x">
+                <div className="-mx-5 md:-mx-11 px-5 md:px-11 scroll-px-5 md:scroll-px-11 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
                   {d.reviews.map((r, n) => (
-                    <figure key={n} className="shrink-0 snap-start w-[300px] rounded-xl bg-white/70 border border-line p-4 space-y-2">
+                    <figure key={n} className="shrink-0 snap-start w-[240px] rounded-xl bg-white/70 border border-line p-3.5 space-y-1.5">
                       <div className="flex items-center gap-2">
                         {r.authorPhoto && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={r.authorPhoto} alt="" className="size-7 rounded-full" />
                         )}
-                        <a href={r.authorUrl ?? undefined} target="_blank" rel="noopener noreferrer" className="text-[14px] font-medium truncate hover:underline">
+                        <a href={r.authorUrl ?? undefined} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium truncate hover:underline">
                           {r.author}
                         </a>
                       </div>
@@ -443,7 +466,7 @@ export function PlaceModal({
                           ))}
                         <span className="ml-1">{r.when}</span>
                       </p>
-                      <blockquote className="text-[14px] leading-relaxed line-clamp-6">{r.text}</blockquote>
+                      <blockquote className="text-[12.5px] leading-relaxed line-clamp-6">{r.text}</blockquote>
                       {r.url && (
                         <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] text-ink-muted hover:underline">
                           On Google <ArrowSquareOut className="size-3" />
@@ -471,6 +494,7 @@ export function PlaceModal({
 
         <SocialRow
           posts={posts}
+          removable={extra[place.id] ?? []}
           name={place.name}
           curate={curate}
           onAdd={(url) => saveExtra({ ...extra, [place.id]: [...(extra[place.id] ?? []), url] })}
