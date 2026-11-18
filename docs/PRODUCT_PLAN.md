@@ -38,7 +38,7 @@ A fixed left sidebar with icon navigation:
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
 | Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (sample New York guide) |
-| Pin | `/explore` | Curated trip plans & things to do | Under construction |
+| Pin | `/explore` | Curated things to do (city search → Sights, Museums, Shows, Parks, Neighbourhoods, Experiences rows) | Built (sample New York guide) |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |
 | Gear | `/settings` | Settings (currency) | Built |
@@ -86,9 +86,15 @@ A fixed left sidebar with icon navigation:
   or sample hotels without a key. "Go to site" opens the cheapest partner; the
   "+N booking options" menu lists every partner's nightly price and room.
 
-### 3.4 Explore (`/explore`)
-- Under construction. Will show curated trip plans and things to do per city,
-  each addable to a trip.
+### 3.4 Food (`/food`) and Explore (`/explore`)
+- Same layout: city search (suggests only cities with a curated guide; others
+  show "coming soon"), then horizontally scrolling rows per section.
+- Cards: the place's Google Maps photo (curator-picked, or automatically the
+  business's own uploads first), name, two-word tagline, neighbourhood, a small
+  Google photo credit, and a hover "+" to add it to a trip as an event (with its
+  category and location).
+- Curators add `?curate=1` to flip through each place's Google photos and pick
+  one; "Copy picks" exports the choices to save into the guide data.
 
 ### 3.5 Your trips (`/trips`)
 - Trip chips at the top (+ Add new trip).

@@ -35,7 +35,10 @@ interface State extends TripData {
   saveStay(tripId: string, hotel: Hotel, checkIn: string, checkOut: string, guests?: number): SavedStay;
   removeStay(id: string): void;
 
-  addActivity(tripId: string, a: { name: string; category: ActivityCategory; lat?: number | null; lng?: number | null; notes?: string }): SavedActivity;
+  addActivity(
+    tripId: string,
+    a: { name: string; category: ActivityCategory; lat?: number | null; lng?: number | null; place?: string | null; notes?: string },
+  ): SavedActivity;
   removeActivity(id: string): void;
   /** Set or clear an activity's location (place name + coordinates). */
   setActivityLocation(id: string, loc: { place: string; lat: number; lng: number } | null): void;
@@ -205,6 +208,7 @@ export const useStore = create<State>((set, get) => ({
       category: a.category,
       lat: a.lat ?? null,
       lng: a.lng ?? null,
+      place: a.place ?? null,
       notes: a.notes ?? "",
       savedAt: new Date().toISOString(),
     };
