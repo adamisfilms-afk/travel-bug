@@ -25,7 +25,7 @@ const CABINS: { value: Cabin; label: string }[] = [
 
 /** Result row columns: route | airline | flight no. | times | date | duration (later ones hide on small screens). */
 const ROW_COLS =
-  "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_60px_96px] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_60px_96px_92px] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_60px_96px_92px_110px]";
+  "grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_96px] md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_60px_96px] lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_60px_96px_92px] xl:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_60px_96px_92px_110px]";
 
 const segCls = "flex items-center gap-2 h-11 px-4";
 const selectCls = "bg-transparent outline-none text-[14px] cursor-pointer";
@@ -372,16 +372,10 @@ function FlightsInner() {
                 // One fixed grid at every width so airline / flight number / times always line up;
                 // lower-priority columns drop out on narrower screens.
                 <div key={i} className={clsx("text-[14px] leading-6 grid gap-x-4 items-center", ROW_COLS)}>
-                  <span className="truncate">
-                    <span className="font-medium">
-                      {leg.from.code} - {leg.to.code}
-                    </span>
-                    <span className="hidden sm:inline text-ink-muted">
-                      {" "}
-                      · {leg.from.city} to {leg.to.city}
-                    </span>
+                  <span className="truncate" title={`${leg.from.name} (${leg.from.code}) - ${leg.to.name} (${leg.to.code})`}>
+                    {leg.from.name} ({leg.from.code}) - {leg.to.name} ({leg.to.code})
                   </span>
-                  <span className="flex items-center gap-2 min-w-0 text-ink-muted">
+                  <span className="flex items-center gap-1.5 min-w-0 text-ink-muted">
                     <AirlineLogo leg={leg} />
                     <span className="truncate">{leg.carrier}</span>
                   </span>
