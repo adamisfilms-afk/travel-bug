@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowClockwise, ArrowLeft, Bed, CaretDown, CaretLeft, CaretRight, Star, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, Bed, ForkKnife, MapPin as MapPinIcon, CaretDown, CaretLeft, CaretRight, Star, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -29,11 +29,13 @@ import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo
 import { BookButton } from "@/components/BookButton";
 import { FlightPath } from "@/components/FlightPath";
 import { LocationPicker } from "@/components/LocationPicker";
+import { PlaceModal } from "@/components/PlaceModal";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
 import { AIRPORTS } from "@/lib/airports";
-import { matchExploreGuides } from "@/lib/explore/guides";
-import { matchGuides } from "@/lib/food/guides";
+import { findCuratedPlace } from "@/lib/curated/types";
+import { EXPLORE_GUIDES, matchExploreGuides } from "@/lib/explore/guides";
+import { FOOD_GUIDES, matchGuides } from "@/lib/food/guides";
 import { dayMonth, daysBetween, durationLabel, money, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
 import { itineraryByDay, useStore } from "@/lib/store";
 import type { ActivityCategory, BookingOption, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
@@ -292,14 +294,21 @@ function StayDetails({ s }: { s: SavedStay }) {
   );
 }
 
-function ActivityRowBody({ a, near }: { a: SavedActivity; near: { lat: number; lng: number } | null }) {
+function ActivityRowBody({ a, near, onOpen }: { a: SavedActivity; near: { lat: number; lng: number } | null; onOpen?: () => void }) {
   const Icon = CATEGORY_ICON[a.category] ?? CATEGORY_ICON.other;
   const setActivityLocation = useStore((s) => s.setActivityLocation);
   return (
     <div className={clsx(ROW_TEXT, "flex items-center gap-2.5")}>
       <Icon className="size-4 text-ink/50" />
       <span className="flex-1 min-w-0 truncate">
-        <span className="font-medium">{a.name}</span>
+        {onOpen ? (
+          // Only places with a curated guide entry open the place view
+          <button type="button" onClick={onOpen} className="font-medium hover:underline underline-offset-2 cursor-pointer">
+            {a.name}
+          </button>
+        ) : (
+          <span className="font-medium">{a.name}</span>
+        )}
         {a.place && a.place !== a.name && <span className="text-ink-muted text-[13px]"> · {a.place}</span>}
       </span>
       <span className="text-ink-muted text-[13px]">{CATEGORY_LABEL[a.category] ?? "Other"}</span>
@@ -592,6 +601,24 @@ export default function PlannerPage() {
   const tripStays = stays.filter((s) => s.tripId === id);
   const tripActivities = activities.filter((a) => a.tripId === id);
   const tripFood = tripActivities.filter((a) => a.category === "food");
+  // Saved events that have a curated guide entry (food or explore) can open the place view
+  const curatedFor = useMemo(() => {
+    const m = new globalThis.Map<string, NonNullable<ReturnType<typeof findCuratedPlace>>>();
+    for (const a of activities) {
+      if (a.tripId !== id) continue;
+      const hit = findCuratedPlace(
+        [
+          { kind: "food", guides: FOOD_GUIDES },
+          { kind: "explore", guides: EXPLORE_GUIDES },
+        ],
+        a.name,
+        trip?.destination,
+      );
+      if (hit) m.set(a.id, hit);
+    }
+    return m;
+  }, [activities, id, trip?.destination]);
+  const [openCurated, setOpenCurated] = useState<NonNullable<ReturnType<typeof findCuratedPlace>> | null>(null);
   const tripExplore = tripActivities.filter((a) => a.category !== "food");
   const foodGuide = trip ? matchGuides(trip.destination)[0] : undefined;
   const exploreGuide = trip ? matchExploreGuides(trip.destination)[0] : undefined;
@@ -818,7 +845,11 @@ export default function PlannerPage() {
                   )}
                   {(savedTab === "food" ? tripFood : tripExplore).map((a) => (
                     <RowShell key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
-                      <ActivityRowBody a={a} near={tripCentre} />
+                      <ActivityRowBody
+                        a={a}
+                        near={tripCentre}
+                        onOpen={curatedFor.get(a.id) ? () => setOpenCurated(curatedFor.get(a.id)!) : undefined}
+                      />
                     </RowShell>
                   ))}
                 </div>
@@ -861,6 +892,18 @@ export default function PlannerPage() {
       </div>
       <DragOverlay dropAnimation={null}>{overlay}</DragOverlay>
       <EditTripDialog trip={trip} open={editing} onClose={() => setEditing(false)} />
+      {openCurated && (
+        <PlaceModal
+          key={openCurated.place.id}
+          place={openCurated.place}
+          guide={openCurated.guide}
+          kind={openCurated.kind}
+          curate={false}
+          photoPick={openCurated.place.photo}
+          EmptyIcon={openCurated.kind === "food" ? ForkKnife : MapPinIcon}
+          onClose={() => setOpenCurated(null)}
+        />
+      )}
     </DndContext>
   );
 }

@@ -86,8 +86,11 @@ function PlaceCard({
     return () => io.disconnect();
   }, []);
 
+  // Your own/licensed photo, when the place has one, replaces Google's (and skips that request)
+  const own = place.images?.[0];
+
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || own) return;
     const key = photoKey(place.mapsQuery, pick);
     const hit = photoCache.get(key);
     if (hit) {
@@ -113,7 +116,7 @@ function PlaceCard({
     return () => {
       cancelled = true;
     };
-  }, [visible, place.mapsQuery, pick]);
+  }, [visible, place.mapsQuery, pick, own]);
 
   const step = (d: number) => {
     if (!photo) return;
@@ -138,7 +141,15 @@ function PlaceCard({
             PLACEHOLDERS[index % PLACEHOLDERS.length],
           )}
         >
-          {photo && !failed ? (
+          {own ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={own.src}
+              alt={own.alt ?? place.name}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+          ) : photo && !failed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={photo.url}
@@ -154,7 +165,7 @@ function PlaceCard({
               <EmptyIcon weight="fill" className="size-10" />
             </span>
           )}
-          {curate && photo && photo.count > 1 && (
+          {curate && !own && photo && photo.count > 1 && (
             <>
               <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
                 <CaretLeft weight="bold" className="size-4" />

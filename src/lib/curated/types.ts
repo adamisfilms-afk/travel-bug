@@ -1,5 +1,17 @@
 import type { ActivityCategory } from "../types";
 
+/**
+ * A photo you own or are licensed to use (your own, a press kit, or a creator's photo used
+ * with permission). Put the file in /public/curated/… and reference it as "/curated/…".
+ */
+export interface CuratedImage {
+  src: string;
+  alt?: string;
+  /** Shown under the photo in the place view, e.g. "@nycfoodie" or "Courtesy of Carbone". */
+  credit?: string;
+  creditUrl?: string;
+}
+
 /** A hand-picked place in a curated guide (food or things to do). */
 export interface CuratedPlace {
   id: string;
@@ -24,6 +36,8 @@ export interface CuratedPlace {
   priceLevel?: number;
   /** Curated social posts (Instagram post/Reel, TikTok, YouTube Short URLs). */
   social?: string[];
+  /** Your own / licensed photos — shown first (card + carousel), before Google's. */
+  images?: CuratedImage[];
 }
 
 export interface CuratedSection {
@@ -56,7 +70,7 @@ export function placeFactory(city: string, category: ActivityCategory) {
 }
 
 /** Add curated write-ups / price levels to a guide's places by id. */
-export function withDetails(guide: CuratedGuide, details: Record<string, Partial<Pick<CuratedPlace, "description" | "priceLevel" | "social" | "photo">>>): CuratedGuide {
+export function withDetails(guide: CuratedGuide, details: Record<string, Partial<Pick<CuratedPlace, "description" | "priceLevel" | "social" | "photo" | "images">>>): CuratedGuide {
   return {
     ...guide,
     sections: guide.sections.map((s) => ({ ...s, places: s.places.map((p) => ({ ...p, ...details[p.id] })) })),
@@ -74,4 +88,20 @@ export function matchGuides<T extends CuratedGuide>(guides: T[], q: string): T[]
   return guides.filter(
     (g) => g.city.toLowerCase().includes(s) || g.country.toLowerCase().includes(s) || g.aliases.some((a) => a.startsWith(s) || s.startsWith(a)),
   );
+}
+
+/** Every place across guides, to find the curated entry for something saved to a trip. */
+export function findCuratedPlace<T extends CuratedGuide>(
+  guides: { kind: "food" | "explore"; guides: T[] }[],
+  name: string,
+  destination?: string,
+): { place: CuratedPlace; guide: T; kind: "food" | "explore" } | null {
+  const n = name.trim().toLowerCase();
+  const hits: { place: CuratedPlace; guide: T; kind: "food" | "explore" }[] = [];
+  for (const { kind, guides: list } of guides)
+    for (const guide of list) for (const s of guide.sections) for (const place of s.places) if (place.name.toLowerCase() === n) hits.push({ place, guide, kind });
+  if (!hits.length) return null;
+  // Prefer the guide for the trip's destination
+  const d = destination?.trim().toLowerCase() ?? "";
+  return hits.find((h) => d && (h.guide.city.toLowerCase().includes(d) || h.guide.aliases.some((a) => d.includes(a) || a.includes(d)))) ?? hits[0];
 }

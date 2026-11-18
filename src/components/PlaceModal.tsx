@@ -83,7 +83,9 @@ function Slide({ name, alt }: { name: string; alt: string }) {
   );
 }
 
-function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null; alt: string; EmptyIcon: Icon }) {
+type SlideSrc = { kind: "google"; name: string } | { kind: "own"; src: string; alt?: string; credit?: string; creditUrl?: string };
+
+function Carousel({ photos, alt, EmptyIcon }: { photos: SlideSrc[] | null; alt: string; EmptyIcon: Icon }) {
   const slides = photos?.length ? photos : null;
   const count = slides?.length ?? 4; // placeholders until real photos exist
   const [i, setI] = useState(0);
@@ -102,7 +104,7 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
 
   return (
     <div
-      className="group/c relative h-[240px] sm:h-[352px] md:h-[400px] rounded-2xl overflow-hidden select-none"
+      className="group/c relative h-[216px] sm:h-[316px] md:h-[360px] rounded-2xl overflow-hidden select-none"
       onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
       onTouchEnd={(e) => {
         if (touch.current == null) return;
@@ -116,7 +118,13 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
         {Array.from({ length: count }, (_, n) => (
           <div key={n} className={clsx("relative shrink-0 w-full h-full", PLACEHOLDERS[n % PLACEHOLDERS.length])}>
             {slides ? (
-              Math.abs(n - i) <= 1 && <Slide name={slides[n].name} alt={`${alt} — photo ${n + 1}`} />
+              Math.abs(n - i) <= 1 &&
+              (slides[n].kind === "own" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={(slides[n] as { src: string }).src} alt={(slides[n] as { alt?: string }).alt ?? `${alt} — photo ${n + 1}`} className="absolute inset-0 size-full object-cover" draggable={false} />
+              ) : (
+                <Slide name={(slides[n] as { name: string }).name} alt={`${alt} — photo ${n + 1}`} />
+              ))
             ) : (
               <span className="absolute inset-0 grid place-items-center text-ink/20">
                 <EmptyIcon weight="fill" className="size-12" />
@@ -158,7 +166,17 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: Details["photos"] | null
           </span>
         </>
       )}
-      {slides?.[i]?.author && <span className="sr-only">Photo by {slides[i].author} on Google</span>}
+      {/* Credit for your own/licensed photos (often a condition of using them) */}
+      {slides?.[i]?.kind === "own" && (slides[i] as { credit?: string }).credit && (
+        <a
+          href={(slides[i] as { creditUrl?: string }).creditUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-2.5 left-3 rounded-full bg-ink/55 text-white text-[11px] px-2 py-0.5 hover:bg-ink/75"
+        >
+          {(slides[i] as { credit?: string }).credit}
+        </a>
+      )}
     </div>
   );
 }
@@ -191,7 +209,7 @@ export function socialEmbed(url: string): { src: string; platform: string; w: nu
   return null;
 }
 
-const EMBED_SCALE = 0.8;
+const EMBED_SCALE = 0.72;
 
 function SocialRow({
   posts,
@@ -214,7 +232,7 @@ function SocialRow({
   const embeds = posts.map((u) => ({ url: u, e: socialEmbed(u) })).filter((x) => x.e);
   return (
     <section className="space-y-3">
-      <h3 className="text-[21px] leading-tight">On social</h3>
+      <h3 className="text-[19px] leading-tight">On social</h3>
       {curate && (
         <form
           className="flex flex-wrap gap-2"
@@ -238,7 +256,7 @@ function SocialRow({
           {error && <p className="w-full text-[13px] text-price-up">{error}</p>}
         </form>
       )}
-      <div className="-mx-5 md:-mx-11 px-5 md:px-11 scroll-px-5 md:scroll-px-11 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
+      <div className="-mx-5 md:-mx-10 px-5 md:px-10 scroll-px-5 md:scroll-px-10 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
         {embeds.map(({ url, e }) => (
           <div
             key={url}
@@ -269,7 +287,7 @@ function SocialRow({
         ))}
         {embeds.length === 0 &&
           ["Instagram", "TikTok", "Instagram"].map((p, i) => (
-            <div key={i} className="shrink-0 w-[208px] h-[320px] rounded-xl border border-dashed border-line bg-white/50 grid place-items-center text-center px-5">
+            <div key={i} className="shrink-0 w-[188px] h-[288px] rounded-xl border border-dashed border-line bg-white/50 grid place-items-center text-center px-5">
               <p className="text-[12px] text-ink-muted">
                 {p} posts featuring {name} will appear here{curate ? " — paste a link above to add one." : "."}
               </p>
@@ -343,12 +361,16 @@ export function PlaceModal({
     };
   }, [onClose]);
 
-  // Curated photo first, then the rest in Google's order
-  const photos = d?.photos?.length
+  // Your own/licensed photos first, then Google's (curated pick first, then Google's order)
+  const google = d?.photos?.length
     ? photoPick != null && d.photos[photoPick]
       ? [d.photos[photoPick], ...d.photos.filter((_, n) => n !== photoPick)]
       : d.photos
-    : null;
+    : [];
+  const photos: SlideSrc[] | null = [
+    ...(place.images ?? []).map((im) => ({ kind: "own" as const, ...im })),
+    ...google.map((g) => ({ kind: "google" as const, name: g.name })),
+  ];
   const price = place.priceLevel ?? d?.priceLevel ?? null;
 
   if (typeof document === "undefined") return null;
@@ -360,7 +382,7 @@ export function PlaceModal({
         aria-modal="true"
         aria-label={place.name}
         onMouseDown={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[888px] rounded-2xl bg-surface border border-line shadow-2xl px-5 md:px-11 py-7 md:py-10 space-y-6"
+        className="relative w-full max-w-[800px] rounded-2xl bg-surface border border-line shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <AddToTripButton
@@ -376,8 +398,8 @@ export function PlaceModal({
         </div>
 
         <header className="pr-24">
-          <h2 className="text-[30px] md:text-[38px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-[13px]">
+          <h2 className="text-[27px] md:text-[34px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>
               {place.neighbourhood}, {guide.city}, {guide.country}
             </span>
@@ -393,11 +415,11 @@ export function PlaceModal({
 
         <Carousel photos={photos} alt={place.name} EmptyIcon={EmptyIcon} />
 
-        {place.description && <p className="text-[14px] leading-relaxed max-w-[620px]">{place.description}</p>}
+        {place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h3 className="text-[21px] leading-tight">Reviews</h3>
+            <h3 className="text-[19px] leading-tight">Reviews</h3>
             <div className="flex flex-wrap gap-4 text-[13px]">
               {d?.website && (
                 <a href={d.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink underline underline-offset-2">
@@ -422,15 +444,15 @@ export function PlaceModal({
           {d && (
             <>
               {d.rating != null && (
-                <p className="flex items-center gap-2 text-[14px]">
+                <p className="flex items-center gap-2 text-[13px]">
                   <Star weight="fill" className="size-4" />
                   <span className="font-semibold">{d.rating.toFixed(1)}</span>
                   {d.ratingCount != null && <span className="text-ink-muted">{fmtCount(d.ratingCount)} reviews on Google</span>}
                 </p>
               )}
               {d.summary && (
-                <div className="rounded-xl bg-white/70 border border-line p-3.5 max-w-[620px]">
-                  <p className="text-[13px] leading-relaxed">{d.summary.text}</p>
+                <div className="rounded-xl bg-white/70 border border-line p-3 max-w-[560px]">
+                  <p className="text-[12px] leading-relaxed">{d.summary.text}</p>
                   <p className="mt-2 text-[12px] text-ink-muted flex flex-wrap gap-x-3">
                     <span>{d.summary.disclosure}</span>
                     {d.summary.reviewsUrl && (
@@ -447,9 +469,9 @@ export function PlaceModal({
                 </div>
               )}
               {d.reviews.length > 0 && (
-                <div className="-mx-5 md:-mx-11 px-5 md:px-11 scroll-px-5 md:scroll-px-11 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
+                <div className="-mx-5 md:-mx-10 px-5 md:px-10 scroll-px-5 md:scroll-px-10 flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x">
                   {d.reviews.map((r, n) => (
-                    <figure key={n} className="shrink-0 snap-start w-[240px] rounded-xl bg-white/70 border border-line p-3.5 space-y-1.5">
+                    <figure key={n} className="shrink-0 snap-start w-[216px] rounded-xl bg-white/70 border border-line p-3 space-y-1.5">
                       <div className="flex items-center gap-2">
                         {r.authorPhoto && (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -466,7 +488,7 @@ export function PlaceModal({
                           ))}
                         <span className="ml-1">{r.when}</span>
                       </p>
-                      <blockquote className="text-[12.5px] leading-relaxed line-clamp-6">{r.text}</blockquote>
+                      <blockquote className="text-[12px] leading-relaxed line-clamp-6">{r.text}</blockquote>
                       {r.url && (
                         <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] text-ink-muted hover:underline">
                           On Google <ArrowSquareOut className="size-3" />
