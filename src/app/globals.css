@@ -29,6 +29,7 @@ body {
 
 body {
   -webkit-font-smoothing: antialiased;
+  font-size: 15px;
 }
 
 /* Dashed hairline used on saved / selected items */
@@ -58,4 +59,85 @@ body {
 .tb-pin {
   background: transparent;
   border: none;
+}
+
+/* Dual-thumb range slider: inputs overlap, only thumbs take pointer events */
+.range-dual input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.range-dual input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 20px;
+}
+.range-dual input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+.range-dual input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+}
+.range-dual input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid var(--color-accent);
+  cursor: grab;
+}
+.range-dual input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-accent-soft);
+  outline-offset: 2px;
+}
+
+/*
+ * Sidebar icon outline that follows the glyph's shape (not its bounding box).
+ * Three stacked copies of the icon: a thick stroke in the ring colour, a thinner
+ * stroke in the canvas colour (the gap), then the icon itself.
+ * --u = SVG user units per CSS pixel for that icon (Phosphor: 256 units / icon size).
+ */
+.nav-icon {
+  position: relative;
+  display: grid;
+}
+.nav-icon svg {
+  grid-area: 1 / 1;
+  overflow: visible;
+}
+.nav-icon svg * {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
+  stroke: transparent;
+  stroke-width: calc(var(--u) * 7);
+  fill: transparent;
+  fill: transparent;
+  transition: stroke 150ms ease-out;
+}
+.nav-icon .nv-gap :is(path, rect:not([fill="none"])) {
+  stroke: var(--color-canvas);
+  stroke-width: calc(var(--u) * 4);
+  fill: var(--color-canvas);
+}
+.nav-link:hover .nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
+  stroke: #c3c6bf;
+}
+.nav-link[aria-current="page"] .nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
+  stroke: var(--color-accent-soft);
 }

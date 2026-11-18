@@ -90,7 +90,7 @@ function NewTripForm({ onClose, onCreated, defaults }: DialogProps) {
         </Field>
         {error && <p className="text-price-up text-sm">{error}</p>}
         <div className="pt-2 flex justify-end">
-          <PrimaryButton type="submit" className="!text-lg !h-12 !px-8">
+          <PrimaryButton type="submit" className="!text-base !h-11 !px-6">
             Create trip
           </PrimaryButton>
         </div>
@@ -113,8 +113,8 @@ export function TripChips({
   const [open, setOpen] = useState(false);
   const sorted = [...trips].sort((a, b) => a.startDate.localeCompare(b.startDate));
   return (
-    <div className="flex flex-wrap gap-4 md:gap-8">
-      {!ready && <div className="h-[58px] w-44 rounded-lg bg-surface animate-pulse" />}
+    <div className="flex flex-wrap gap-3 md:gap-5">
+      {!ready && <div className="h-11 w-40 rounded-lg bg-surface animate-pulse" />}
       {sorted.map((t) => (
         <TabChip
           key={t.id}
@@ -155,9 +155,9 @@ export function AddToTripButton({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="h-10 px-4 rounded-full bg-accent text-white text-[15px] hover:bg-accent-hover inline-flex items-center gap-1.5 whitespace-nowrap"
+        className="h-8 px-3.5 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover inline-flex items-center gap-1.5 whitespace-nowrap"
       >
-        <Plus weight="bold" className="size-4" />
+        <Plus weight="bold" className="size-3.5" />
         {added ? "Added" : label}
       </button>
       {open && (

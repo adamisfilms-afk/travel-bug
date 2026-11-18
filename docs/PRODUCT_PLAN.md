@@ -54,11 +54,13 @@ A fixed left sidebar with icon navigation:
 
 ### 3.2 Flights (`/flights`)
 - Search bar: **From** ⇄ **Destination** (airport autocomplete), **dates**
-  (depart + optional return), **travellers**, **cabin class**, and optional
-  **departure / arrival time windows**.
+  (depart + optional return), **travellers** and **cabin class**.
 - **Search** button (green, right aligned).
 - After a search, filter **chips** appear under the bar: price range, stops,
-  airlines. These filter results client-side without re-querying.
+  airlines, and outbound / return times (dual-handle sliders for departure and
+  arrival hours). These filter results client-side without re-querying.
+- Search form, results and filters persist while moving between pages (and
+  across a refresh in the same tab).
 - Each result row: route, flight number, times, date, price, and **Add to trip**
   (choose an existing trip or create one).
 - Powered by the **Skyscanner Flights Live Prices API (v3)** through a
@@ -158,30 +160,38 @@ sage-green accent and heavy black headlines.
 
 ### Typography
 - **Inter** throughout.
-- Page title: 56px / 800 weight / tight tracking (“Your trips”, “Flights”).
-- Section title: 34px / 400 (“Upcoming trips”, “Flights”, “Itinerary”).
-- Card title: 22px / 700 (“New York City Itinerary”, day headings at 20px / 600).
-- Body: 17–18px / 400; meta text 15px in `ink-muted`.
-- Tiny pills (time, passengers): 13px.
+- Page title: 42px / 800 weight / tight tracking (“Your trips”, “Flights”). Planner trip title: 30px.
+- Section title: 26px / 400 (“Flights”, “Itinerary”).
+- Card title: 20px / 700 (“New York City Itinerary”); day headings 16px / 600.
+- Body: 15px / 400; list rows 14px; meta text 13px in `ink-muted`.
+- Tiny pills (time, passengers): 12px.
 
 ### Components
-- **Sidebar**: 108px wide, `canvas` background, 1px right border, black solid
-  icons (≈36px). Gradient avatar circle at top. Trips + settings at the bottom.
-- **Chip / tab button**: `surface` fill, 8px radius, 18px horizontal padding,
-  58px tall. Selected = 1px dashed `accent-soft` border.
+- **Sidebar**: 84px wide, `canvas` background, 1px right border, black solid
+  icons (28px). Gradient avatar circle at top. Trips + settings at the bottom.
+  Hover = grey outline, active = `accent-soft` outline, both following the
+  icon's shape with a 2px gap (no background fill).
+- **Chip / tab button**: `surface` fill, 8px radius, 16px horizontal padding,
+  44px tall. Selected = 1px dashed `accent-soft` border.
 - **Filter chip**: fully rounded pill, `surface`; active = solid `accent`
   with white text.
-- **Search bar**: `surface`, 10px radius, 58px tall, placeholder text in muted
-  grey; Search button = `accent` fill, white 22px text, 10px radius.
+- **Search bar**: `surface`, 10px radius, 44px tall, placeholder text in muted
+  grey; Search button = `accent` fill, white 17px text, 10px radius.
 - **List row card** (flights/stays in planner): `surface`, dashed
-  `accent-soft` border, 10px radius, columns aligned, round green 40px arrow
-  button on the right.
-- **Itinerary**: day heading (bold date), rows with a small time pill
-  (plane-departure icon + `HH:MM`), flight block with dotted-circle origin, a
+  `accent-soft` border, 10px radius, ~10px vertical padding, columns aligned
+  on a 24px line (flights show airport codes only), price and a round green
+  32px arrow button on the right. A green dot (top-left) marks items already
+  in the itinerary; the delete button sits on the top-right corner on hover.
+  Price tooltips open to the left of the price.
+- **Itinerary**: day heading (bold date), rows on a fixed grid
+  `[time pill][icon][name]` so untimed items line up with timed ones; a stay's
+  second line (check-in / nights) sits under its name. Flight block with dotted-circle origin, a
   vertical dashed line with a plane, and a filled-circle destination. Days
   separated by a dotted rule.
 - **Map**: square corners, light CARTO tiles, simple dark pins.
-- **Curated cards**: 16px radius, ~325×195, flat placeholder colours.
+- **Curated cards**: 16px radius, ~270×162, flat placeholder colours.
+- **Planner side panel**: "Itinerary | Map" tabs; the map replaces the
+  itinerary in place.
 
 ### Interaction
 - Hover on cards: slight lift (shadow), cursor grab on draggable items.

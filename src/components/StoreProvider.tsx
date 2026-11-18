@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchStore } from "@/lib/searchStore";
 import { useStore } from "@/lib/store";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -8,6 +9,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const loadError = useStore((s) => s.loadError);
   useEffect(() => {
     void init();
+    void useSearchStore.persist.rehydrate();
   }, [init]);
   return (
     <>

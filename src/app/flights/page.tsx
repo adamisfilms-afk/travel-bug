@@ -5,11 +5,13 @@ import clsx from "clsx";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { AirportInput } from "@/components/AirportInput";
-import { AddToTripButton } from "@/components/trips";
 import { PriceRange } from "@/components/PriceRange";
+import { RangeSlider } from "@/components/RangeSlider";
+import { AddToTripButton } from "@/components/trips";
 import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { AIRPORTS, findAirport } from "@/lib/airports";
 import { addDays, durationLabel, hhmm, money, shortDate, toDay } from "@/lib/format";
+import { FULL_DAY, useSearchStore, type FlightSession, type HourRange } from "@/lib/searchStore";
 import { useStore } from "@/lib/store";
 import type { Cabin, FlightOffer, Place } from "@/lib/types";
 
@@ -20,64 +22,111 @@ const CABINS: { value: Cabin; label: string }[] = [
   { value: "first", label: "First" },
 ];
 
-const WINDOWS = [
-  { value: "any", label: "Any time", from: 0, to: 24 },
-  { value: "night", label: "00:00–06:00", from: 0, to: 6 },
-  { value: "morning", label: "06:00–12:00", from: 6, to: 12 },
-  { value: "afternoon", label: "12:00–18:00", from: 12, to: 18 },
-  { value: "evening", label: "18:00–24:00", from: 18, to: 24 },
-] as const;
-type Window = (typeof WINDOWS)[number]["value"];
+const segCls = "flex items-center gap-2 h-11 px-4";
+const selectCls = "bg-transparent outline-none text-[14px] cursor-pointer";
 
-function inWindow(iso: string, w: Window) {
-  const win = WINDOWS.find((x) => x.value === w)!;
-  const h = Number(iso.slice(11, 13));
-  return h >= win.from && h < win.to;
+const hourLabel = (h: number) => `${String(h).padStart(2, "0")}:00`;
+const isFull = (r: HourRange) => r[0] === 0 && r[1] === 24;
+const rangeText = (r: HourRange) => `${hourLabel(r[0])}–${hourLabel(r[1])}`;
+
+/** Is the local time of `iso` within [from, to] hours? */
+function inHours(iso: string, [from, to]: HourRange) {
+  const h = Number(iso.slice(11, 13)) + Number(iso.slice(14, 16)) / 60;
+  return h >= from && h <= to;
 }
-
-const segCls = "flex items-center gap-2 h-[58px] px-4";
-const selectCls = "bg-transparent outline-none text-[16px] cursor-pointer";
 
 function cityAirport(destination: string): Place | null {
   const d = destination.toLowerCase();
   return AIRPORTS.find((a) => a.city.toLowerCase() === d || (d === "nyc" && a.code === "JFK")) ?? null;
 }
 
+function initialSession(): FlightSession {
+  return {
+    from: null,
+    to: null,
+    depart: addDays(toDay(new Date()), 30),
+    ret: "",
+    adults: 1,
+    cabin: "economy",
+    offers: null,
+    source: "",
+    price: null,
+    stops: "any",
+    airlines: [],
+    outDepart: FULL_DAY,
+    outArrive: FULL_DAY,
+    backDepart: FULL_DAY,
+    backArrive: FULL_DAY,
+    prefilledFor: null,
+  };
+}
+
+const RESET_FILTERS: Partial<FlightSession> = {
+  price: null,
+  stops: "any",
+  airlines: [],
+  outDepart: FULL_DAY,
+  outArrive: FULL_DAY,
+  backDepart: FULL_DAY,
+  backArrive: FULL_DAY,
+};
+
+function TimesFilter({
+  label,
+  depart,
+  arrive,
+  onChange,
+}: {
+  label: string;
+  depart: HourRange;
+  arrive: HourRange;
+  onChange: (d: HourRange, a: HourRange) => void;
+}) {
+  const active = !isFull(depart) || !isFull(arrive);
+  return (
+    <FilterChip label={label} active={active} onClear={() => onChange(FULL_DAY, FULL_DAY)}>
+      <div className="w-64 space-y-4">
+        <RangeSlider label="Departs" min={0} max={24} value={depart} onChange={(v) => onChange(v, arrive)} format={hourLabel} />
+        <RangeSlider label="Arrives" min={0} max={24} value={arrive} onChange={(v) => onChange(depart, v)} format={hourLabel} />
+      </div>
+    </FilterChip>
+  );
+}
+
 function FlightsInner() {
   const params = useSearchParams();
-  const { trips, flights: saved, saveFlight, ready } = useStore();
+  const ready = useStore((s) => s.ready);
+  const trips = useStore((s) => s.trips);
+  const saved = useStore((s) => s.flights);
+  const saveFlight = useStore((s) => s.saveFlight);
   const presetTrip = trips.find((t) => t.id === params.get("trip"));
 
-  const today = toDay(new Date());
-  const [from, setFrom] = useState<Place | null>(null);
-  const [to, setTo] = useState<Place | null>(null);
-  const [depart, setDepart] = useState(addDays(today, 30));
-  const [ret, setRet] = useState<string>("");
-  const [adults, setAdults] = useState(1);
-  const [cabin, setCabin] = useState<Cabin>("economy");
-  const [departWin, setDepartWin] = useState<Window>("any");
-  const [arriveWin, setArriveWin] = useState<Window>("any");
+  const init = useMemo(initialSession, []);
+  const session = useSearchStore((s) => s.flight) ?? init;
+  const setFlight = useSearchStore((s) => s.setFlight);
+  const set = (patch: Partial<FlightSession>) => setFlight(patch, init);
+  const { from, to, depart, ret, adults, cabin, offers, source, price, stops, airlines } = session;
 
-  const [offers, setOffers] = useState<FlightOffer[] | null>(null);
-  const [source, setSource] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const today = toDay(new Date());
 
-  // Post-search filters
-  const [price, setPrice] = useState<[number, number] | null>(null);
-  const [stops, setStops] = useState<"any" | "0" | "1">("any");
-  const [airlines, setAirlines] = useState<string[]>([]);
-
-  // Prefill from a trip (e.g. "Find flights" in the planner)
+  // Prefill from a trip ("Find flights" in the planner) once per trip, so coming back keeps your edits.
   useEffect(() => {
-    if (!ready || !presetTrip) return;
-    setTo(cityAirport(presetTrip.destination));
-    setFrom((f) => f ?? findAirport("LHR") ?? null);
-    setDepart(presetTrip.startDate);
-    setRet(presetTrip.endDate);
-    setAdults(presetTrip.travellers);
-  }, [ready, presetTrip]);
+    if (!ready || !presetTrip || useSearchStore.getState().flight?.prefilledFor === presetTrip.id) return;
+    setFlight(
+      {
+        to: cityAirport(presetTrip.destination),
+        from: useSearchStore.getState().flight?.from ?? findAirport("LHR") ?? null,
+        depart: presetTrip.startDate,
+        ret: presetTrip.endDate,
+        adults: presetTrip.travellers,
+        prefilledFor: presetTrip.id,
+      },
+      init,
+    );
+  }, [ready, presetTrip, init, setFlight]);
 
   useEffect(() => {
     if (!toast) return;
@@ -98,14 +147,10 @@ function FlightsInner() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
-      setOffers(data.offers);
-      setSource(data.source);
-      setPrice(null);
-      setStops("any");
-      setAirlines([]);
+      set({ offers: data.offers, source: data.source, ...RESET_FILTERS });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
-      setOffers(null);
+      set({ offers: null });
     } finally {
       setLoading(false);
     }
@@ -117,50 +162,52 @@ function FlightsInner() {
     return [Math.floor(Math.min(...ps)), Math.ceil(Math.max(...ps))] as [number, number];
   }, [offers]);
   const allAirlines = useMemo(() => [...new Set((offers ?? []).flatMap((o) => o.legs.map((l) => l.carrier)))].sort(), [offers]);
+  const hasReturn = (offers ?? []).some((o) => o.legs.length > 1);
 
   const filtered = (offers ?? []).filter((o) => {
-    const out = o.legs[0];
+    const [out, back] = o.legs;
     if (price && (o.price < price[0] || o.price > price[1])) return false;
     if (stops === "0" && o.legs.some((l) => l.stops > 0)) return false;
     if (stops === "1" && o.legs.some((l) => l.stops > 1)) return false;
     if (airlines.length && !o.legs.some((l) => airlines.includes(l.carrier))) return false;
-    if (!inWindow(out.depart, departWin) || !inWindow(out.arrive, arriveWin)) return false;
+    if (!inHours(out.depart, session.outDepart) || !inHours(out.arrive, session.outArrive)) return false;
+    if (back && (!inHours(back.depart, session.backDepart) || !inHours(back.arrive, session.backArrive))) return false;
     return true;
   });
 
   const savedKey = (legs: FlightOffer["legs"]) => legs.map((l) => `${l.flightNumber}@${l.depart}`).join("|");
   const savedTrips = (o: FlightOffer) => saved.filter((s) => savedKey(s.legs) === savedKey(o.legs)).map((s) => s.tripId);
 
+  const timesLabel = (base: string, d: HourRange, a: HourRange) =>
+    isFull(d) && isFull(a) ? base : `${base}: ${!isFull(d) ? `dep ${rangeText(d)}` : ""}${!isFull(d) && !isFull(a) ? ", " : ""}${!isFull(a) ? `arr ${rangeText(a)}` : ""}`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageTitle>Flights</PageTitle>
 
       <form
-        className="pt-4 flex flex-wrap items-start gap-4"
+        className="pt-2 flex flex-wrap items-start gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           void search();
         }}
       >
-        <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70 flex-1 min-w-0">
-          <div className="flex items-center gap-3 h-[58px] px-5 w-full sm:w-auto sm:min-w-[340px] flex-1">
-            <AirportInput value={from} onChange={setFrom} placeholder="From?" ariaLabel="From" />
+        <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70 min-w-0">
+          <div className="flex items-center gap-3 h-11 px-4 w-full sm:w-[380px]">
+            <AirportInput value={from} onChange={(p) => set({ from: p })} placeholder="From?" ariaLabel="From" />
             <button
               type="button"
               aria-label="Swap origin and destination"
-              onClick={() => {
-                setFrom(to);
-                setTo(from);
-              }}
-              className="p-1.5 rounded-full hover:bg-white"
+              onClick={() => set({ from: to, to: from })}
+              className="p-1 rounded-full hover:bg-white"
             >
-              <ArrowsLeftRight weight="bold" className="size-5" />
+              <ArrowsLeftRight weight="bold" className="size-4" />
             </button>
-            <AirportInput value={to} onChange={setTo} placeholder="Destination" ariaLabel="Destination" />
+            <AirportInput value={to} onChange={(p) => set({ to: p })} placeholder="Destination" ariaLabel="Destination" />
           </div>
           <label className={segCls}>
-            <CalendarBlank weight="fill" className="size-5 shrink-0" />
-            <input aria-label="Departure date" type="date" className={selectCls} value={depart} min={today} onChange={(e) => setDepart(e.target.value)} />
+            <CalendarBlank weight="fill" className="size-4 shrink-0" />
+            <input aria-label="Departure date" type="date" className={selectCls} value={depart} min={today} onChange={(e) => set({ depart: e.target.value })} />
             <span className="text-ink-muted">–</span>
             <input
               aria-label="Return date (optional)"
@@ -168,12 +215,12 @@ function FlightsInner() {
               className={clsx(selectCls, !ret && "text-ink-muted")}
               value={ret}
               min={depart}
-              onChange={(e) => setRet(e.target.value)}
+              onChange={(e) => set({ ret: e.target.value })}
             />
           </label>
           <label className={segCls}>
-            <span className="text-ink-muted text-sm">Travellers</span>
-            <select aria-label="Travellers" className={selectCls} value={adults} onChange={(e) => setAdults(Number(e.target.value))}>
+            <span className="text-ink-muted text-[13px]">Travellers</span>
+            <select aria-label="Travellers" className={selectCls} value={adults} onChange={(e) => set({ adults: Number(e.target.value) })}>
               {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -182,8 +229,8 @@ function FlightsInner() {
             </select>
           </label>
           <label className={segCls}>
-            <span className="text-ink-muted text-sm">Cabin</span>
-            <select aria-label="Cabin class" className={selectCls} value={cabin} onChange={(e) => setCabin(e.target.value as Cabin)}>
+            <span className="text-ink-muted text-[13px]">Cabin</span>
+            <select aria-label="Cabin class" className={selectCls} value={cabin} onChange={(e) => set({ cabin: e.target.value as Cabin })}>
               {CABINS.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
@@ -191,44 +238,20 @@ function FlightsInner() {
               ))}
             </select>
           </label>
-          <label className={segCls}>
-            <span className="text-ink-muted text-sm">Depart</span>
-            <select aria-label="Departure time" className={selectCls} value={departWin} onChange={(e) => setDepartWin(e.target.value as Window)}>
-              {WINDOWS.map((w) => (
-                <option key={w.value} value={w.value}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={segCls}>
-            <span className="text-ink-muted text-sm">Arrive</span>
-            <select aria-label="Arrival time" className={selectCls} value={arriveWin} onChange={(e) => setArriveWin(e.target.value as Window)}>
-              {WINDOWS.map((w) => (
-                <option key={w.value} value={w.value}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
-        <PrimaryButton type="submit" disabled={loading} className="ml-auto">
+        <PrimaryButton type="submit" disabled={loading} className="ml-auto !h-11">
           {loading ? "Searching…" : "Search"}
         </PrimaryButton>
       </form>
 
-      {error && <p className="text-price-up">{error}</p>}
+      {error && <p className="text-price-up text-[14px]">{error}</p>}
 
       {offers && (
-        <div className="flex flex-wrap gap-6 items-center">
-          <FilterChip
-            label={price ? `${money(price[0])} - ${money(price[1])}` : "Price"}
-            active={!!price}
-            onClear={() => setPrice(null)}
-          >
-            <PriceRange bounds={bounds} value={price ?? bounds} onChange={setPrice} />
+        <div className="flex flex-wrap gap-3 items-center">
+          <FilterChip label={price ? `${money(price[0])} - ${money(price[1])}` : "Price"} active={!!price} onClear={() => set({ price: null })}>
+            <PriceRange bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
           </FilterChip>
-          <FilterChip label={stops === "any" ? "Stops" : stops === "0" ? "Non-stop" : "Up to 1 stop"} active={stops !== "any"} onClear={() => setStops("any")}>
+          <FilterChip label={stops === "any" ? "Stops" : stops === "0" ? "Non-stop" : "Up to 1 stop"} active={stops !== "any"} onClear={() => set({ stops: "any" })}>
             <div className="space-y-2">
               {([
                 ["any", "Any number of stops"],
@@ -236,13 +259,17 @@ function FlightsInner() {
                 ["1", "1 stop or fewer"],
               ] as const).map(([v, l]) => (
                 <label key={v} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="stops" checked={stops === v} onChange={() => setStops(v)} className="accent-accent" />
+                  <input type="radio" name="stops" checked={stops === v} onChange={() => set({ stops: v })} className="accent-accent" />
                   {l}
                 </label>
               ))}
             </div>
           </FilterChip>
-          <FilterChip label={airlines.length ? `${airlines.length} airline${airlines.length > 1 ? "s" : ""}` : "Airlines"} active={airlines.length > 0} onClear={() => setAirlines([])}>
+          <FilterChip
+            label={airlines.length ? `${airlines.length} airline${airlines.length > 1 ? "s" : ""}` : "Airlines"}
+            active={airlines.length > 0}
+            onClear={() => set({ airlines: [] })}
+          >
             <div className="space-y-2 max-h-64 overflow-auto">
               {allAirlines.map((a) => (
                 <label key={a} className="flex items-center gap-2 cursor-pointer">
@@ -250,14 +277,28 @@ function FlightsInner() {
                     type="checkbox"
                     className="accent-accent"
                     checked={airlines.includes(a)}
-                    onChange={(e) => setAirlines((xs) => (e.target.checked ? [...xs, a] : xs.filter((x) => x !== a)))}
+                    onChange={(e) => set({ airlines: e.target.checked ? [...airlines, a] : airlines.filter((x) => x !== a) })}
                   />
                   {a}
                 </label>
               ))}
             </div>
           </FilterChip>
-          <span className="ml-auto text-sm text-ink-muted">
+          <TimesFilter
+            label={timesLabel("Outbound times", session.outDepart, session.outArrive)}
+            depart={session.outDepart}
+            arrive={session.outArrive}
+            onChange={(d, a) => set({ outDepart: d, outArrive: a })}
+          />
+          {hasReturn && (
+            <TimesFilter
+              label={timesLabel("Return times", session.backDepart, session.backArrive)}
+              depart={session.backDepart}
+              arrive={session.backArrive}
+              onChange={(d, a) => set({ backDepart: d, backArrive: a })}
+            />
+          )}
+          <span className="ml-auto text-[13px] text-ink-muted">
             {filtered.length} of {offers.length} results{source === "mock" && " · demo data (add SKYSCANNER_API_KEY for live prices)"}
           </span>
         </div>
@@ -265,14 +306,17 @@ function FlightsInner() {
 
       <hr className="border-line" />
 
-      {offers && filtered.length === 0 && <p className="text-ink-muted text-lg">No flights match these filters.</p>}
+      {offers && filtered.length === 0 && <p className="text-ink-muted">No flights match these filters.</p>}
 
-      <div className="space-y-5">
+      <div className="space-y-3">
         {filtered.map((o) => (
-          <div key={o.id} className="rounded-[10px] bg-surface border border-transparent hover:dashed-accent px-5 py-4 flex items-center gap-4">
-            <div className="flex-1 min-w-0 space-y-2.5">
+          <div key={o.id} className="rounded-[10px] bg-surface border border-transparent hover:dashed-accent px-4 py-2.5 flex items-center gap-3">
+            <div className="flex-1 min-w-0 space-y-1">
               {o.legs.map((leg, i) => (
-                <div key={i} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_150px_80px_120px_110px_90px] gap-x-6 gap-y-0.5 text-[16px] xl:text-[17px]">
+                <div
+                  key={i}
+                  className="text-[14px] leading-6 flex flex-wrap gap-x-4 lg:grid lg:grid-cols-[minmax(0,1fr)_130px_64px_100px_96px_120px] lg:gap-x-4"
+                >
                   <span className="truncate">
                     {leg.from.name} ({leg.from.code}) - {leg.to.name} ({leg.to.code})
                   </span>
@@ -282,26 +326,33 @@ function FlightsInner() {
                     {hhmm(leg.depart)} - {hhmm(leg.arrive)}
                   </span>
                   <span className="text-ink-muted whitespace-nowrap">{shortDate(leg.depart)}</span>
-                  <span className="text-ink-muted whitespace-nowrap text-sm self-center">
+                  <span className="text-ink-muted whitespace-nowrap text-[13px]">
                     {durationLabel(leg.durationMins)} · {leg.stops ? `${leg.stops} stop` : "Direct"}
                   </span>
                 </div>
               ))}
             </div>
-            <span className="w-20 text-right font-semibold text-[18px] tabular-nums self-start pt-0.5">{money(o.price, o.currency)}</span>
-            <AddToTripButton
-              addedTo={savedTrips(o)}
-              defaults={{ destination: o.legs[0].to.city, startDate: o.legs[0].depart.slice(0, 10), endDate: o.legs[1]?.depart.slice(0, 10) ?? o.legs[0].depart.slice(0, 10), travellers: o.passengers }}
-              onAdd={(tripId) => {
-                saveFlight(tripId, o);
-                setToast(`Saved to ${useStore.getState().trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
-              }}
-            />
+            <span className="w-[72px] text-right font-semibold text-[15px] leading-6 tabular-nums self-start">{money(o.price, o.currency)}</span>
+            <div className="self-start h-6 flex items-center">
+              <AddToTripButton
+                addedTo={savedTrips(o)}
+                defaults={{
+                  destination: o.legs[0].to.city,
+                  startDate: o.legs[0].depart.slice(0, 10),
+                  endDate: o.legs[1]?.depart.slice(0, 10) ?? o.legs[0].depart.slice(0, 10),
+                  travellers: o.passengers,
+                }}
+                onAdd={(tripId) => {
+                  saveFlight(tripId, o);
+                  setToast(`Saved to ${useStore.getState().trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
+                }}
+              />
+            </div>
           </div>
         ))}
       </div>
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white px-5 py-2.5 shadow-lg">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white text-[14px] px-5 py-2 shadow-lg">{toast}</div>}
     </div>
   );
 }

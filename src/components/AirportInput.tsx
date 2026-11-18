@@ -38,7 +38,7 @@ export function AirportInput({
     <div ref={ref} className="relative flex-1 min-w-0">
       <input
         aria-label={ariaLabel}
-        className="w-full h-full bg-transparent outline-none text-[16px] placeholder:text-ink-muted"
+        className="w-full h-full bg-transparent outline-none text-[14px] placeholder:text-ink-muted"
         placeholder={placeholder}
         value={shown}
         onFocus={(e) => e.target.select()}
@@ -63,7 +63,7 @@ export function AirportInput({
         }}
       />
       {open && results.length > 0 && (
-        <ul className="absolute left-0 top-full mt-3 z-40 w-80 rounded-xl bg-surface-strong shadow-lg border border-line py-2">
+        <ul className="absolute left-0 top-full mt-3 z-40 w-80 text-[14px] rounded-xl bg-surface-strong shadow-lg border border-line py-2">
           {results.map((a, i) => (
             <li key={a.code}>
               <button

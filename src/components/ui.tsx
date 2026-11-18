@@ -8,15 +8,15 @@ import { money, priceTooltip, priceTrend } from "@/lib/format";
 
 export function PageTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
-      <h1 className="text-4xl md:text-[56px] leading-[1.1] font-extrabold tracking-tight">{children}</h1>
-      {aside && <span className="text-xl md:text-[28px] text-ink-muted">{aside}</span>}
+    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+      <h1 className="text-3xl md:text-[42px] leading-[1.1] font-extrabold tracking-tight">{children}</h1>
+      {aside && <span className="text-lg md:text-[22px] text-ink-muted">{aside}</span>}
     </div>
   );
 }
 
 export function SectionTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <h2 className={clsx("text-2xl md:text-[34px] leading-tight font-normal", className)}>{children}</h2>;
+  return <h2 className={clsx("text-xl md:text-[26px] leading-tight font-normal", className)}>{children}</h2>;
 }
 
 /** Large rectangular chip used for trip tabs ("New York City", "Add new trip"). */
@@ -32,7 +32,7 @@ export function TabChip({
   href?: string;
 }) {
   const cls = clsx(
-    "inline-flex items-center h-[58px] px-5 rounded-lg bg-surface text-[18px] transition-colors border",
+    "inline-flex items-center h-11 px-4 rounded-lg bg-surface text-[15px] transition-colors border",
     selected ? "dashed-accent" : "border-transparent hover:border-line",
   );
   if (href)
@@ -69,7 +69,7 @@ export function FilterChip({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          "h-10 px-4 rounded-full text-[16px] transition-colors inline-flex items-center gap-2",
+          "h-8 px-3.5 rounded-full text-[14px] transition-colors inline-flex items-center gap-2",
           active ? "bg-accent text-white" : "bg-surface hover:bg-white",
         )}
       >
@@ -89,7 +89,7 @@ export function FilterChip({
         )}
       </button>
       {open && children && (
-        <div className="absolute z-30 mt-2 min-w-64 rounded-xl bg-surface-strong shadow-lg border border-line p-4">{children}</div>
+        <div className="absolute z-30 mt-2 min-w-64 rounded-xl bg-surface-strong shadow-lg border border-line p-4 text-[14px]">{children}</div>
       )}
     </div>
   );
@@ -103,9 +103,9 @@ export function ArrowButton({ href, label = "Book" }: { href: string; label?: st
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="grid place-items-center size-10 shrink-0 rounded-full bg-accent text-white hover:bg-accent-hover transition-colors"
+      className="grid place-items-center size-8 shrink-0 rounded-full bg-accent text-white hover:bg-accent-hover transition-colors"
     >
-      <ArrowRight weight="bold" className="size-4" />
+      <ArrowRight weight="bold" className="size-3.5" />
     </a>
   );
 }
@@ -124,20 +124,36 @@ export function PriceTag({
   className?: string;
 }) {
   const t = priceTrend(saved, current);
+  const [show, setShow] = useState(false);
+  // Also hide on click/drag start, window blur or scroll so it can never get stuck open.
+  useEffect(() => {
+    if (!show) return;
+    const hide = () => setShow(false);
+    window.addEventListener("pointerdown", hide);
+    window.addEventListener("blur", hide);
+    window.addEventListener("scroll", hide, true);
+    return () => {
+      window.removeEventListener("pointerdown", hide);
+      window.removeEventListener("blur", hide);
+      window.removeEventListener("scroll", hide, true);
+    };
+  }, [show]);
   return (
-    <span className={clsx("relative group inline-block font-semibold text-[18px] tabular-nums", className)}>
-      <span
-        tabIndex={0}
-        className={clsx("cursor-help outline-none", t === "up" && "text-price-up", t === "down" && "text-price-down")}
-      >
-        {money(current, currency)}
-      </span>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute right-0 bottom-full mb-2 w-64 rounded-lg bg-ink text-white text-[13px] font-normal leading-snug px-3 py-2 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 transition z-30"
-      >
-        {priceTooltip(kind, saved, current, currency)}
-      </span>
+    <span
+      className={clsx("relative inline-block font-semibold tabular-nums", className)}
+      onPointerEnter={(e) => e.pointerType === "mouse" && setShow(true)}
+      onPointerLeave={() => setShow(false)}
+    >
+      <span className={clsx("cursor-help", t === "up" && "text-price-up", t === "down" && "text-price-down")}>{money(current, currency)}</span>
+      {show && (
+        // Opens to the left of the price so it never covers the row's buttons.
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-3 w-60 rounded-lg bg-ink text-white text-[12.5px] font-normal leading-snug px-3 py-2 z-30 text-left shadow-lg"
+        >
+          {priceTooltip(kind, saved, current, currency)}
+        </span>
+      )}
     </span>
   );
 }
@@ -146,7 +162,7 @@ export function Pill({ children, className }: { children: ReactNode; className?:
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-surface border border-line/60 text-[13px] text-ink/70 tabular-nums",
+        "inline-flex items-center gap-1.5 h-6 px-2 rounded-full bg-surface border border-line/60 text-[12px] text-ink/70 tabular-nums",
         className,
       )}
     >
@@ -169,11 +185,11 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-2xl bg-canvas shadow-2xl p-6 md:p-8"
+        className="w-full max-w-md rounded-2xl bg-canvas shadow-2xl p-6"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-6">
-          <h2 className="text-2xl font-bold">{title}</h2>
+          <h2 className="text-xl font-bold">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 rounded hover:bg-surface">
             <X className="size-5" />
           </button>
@@ -194,14 +210,14 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 export const inputCls =
-  "h-12 w-full rounded-lg bg-surface px-4 text-[16px] text-ink placeholder:text-ink-muted outline-none border border-transparent focus:border-accent-soft";
+  "h-11 w-full rounded-lg bg-surface px-4 text-[15px] text-ink placeholder:text-ink-muted outline-none border border-transparent focus:border-accent-soft";
 
 export function PrimaryButton({ children, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}
       className={clsx(
-        "h-[58px] px-10 rounded-[10px] bg-accent text-white text-[22px] hover:bg-accent-hover transition-colors disabled:opacity-60 border border-accent-soft",
+        "h-12 px-8 rounded-[10px] bg-accent text-white text-[17px] hover:bg-accent-hover transition-colors disabled:opacity-60 border border-accent-soft",
         className,
       )}
     >
@@ -214,9 +230,9 @@ export function UnderConstruction({ title, blurb }: { title: string; blurb: stri
   return (
     <div className="space-y-10">
       <PageTitle>{title}</PageTitle>
-      <div className="rounded-2xl dashed-accent bg-surface p-10 md:p-16 max-w-3xl">
+      <div className="rounded-2xl dashed-accent bg-surface p-8 md:p-12 max-w-3xl">
         <p className="text-sm uppercase tracking-widest text-accent-ink font-semibold">Under construction</p>
-        <p className="mt-3 text-xl">{blurb}</p>
+        <p className="mt-3 text-lg">{blurb}</p>
       </div>
     </div>
   );

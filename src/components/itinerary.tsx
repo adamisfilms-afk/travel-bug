@@ -64,13 +64,13 @@ export function TimePill({
           onChange?.(e.target.value || null);
           setEditing(false);
         }}
-        className="h-7 w-[92px] rounded-full bg-white border border-accent-soft px-2 text-[13px] outline-none"
+        className="h-6 w-[84px] rounded-full bg-white border border-accent-soft px-2 text-[12px] outline-none"
       />
     );
   }
   const content = (
     <>
-      <Icon className="size-3.5" />
+      <Icon className="size-3" />
       {time ?? "--:--"}
     </>
   );
@@ -82,7 +82,7 @@ export function TimePill({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => setEditing(true)}
       className={clsx(
-        "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-surface border text-[13px] tabular-nums hover:border-accent-soft",
+        "inline-flex items-center gap-1.5 h-6 px-2 rounded-full bg-surface border text-[12px] tabular-nums hover:border-accent-soft",
         time ? "border-line/60 text-ink/70" : "border-dashed border-line text-ink-muted",
       )}
     >
@@ -91,26 +91,29 @@ export function TimePill({
   );
 }
 
+/** Shared column layout so timed and untimed entries line up: [time pill][icon][text]. */
+export const ENTRY_GRID = "grid grid-cols-[76px_18px_minmax(0,1fr)] gap-x-2.5 items-start";
+
 function FlightBlock({ leg }: { leg: FlightLeg }) {
   return (
-    <div className="grid grid-cols-[28px_1fr] gap-x-4 mt-4">
-      <div className="flex flex-col items-center pt-1.5 text-ink/60">
-        <span className="size-3.5 rounded-full border-2 border-dotted border-ink/50" />
-        <span className="w-px flex-1 border-l border-dashed border-ink/40 my-1 min-h-3" />
-        <Airplane weight="fill" className="size-4 rotate-180" />
-        <span className="w-px flex-1 border-l border-dashed border-ink/40 my-1 min-h-3" />
-        <span className="size-3.5 rounded-full border-[3px] border-ink/70 bg-white" />
+    <div className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-3 mt-3">
+      <div className="flex flex-col items-center pt-1 text-ink/60">
+        <span className="size-3 rounded-full border-2 border-dotted border-ink/50" />
+        <span className="w-px flex-1 border-l border-dashed border-ink/40 my-1 min-h-2.5" />
+        <Airplane weight="fill" className="size-3.5 rotate-180" />
+        <span className="w-px flex-1 border-l border-dashed border-ink/40 my-1 min-h-2.5" />
+        <span className="size-3 rounded-full border-[3px] border-ink/70 bg-white" />
       </div>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3.5 min-w-0">
         <div>
-          <p className="font-semibold text-[19px] leading-tight">{leg.from.city}</p>
-          <p className="text-ink-muted text-[16px]">
+          <p className="font-semibold text-[15px] leading-tight">{leg.from.city}</p>
+          <p className="text-ink-muted text-[13px] truncate">
             {leg.from.name} ({leg.from.code}) · {hhmm(leg.depart)}
           </p>
         </div>
         <div>
-          <p className="font-semibold text-[19px] leading-tight">{leg.to.city}</p>
-          <p className="text-ink-muted text-[16px]">
+          <p className="font-semibold text-[15px] leading-tight">{leg.to.city}</p>
+          <p className="text-ink-muted text-[13px] truncate">
             {leg.to.name} ({leg.to.code}) · {hhmm(leg.arrive)}
           </p>
         </div>
@@ -136,10 +139,10 @@ export function ItineraryEntry({
     const leg = legForDay(f, item.day);
     return (
       <div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <TimePill icon="plane" time={item.time} editable={editable} onChange={onTime} />
           <Pill>
-            <Users className="size-3.5" />
+            <Users className="size-3" />
             {f.passengers} passenger{f.passengers === 1 ? "" : "s"}
           </Pill>
           <Pill>{leg.flightNumber}</Pill>
@@ -149,7 +152,7 @@ export function ItineraryEntry({
     );
   }
 
-  let icon = <Star className="size-4" />;
+  let Icon: typeof Star = Star;
   let name = "";
   let sub: string | null = null;
   if (item.kind === "stay") {
@@ -163,30 +166,26 @@ export function ItineraryEntry({
         : item.day === s.checkOut
           ? "Check-out"
           : s.area;
-    icon = <Bed className="size-4" />;
+    Icon = Bed;
   } else {
     const a = lookup.activities.get(item.refId);
     if (!a) return null;
     name = a.name;
-    const Icon = CATEGORY_ICON[a.category];
-    icon = <Icon className="size-4" />;
+    Icon = CATEGORY_ICON[a.category];
   }
 
+  // Row 1: [time pill or blank][icon][name] all centred on a 24px line; row 2: sub-text under the name.
   return (
-    <div className="grid grid-cols-[96px_1fr] items-center gap-3">
-      <div className="flex justify-start">
-        {editable || item.time ? (
-          <TimePill time={item.time} editable={editable} onChange={onTime} />
-        ) : (
-          <span className="ml-14 text-ink/40">{icon}</span>
-        )}
+    <div className={ENTRY_GRID}>
+      <div className="h-6 flex items-center">
+        {(editable || item.time) && <TimePill time={item.time} editable={editable} onChange={onTime} />}
+      </div>
+      <div className="h-6 flex items-center justify-center text-ink/45">
+        <Icon className="size-4" />
       </div>
       <div className="min-w-0">
-        <p className="font-semibold text-[19px] leading-tight truncate flex items-center gap-2">
-          {(editable || item.time) && <span className="text-ink/40 shrink-0">{icon}</span>}
-          {name}
-        </p>
-        {sub && <p className="text-ink-muted text-[14px]">{sub}</p>}
+        <p className="font-semibold text-[15px] leading-6 truncate">{name}</p>
+        {sub && <p className="text-ink-muted text-[13px] leading-tight">{sub}</p>}
       </div>
     </div>
   );

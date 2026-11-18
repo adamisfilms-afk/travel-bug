@@ -17,8 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans min-h-screen">
         <StoreProvider>
           <Sidebar />
-          <main className="pl-[76px] md:pl-[108px]">
-            <div className="px-5 md:px-14 py-10 md:py-12 max-w-[1800px]">{children}</div>
+          <main className="pl-[64px] md:pl-[84px]">
+            <div className="px-5 md:px-12 py-8 md:py-10 max-w-[1800px]">{children}</div>
           </main>
         </StoreProvider>
       </body>
