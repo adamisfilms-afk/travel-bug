@@ -1,5 +1,6 @@
 import "server-only";
 import { AIRPORTS, findAirport } from "./airports";
+import { fromUsd } from "./currency";
 import { searchApiEnabled, searchApiReturns, searchApiSearch } from "./searchapi";
 import type { Cabin, FlightLeg, FlightOffer, Place, SavedFlight } from "./types";
 
@@ -10,6 +11,7 @@ export interface FlightSearchParams {
   returnDate?: string;
   adults: number;
   cabin: Cabin;
+  currency: string; // ISO 4217, e.g. "GBP"
 }
 
 const SKY_BASE = "https://partners.api.skyscanner.net/apiservices/v3";
@@ -57,6 +59,7 @@ export async function refreshFlightPrice(f: SavedFlight): Promise<number | null>
     returnDate: back?.depart.slice(0, 10),
     adults: f.passengers,
     cabin: f.cabin,
+    currency: f.currency, // compare like with like: re-price in the currency it was saved in
   };
   if (source === "searchapi") {
     const outbound = (await searchApiSearch(params)).find((o) => numKey(o.legs) === numKey([out]));
@@ -124,7 +127,7 @@ async function skyFetch(path: string, body?: unknown): Promise<Json> {
 }
 
 async function skyscannerSearch(p: FlightSearchParams): Promise<FlightOffer[]> {
-  const currency = process.env.SKYSCANNER_CURRENCY || "USD";
+  const currency = p.currency || process.env.SKYSCANNER_CURRENCY || "USD";
   const queryLegs = [
     { originPlaceId: { iata: p.from }, destinationPlaceId: { iata: p.to }, date: toSkyDate(p.depart) },
   ];
@@ -294,12 +297,12 @@ function mockSearch(p: FlightSearchParams): FlightOffer[] {
     const legs = [mockLeg(from, to, p.depart, r, airline)];
     const base = (45 + km * 0.075) * (0.75 + r() * 0.8) * CABIN_MULT[p.cabin] * (p.returnDate ? 1.75 : 1);
     const stopDiscount = legs.some((l) => l.stops) ? 0.82 : 1;
-    const price = Math.round(base * stopDiscount * p.adults);
+    const price = fromUsd(base * stopDiscount * p.adults, p.currency);
     offers.push({
       id: `mock-${hash(JSON.stringify(legs))}`,
       legs,
       price,
-      currency: "USD",
+      currency: p.currency,
       cabin: p.cabin,
       passengers: p.adults,
       bookingUrl: `https://www.skyscanner.net/transport/flights/${p.from.toLowerCase()}/${p.to.toLowerCase()}/${p.depart.slice(2).replace(/-/g, "")}/${p.returnDate ? p.returnDate.slice(2).replace(/-/g, "") + "/" : ""}`,
@@ -321,7 +324,7 @@ function mockReturns(p: FlightSearchParams, outbound: FlightOffer): FlightOffer[
   const offers: FlightOffer[] = [];
   for (let i = 0; i < 5; i++) {
     const back = mockLeg(from, to, p.returnDate!, r, i < 3 && sameAirline ? sameAirline : undefined);
-    const extra = i === 0 ? 0 : Math.round((10 + r() * 90) * outbound.passengers);
+    const extra = i === 0 ? 0 : fromUsd((10 + r() * 90) * outbound.passengers, outbound.currency);
     offers.push({ ...outbound, id: `${outbound.id}-r${i}`, legs: [out, back], price: outbound.price + extra, departureToken: undefined, returnDate: undefined });
   }
   return offers.sort((a, b) => a.price - b.price);

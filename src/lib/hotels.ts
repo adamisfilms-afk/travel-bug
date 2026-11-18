@@ -1,3 +1,4 @@
+import { fromUsd } from "./currency";
 import type { Hotel } from "./types";
 
 const COLORS = ["#C9B8A4", "#B9C4CC", "#C7CBB5", "#D3C2B0", "#B7C7BD", "#CDBFCB"];
@@ -52,9 +53,10 @@ export function allHotels(): Hotel[] {
   );
 }
 
-export function searchHotels(q: string): Hotel[] {
+/** Sample hotels, priced in the requested currency (converted from USD; demo data only). */
+export function searchHotels(q: string, currency = "USD"): Hotel[] {
   const s = q.trim().toLowerCase();
-  const hotels = allHotels();
+  const hotels = allHotels().map((h) => ({ ...h, pricePerNight: fromUsd(h.pricePerNight, currency), currency }));
   if (!s) return hotels;
   return hotels.filter(
     (h) =>

@@ -40,7 +40,7 @@ A fixed left sidebar with icon navigation:
 | Pin | `/explore` | Curated trip plans & things to do | Under construction |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |
-| Gear | `/settings` | Settings | Under construction |
+| Gear | `/settings` | Settings (currency) | Built |
 
 ## 3. How each page works
 

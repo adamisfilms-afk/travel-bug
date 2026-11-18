@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DEFAULT_CURRENCY, isCurrency } from "@/lib/currency";
 import { searchReturnFlights } from "@/lib/flights-server";
 import type { Cabin, FlightOffer } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
         returnDate: outbound.returnDate,
         adults: Math.min(9, Math.max(1, Number(outbound.passengers) || 1)),
         cabin: CABINS.includes(outbound.cabin) ? outbound.cabin : "economy",
+        currency: isCurrency(outbound.currency) ? outbound.currency : DEFAULT_CURRENCY,
       },
       outbound,
     );

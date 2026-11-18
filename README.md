@@ -21,7 +21,7 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 | Variable | Effect when set | Without it |
 |---|---|---|
 | `SEARCHAPI_API_KEY` | Live Google Flights results via SearchApi.io (search, return flights, price re-checks) | Realistic generated flight data |
-| `SEARCHAPI_CURRENCY` / `SEARCHAPI_COUNTRY` | Currency and Google country for searches (defaults `USD` / `uk`) | |
+| `SEARCHAPI_COUNTRY` | Google country for searches (default `uk`). Currency is chosen in the app's Settings page | |
 | `SEARCHAPI_DEBUG=1` | Logs the shape of SearchApi responses in the server terminal | |
 | `SKYSCANNER_API_KEY` | Skyscanner partner API instead (needs partner approval) | |
 | `FLIGHT_PROVIDER` | Force `searchapi`, `skyscanner` or `mock` | Uses whichever key is set |

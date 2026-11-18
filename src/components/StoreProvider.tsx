@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useSearchStore } from "@/lib/searchStore";
+import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -10,6 +11,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void init();
     void useSearchStore.persist.rehydrate();
+    void useSettings.persist.rehydrate();
   }, [init]);
   return (
     <>

@@ -25,6 +25,7 @@ export interface SearchApiParams {
   returnDate?: string;
   adults: number;
   cabin: Cabin;
+  currency: string;
 }
 
 const CABIN: Record<Cabin, string> = {
@@ -79,7 +80,7 @@ function baseParams(p: SearchApiParams) {
     flight_type: p.returnDate ? "round_trip" : "one_way",
     adults: p.adults,
     travel_class: CABIN[p.cabin],
-    currency: process.env.SEARCHAPI_CURRENCY || "USD",
+    currency: p.currency || process.env.SEARCHAPI_CURRENCY || "USD",
     hl: "en",
     gl: process.env.SEARCHAPI_COUNTRY || "uk",
   };
@@ -166,7 +167,7 @@ function groupsOf(data: Json): Json[] {
 /** Outbound (or one-way) options. Round-trip offers carry `departureToken` and no return leg yet. */
 export async function searchApiSearch(p: SearchApiParams): Promise<FlightOffer[]> {
   const data = await call(baseParams(p));
-  const currency = process.env.SEARCHAPI_CURRENCY || "USD";
+  const currency = p.currency || process.env.SEARCHAPI_CURRENCY || "USD";
   const link = data?.search_metadata?.google_flights_url ?? googleFlightsUrl(p);
   const offers: FlightOffer[] = [];
   groupsOf(data).forEach((g, i) => {

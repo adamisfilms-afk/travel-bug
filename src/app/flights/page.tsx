@@ -13,6 +13,7 @@ import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { AIRPORTS, findAirport } from "@/lib/airports";
 import { addDays, durationLabel, hhmm, money, shortDate, toDay } from "@/lib/format";
 import { FULL_DAY, useSearchStore, type FlightSession, type FlightSort, type HourRange } from "@/lib/searchStore";
+import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
 import type { Cabin, FlightLeg, FlightOffer, Place } from "@/lib/types";
 
@@ -284,6 +285,8 @@ function FlightsInner() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const today = toDay(new Date());
+  const currency = useSettings((s) => s.currency);
+  const shownCurrency = offers?.[0]?.currency ?? currency;
 
   // Prefill from a trip ("Find flights" in the planner) once per trip, so coming back keeps your edits.
   useEffect(() => {
@@ -316,7 +319,7 @@ function FlightsInner() {
       const res = await fetch("/api/flights/search", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ from: from.code, to: to.code, depart, returnDate: ret || undefined, adults, cabin }),
+        body: JSON.stringify({ from: from.code, to: to.code, depart, returnDate: ret || undefined, adults, cabin, currency }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
@@ -424,8 +427,12 @@ function FlightsInner() {
       {offers && (
         <div className="flex items-start gap-3">
         <div className="flex flex-wrap gap-3 items-center flex-1 min-w-0">
-          <FilterChip label={price ? `${money(price[0])} - ${money(price[1])}` : "Price"} active={!!price} onClear={() => set({ price: null })}>
-            <PriceRange bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
+          <FilterChip
+            label={price ? `${money(price[0], shownCurrency)} - ${money(price[1], shownCurrency)}` : "Price"}
+            active={!!price}
+            onClear={() => set({ price: null })}
+          >
+            <PriceRange currency={shownCurrency} bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
           </FilterChip>
           <FilterChip label={stops === "any" ? "Stops" : stops === "0" ? "Non-stop" : "Up to 1 stop"} active={stops !== "any"} onClear={() => set({ stops: "any" })}>
             <div className="space-y-2">
@@ -506,6 +513,15 @@ function FlightsInner() {
           </FilterChip>
         </div>
         </div>
+      )}
+
+      {offers && shownCurrency !== currency && (
+        <p className="text-[13px] text-ink-muted">
+          These results are in {shownCurrency}; your currency is now {currency}.{" "}
+          <button type="button" onClick={() => void search()} className="text-accent-ink underline underline-offset-2">
+            Search again in {currency}
+          </button>
+        </p>
       )}
 
       <hr className="border-line" />

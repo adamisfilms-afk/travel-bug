@@ -9,6 +9,7 @@ import { AddToTripButton } from "@/components/trips";
 import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { addDays, daysBetween, money, toDay } from "@/lib/format";
 import { useSearchStore, type StaySession } from "@/lib/searchStore";
+import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
 import type { Hotel } from "@/lib/types";
 
@@ -124,6 +125,7 @@ function StaysInner() {
   const set = (patch: Partial<StaySession>) => setStay(patch, init);
   const { q, checkIn, checkOut, guests, hotels, price, amenities, minStars } = session;
 
+  const currency = useSettings((s) => s.currency);
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -131,7 +133,8 @@ function StaysInner() {
   const search = async (query: string, extra: Partial<StaySession> = {}) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/stays/search?q=${encodeURIComponent(query)}`);
+      const cur = useSettings.getState().currency;
+      const res = await fetch(`/api/stays/search?q=${encodeURIComponent(query)}&currency=${cur}`);
       const data = await res.json();
       setStay({ ...extra, q: query, hotels: data.hotels, price: null, amenities: [], minStars: 0 }, init);
     } finally {
@@ -150,11 +153,12 @@ function StaysInner() {
         guests: presetTrip.travellers,
         prefilledFor: presetTrip.id,
       });
-    } else if (!current?.hotels) {
+    } else if (!current?.hotels || current.hotels[0]?.currency !== useSettings.getState().currency) {
+      // Nothing yet, or results are in an old currency (hotel search is free, so just redo it).
       void search(params.get("q") ?? current?.q ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, presetTrip?.id]);
+  }, [ready, presetTrip?.id, currency]);
 
   useEffect(() => {
     if (!toast) return;
@@ -228,8 +232,12 @@ function StaysInner() {
       </form>
 
       <div className="flex flex-wrap gap-3 items-center">
-        <FilterChip label={price ? `${money(price[0])} - ${money(price[1])}` : "Price per night"} active={!!price} onClear={() => set({ price: null })}>
-          <PriceRange bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
+        <FilterChip
+          label={price ? `${money(price[0], currency)} - ${money(price[1], currency)}` : "Price per night"}
+          active={!!price}
+          onClear={() => set({ price: null })}
+        >
+          <PriceRange currency={currency} bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
         </FilterChip>
         <FilterChip label={amenities.length ? `Amenities (${amenities.length})` : "Amenities"} active={amenities.length > 0} onClear={() => set({ amenities: [] })}>
           <div className="space-y-2">
