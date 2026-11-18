@@ -5,6 +5,9 @@ export const AIRPORTS: Place[] = [
   { code: "LHR", name: "London Heathrow", city: "London", country: "United Kingdom", lat: 51.47, lng: -0.4543 },
   { code: "LGW", name: "London Gatwick", city: "London", country: "United Kingdom", lat: 51.1537, lng: -0.1821 },
   { code: "STN", name: "London Stansted", city: "London", country: "United Kingdom", lat: 51.886, lng: 0.2389 },
+  { code: "LTN", name: "London Luton", city: "London", country: "United Kingdom", lat: 51.8747, lng: -0.3683 },
+  { code: "LCY", name: "London City", city: "London", country: "United Kingdom", lat: 51.5048, lng: 0.0495 },
+  { code: "SEN", name: "London Southend", city: "London", country: "United Kingdom", lat: 51.5714, lng: 0.6956 },
   { code: "MAN", name: "Manchester", city: "Manchester", country: "United Kingdom", lat: 53.365, lng: -2.2727 },
   { code: "EDI", name: "Edinburgh", city: "Edinburgh", country: "United Kingdom", lat: 55.95, lng: -3.3725 },
   { code: "DUB", name: "Dublin", city: "Dublin", country: "Ireland", lat: 53.4213, lng: -6.2701 },
@@ -29,6 +32,8 @@ export const AIRPORTS: Place[] = [
   { code: "LIS", name: "Lisbon Humberto Delgado", city: "Lisbon", country: "Portugal", lat: 38.7742, lng: -9.1342 },
   { code: "FCO", name: "Rome Fiumicino", city: "Rome", country: "Italy", lat: 41.8003, lng: 12.2389 },
   { code: "MXP", name: "Milan Malpensa", city: "Milan", country: "Italy", lat: 45.6306, lng: 8.7281 },
+  { code: "LIN", name: "Milan Linate", city: "Milan", country: "Italy", lat: 45.4451, lng: 9.2767 },
+  { code: "CIA", name: "Rome Ciampino", city: "Rome", country: "Italy", lat: 41.7994, lng: 12.5949 },
   { code: "VIE", name: "Vienna Intl", city: "Vienna", country: "Austria", lat: 48.1103, lng: 16.5697 },
   { code: "PRG", name: "Prague Václav Havel", city: "Prague", country: "Czechia", lat: 50.1008, lng: 14.26 },
   { code: "CPH", name: "Copenhagen Kastrup", city: "Copenhagen", country: "Denmark", lat: 55.618, lng: 12.656 },
@@ -52,16 +57,38 @@ export function findAirport(code: string): Place | undefined {
   return AIRPORTS.find((a) => a.code === code.toUpperCase());
 }
 
-export function searchAirports(q: string, limit = 8): Place[] {
+/** "All airports" entries for cities with more than one airport (e.g. London: LHR, LGW, STN, LTN, LCY, SEN). */
+export const CITY_GROUPS: Place[] = Object.values(
+  AIRPORTS.reduce<Record<string, Place[]>>((acc, a) => ((acc[a.city] ??= []).push(a), acc), {}),
+)
+  .filter((list) => list.length > 1)
+  .map((list) => ({
+    code: list.map((a) => a.code).join(","),
+    name: "All airports",
+    city: list[0].city,
+    country: list[0].country,
+    lat: list.reduce((n, a) => n + a.lat, 0) / list.length,
+    lng: list.reduce((n, a) => n + a.lng, 0) / list.length,
+    airports: list.map((a) => a.code),
+  }));
+
+export function searchAirports(q: string, limit = 9): Place[] {
   const s = q.trim().toLowerCase();
   if (!s) return [];
-  return AIRPORTS.filter(
-    (a) =>
-      a.code.toLowerCase().startsWith(s) ||
-      a.city.toLowerCase().includes(s) ||
-      a.name.toLowerCase().includes(s) ||
-      (a.country ?? "").toLowerCase().includes(s),
-  ).slice(0, limit);
+  const match = (a: Place) =>
+    a.code.toLowerCase().startsWith(s) ||
+    a.city.toLowerCase().includes(s) ||
+    a.name.toLowerCase().includes(s) ||
+    (a.country ?? "").toLowerCase().includes(s);
+  const airports = AIRPORTS.filter(match);
+  // Offer the city-wide option first when a matching city has several airports.
+  const groups = CITY_GROUPS.filter((g) => airports.some((a) => a.city === g.city));
+  return [...groups, ...airports].slice(0, limit);
+}
+
+/** Label for an input showing a place: "London (LHR)" or "London (All airports)". */
+export function placeShortLabel(p: Place) {
+  return p.airports ? `${p.city} (All airports)` : `${p.city} (${p.code})`;
 }
 
 export function placeLabel(p: Place) {

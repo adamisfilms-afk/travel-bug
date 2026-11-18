@@ -20,7 +20,8 @@ export interface FlightSession {
   source: string;
   // post-search filters
   price: [number, number] | null;
-  stops: "any" | "0" | "1";
+  /** Allowed stop counts per leg: 0 = direct, 1, 2, 3 = 3 or more. Empty = any. */
+  stops: number[];
   airlines: string[];
   outDepart: HourRange;
   outArrive: HourRange;

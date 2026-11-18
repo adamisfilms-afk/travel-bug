@@ -79,17 +79,79 @@ function legOf(leg: Json, fallbackDay: string): FlightLeg | null {
   };
 }
 
+const NAME_KEY = /^(name|title|display_?name|seller(_?name)?|agent(_?name)?|vendor(_?name)?|provider(_?name)?|partner(_?name)?|merchant(_?name)?|site(_?name)?|source|company|brand|booking_?site|ota)$/i;
+
+/** Find a seller name anywhere in a booking option (any depth), ignoring URLs and prices. */
+function findName(o: Json, depth = 0): string | undefined {
+  if (!o || typeof o !== "object" || depth > 3) return undefined;
+  for (const [k, v] of Object.entries(o)) {
+    if (NAME_KEY.test(k) && typeof v === "string" && v.trim() && !/^https?:/i.test(v) && !/^[\d.,\s$£€¥]+$/.test(v)) return v.trim();
+  }
+  for (const [k, v] of Object.entries(o)) {
+    if (NAME_KEY.test(k) && v && typeof v === "object") {
+      const n = findName(v, depth + 1);
+      if (n) return n;
+    }
+  }
+  for (const v of Object.values(o)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const n = findName(v, depth + 1);
+      if (n) return n;
+    }
+  }
+  return undefined;
+}
+
+const KNOWN_SITES: Record<string, string> = {
+  "booking.com": "Booking.com", "expedia": "Expedia", "kiwi.com": "Kiwi.com", "trip.com": "Trip.com",
+  "mytrip": "Mytrip", "gotogate": "Gotogate", "edreams": "eDreams", "opodo": "Opodo", "lastminute": "lastminute.com",
+  "budgetair": "BudgetAir", "kayak": "KAYAK", "travelup": "TravelUp", "trailfinders": "Trailfinders",
+  "flightnetwork": "Flight Network", "cheapoair": "CheapOair", "priceline": "Priceline", "orbitz": "Orbitz",
+  "britishairways": "British Airways", "ba.com": "British Airways", "virginatlantic": "Virgin Atlantic",
+  "aa.com": "American Airlines", "united.com": "United", "delta.com": "Delta", "aircanada": "Air Canada",
+  "lufthansa": "Lufthansa", "klm": "KLM", "airfrance": "Air France", "easyjet": "easyJet", "ryanair": "Ryanair",
+  "wizzair": "Wizz Air", "emirates": "Emirates", "qatarairways": "Qatar Airways", "jet2": "Jet2",
+};
+
+/** Seller name from a booking link: the final destination's domain (also inside redirect params). */
+function nameFromUrl(url: string): string | undefined {
+  const hosts: string[] = [];
+  try {
+    const u = new URL(url);
+    hosts.push(u.hostname);
+    for (const key of ["u", "url", "redirect", "redirect_url", "dest", "target", "deeplink"]) {
+      const inner = u.searchParams.get(key);
+      if (inner && /^https?:/i.test(inner)) hosts.unshift(new URL(inner).hostname);
+    }
+  } catch {
+    return undefined;
+  }
+  for (const h of hosts) {
+    const host = h.replace(/^www\./, "").toLowerCase();
+    if (/skyscanner|searchapi|pxf\.io|google/.test(host)) continue;
+    // Registrable name: "expedia" from expedia.co.uk, "mytrip" from mytrip.com
+    const parts = host.split(".");
+    const base = parts.length > 2 && parts[parts.length - 2].length <= 3 ? parts[parts.length - 3] : parts[parts.length - 2];
+    const known = Object.entries(KNOWN_SITES).find(([k]) => host === k || host.endsWith("." + k) || base === k || `${base}.com` === k);
+    if (known) return known[1];
+    return base ? base.charAt(0).toUpperCase() + base.slice(1) : undefined;
+  }
+  return undefined;
+}
+
 function sellersOf(it: Json): BookingOption[] {
-  const lists: Json[][] = [it?.booking_options, it?.pricing_options, it?.sellers, it?.agents, it?.offers, it?.deals].filter(Array.isArray);
+  const lists: Json[][] = [it?.booking_options, it?.pricing_options, it?.sellers, it?.agents, it?.offers, it?.deals, it?.providers].filter(Array.isArray);
   const out: BookingOption[] = [];
   for (const list of lists) {
     for (const o of list) {
-      const agent = o?.seller ?? o?.agent ?? o?.provider ?? o?.booking_partner;
       const url = str(o?.link, o?.url, o?.booking_link, o?.deep_link, o?.deeplink, o?.tracking_link, o?.items?.[0]?.url, o?.items?.[0]?.deep_link);
       if (!url) continue;
-      const name = str(o?.name, o?.title, typeof agent === "string" ? agent : agent?.name, o?.agent_name, o?.seller_name) ?? "Book";
+      const name = findName(o) ?? nameFromUrl(url) ?? "Book";
       out.push({ name, price: num(o?.price ?? o?.amount ?? o?.total_price), url });
     }
+  }
+  if (process.env.SEARCHAPI_DEBUG && out.some((o) => o.name === "Book")) {
+    console.log("[searchapi:skyscanner_flights] seller without a recognisable name:", JSON.stringify(lists.flat()[0]).slice(0, 1500));
   }
   return out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 }

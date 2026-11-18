@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { searchAirports } from "@/lib/airports";
+import { placeShortLabel, searchAirports } from "@/lib/airports";
 import type { Place } from "@/lib/types";
 import { useClickOutside } from "./ui";
 
@@ -25,7 +25,7 @@ export function AirportInput({
     setText(null);
   });
 
-  const shown = text ?? (value ? `${value.city} (${value.code})` : "");
+  const shown = text ?? (value ? placeShortLabel(value) : "");
   const results = text ? searchAirports(text) : [];
 
   const pick = (p: Place) => {
@@ -76,7 +76,9 @@ export function AirportInput({
                   <span className="font-medium">{a.city}</span>
                   <span className="text-ink-muted"> · {a.name}</span>
                 </span>
-                <span className="text-ink-muted font-mono text-sm">{a.code}</span>
+                <span className="text-ink-muted font-mono text-sm whitespace-nowrap">
+                  {a.airports ? `${a.airports.length} airports` : a.code}
+                </span>
               </button>
             </li>
           ))}

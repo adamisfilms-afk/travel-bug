@@ -3,7 +3,7 @@
 import { ArrowsDownUp, ArrowsLeftRight, CalendarBlank, CaretDown, Check } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AirlineLogo } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { AirportInput } from "@/components/AirportInput";
@@ -39,6 +39,18 @@ const SOURCE_LABEL: Record<string, string> = {
   google_flights: "Google Flights",
   searchapi: "Google Flights",
 };
+
+const STOP_OPTIONS = [
+  { value: 0, label: "Direct" },
+  { value: 1, label: "1 stop" },
+  { value: 2, label: "2 stops" },
+  { value: 3, label: "3+ stops" },
+];
+
+/** Every leg's stop count (3+ grouped) must be one of the selected options; none selected = any. */
+function stopsOk(legs: FlightLeg[], allowed: number[]) {
+  return !allowed.length || legs.every((l) => allowed.includes(Math.min(l.stops, 3)));
+}
 
 const SORTS: { value: FlightSort; label: string; short: string }[] = [
   { value: "price", label: "Price (lowest first)", short: "Price" },
@@ -85,7 +97,7 @@ function initialSession(): FlightSession {
     offers: null,
     source: "",
     price: null,
-    stops: "any",
+    stops: [],
     airlines: [],
     outDepart: FULL_DAY,
     outArrive: FULL_DAY,
@@ -98,7 +110,7 @@ function initialSession(): FlightSession {
 
 const RESET_FILTERS: Partial<FlightSession> = {
   price: null,
-  stops: "any",
+  stops: [],
   airlines: [],
   outDepart: FULL_DAY,
   outArrive: FULL_DAY,
@@ -274,9 +286,10 @@ function FlightsInner() {
   const session = useSearchStore((s) => s.flight) ?? init;
   const setFlight = useSearchStore((s) => s.setFlight);
   const set = (patch: Partial<FlightSession>) => setFlight(patch, init);
-  const { from, to, depart, ret, adults, cabin, offers, source, price, stops, airlines } = session;
+  const { from, to, depart, ret, adults, cabin, offers, source, price, airlines } = session;
+  // (older saved sessions stored a single string here)
+  const stops: number[] = Array.isArray(session.stops) ? session.stops : [];
 
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [toast, setToast] = useState("");
@@ -306,27 +319,64 @@ function FlightsInner() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const runRef = useRef(0);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const loading = progress !== null;
+
+  /** Airport pairs to search: "All airports" picks expand to one request per airport. */
+  const pairs = useMemo(() => {
+    if (!from || !to) return [];
+    const origins = from.airports ?? [from.code];
+    const dests = to.airports ?? [to.code];
+    return origins.flatMap((o) => dests.filter((d) => d !== o).map((d) => [o, d] as const));
+  }, [from, to]);
+
   const search = async () => {
     if (!from || !to) return setError("Choose where you're flying from and to.");
     if (!depart) return setError("Choose a departure date.");
+    if (!pairs.length) return setError("Choose different airports for departure and destination.");
+    const run = ++runRef.current;
     setError("");
     setNotice("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/flights/search", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ from: from.code, to: to.code, depart, returnDate: ret || undefined, adults, cabin, currency }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Search failed");
-      set({ offers: data.offers, source: data.source, returns: {}, ...RESET_FILTERS });
-      if (data.notice) setNotice(data.notice);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Search failed");
+    setProgress({ done: 0, total: pairs.length });
+    set({ offers: null, returns: {}, ...RESET_FILTERS });
+
+    // One request per airport pair, in parallel; results appear as each one arrives.
+    let got: FlightOffer[] = [];
+    const errors: string[] = [];
+    const notices = new Set<string>();
+    await Promise.all(
+      pairs.map(async ([o, d]) => {
+        try {
+          const res = await fetch("/api/flights/search", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ from: o, to: d, depart, returnDate: ret || undefined, adults, cabin, currency }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Search failed");
+          if (run !== runRef.current) return;
+          const seen = new Set(got.map((x) => x.id));
+          got = [...got, ...(data.offers as FlightOffer[]).filter((x) => !seen.has(x.id))];
+          set({ offers: got, source: data.source });
+          if (data.notice) notices.add(data.notice);
+        } catch (e) {
+          errors.push(`${o}→${d}: ${e instanceof Error ? e.message : "failed"}`);
+        } finally {
+          if (run === runRef.current) setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+        }
+      }),
+    );
+    if (run !== runRef.current) return;
+    setProgress(null);
+    if (!got.length && errors.length) {
+      setError(errors.length === 1 ? errors[0].replace(/^\w+→\w+: /, "") : errors.join(" · "));
       set({ offers: null });
-    } finally {
-      setLoading(false);
+    } else {
+      if (!got.length) set({ offers: [] });
+      const parts = [...notices];
+      if (errors.length) parts.push(`${errors.length} of ${pairs.length} airport searches failed (${errors.join(" · ")}).`);
+      setNotice(parts.join(" "));
     }
   };
 
@@ -342,8 +392,7 @@ function FlightsInner() {
   const matching = (offers ?? []).filter((o) => {
     const [out, back] = o.legs;
     if (price && (o.price < price[0] || o.price > price[1])) return false;
-    if (stops === "0" && o.legs.some((l) => l.stops > 0)) return false;
-    if (stops === "1" && o.legs.some((l) => l.stops > 1)) return false;
+    if (!stopsOk(o.legs, stops)) return false;
     if (airlines.length && !o.legs.some((l) => airlines.includes(l.carrier))) return false;
     if (!inHours(out.depart, session.outDepart) || !inHours(out.arrive, session.outArrive)) return false;
     if (back && (!inHours(back.depart, session.backDepart) || !inHours(back.arrive, session.backArrive))) return false; // returns of two-step offers are filtered in FlightRow
@@ -367,7 +416,7 @@ function FlightsInner() {
         className="flex flex-wrap items-start gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          void search();
+          if (!loading) void search();
         }}
       >
         <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70 min-w-0">
@@ -417,9 +466,28 @@ function FlightsInner() {
             </select>
           </label>
         </div>
-        <PrimaryButton type="submit" disabled={loading} className="ml-auto !h-11">
-          {loading ? "Searching…" : "Search"}
-        </PrimaryButton>
+        <div className="ml-auto flex flex-col items-end gap-1">
+          <PrimaryButton type="submit" aria-busy={loading} className="relative overflow-hidden !h-11">
+            {loading ? "Searching…" : "Search"}
+            {progress && (
+              <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25 overflow-hidden">
+                {progress.total > 1 ? (
+                  <span
+                    className="absolute inset-y-0 left-0 bg-white transition-[width] duration-300"
+                    style={{ width: `${Math.max(8, (progress.done / progress.total) * 100)}%` }}
+                  />
+                ) : (
+                  <span className="tb-indeterminate bg-white" />
+                )}
+              </span>
+            )}
+          </PrimaryButton>
+          {pairs.length > 1 && (
+            <span className="text-[12px] text-ink-muted whitespace-nowrap">
+              {progress && progress.total > 1 ? `${progress.done} of ${progress.total} airports searched` : `Searches ${pairs.length} airport routes (${pairs.length} credits)`}
+            </span>
+          )}
+        </div>
       </form>
 
       {error && <p className="text-price-up text-[14px]">{error}</p>}
@@ -435,18 +503,33 @@ function FlightsInner() {
           >
             <PriceRange currency={shownCurrency} bounds={bounds} value={price ?? bounds} onChange={(v) => set({ price: v })} />
           </FilterChip>
-          <FilterChip label={stops === "any" ? "Stops" : stops === "0" ? "Non-stop" : "Up to 1 stop"} active={stops !== "any"} onClear={() => set({ stops: "any" })}>
+          <FilterChip
+            label={stops.length ? STOP_OPTIONS.filter((o) => stops.includes(o.value)).map((o) => o.label).join(", ") : "Stops"}
+            active={stops.length > 0}
+            onClear={() => set({ stops: [] })}
+          >
             <div className="space-y-2">
-              {([
-                ["any", "Any number of stops"],
-                ["0", "Non-stop only"],
-                ["1", "1 stop or fewer"],
-              ] as const).map(([v, l]) => (
-                <label key={v} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="stops" checked={stops === v} onChange={() => set({ stops: v })} className="accent-accent" />
-                  {l}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={stops.length === 0} onChange={() => set({ stops: [] })} className="accent-accent" />
+                Any number of stops
+              </label>
+              <hr className="border-line" />
+              {STOP_OPTIONS.map((o) => (
+                <label key={o.value} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-accent"
+                    checked={stops.includes(o.value)}
+                    onChange={(e) => {
+                      const next = e.target.checked ? [...stops, o.value] : stops.filter((x) => x !== o.value);
+                      // Ticking every option is the same as "any".
+                      set({ stops: next.length === STOP_OPTIONS.length ? [] : next.sort() });
+                    }}
+                  />
+                  {o.label}
                 </label>
               ))}
+              <p className="text-[12px] text-ink-muted pt-1">Applies to each flight in the trip.</p>
             </div>
           </FilterChip>
           <FilterChip
@@ -528,7 +611,15 @@ function FlightsInner() {
       <hr className="border-line" />
       </div>
 
-      {offers && filtered.length === 0 && <p className="text-ink-muted">No flights match these filters.</p>}
+      {loading && !offers?.length && (
+        <div className="space-y-3" aria-label="Loading flights">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-[52px] rounded-[10px] bg-surface animate-pulse" style={{ animationDelay: `${i * 120}ms` }} />
+          ))}
+        </div>
+      )}
+
+      {offers && !loading && filtered.length === 0 && <p className="text-ink-muted">No flights match these filters.</p>}
 
       <div className="space-y-3">
         {filtered.map((o) => (
@@ -537,7 +628,9 @@ function FlightsInner() {
             offer={o}
             returns={session.returns?.[o.id]}
             onReturns={(list) => set({ returns: { ...(useSearchStore.getState().flight?.returns ?? {}), [o.id]: list } })}
-            returnFilter={(r) => inHours(r.legs[1].depart, session.backDepart) && inHours(r.legs[1].arrive, session.backArrive)}
+            returnFilter={(r) =>
+              inHours(r.legs[1].depart, session.backDepart) && inHours(r.legs[1].arrive, session.backArrive) && stopsOk([r.legs[1]], stops)
+            }
             savedTrips={savedTrips}
             onSave={(tripId, offer) => {
               saveFlight(tripId, offer);

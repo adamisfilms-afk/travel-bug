@@ -33,6 +33,9 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 Every search is live (no caching), so prices match the provider. Each request uses one credit:
 
 - **Skyscanner (default):** 1 credit per search, one-way or round trip.
+- **"All airports" choices** (e.g. London: LHR, LGW, STN, LTN, LCY, SEN) search each airport
+  separately, in parallel, showing results as each arrives: 1 credit per airport route
+  (London → Budapest = 6; London → New York City all airports = 18). The count is shown under Search.
 - **Google Flights:** 1 credit per search, plus 1 each time you open **Choose return** on a round-trip result.
 - **Saved flights** are re-priced live when you open the trip planner (1 credit each with Skyscanner),
   skipping any checked in the last 5 minutes; **Refresh prices** forces a new check. Demo trips are never re-priced.

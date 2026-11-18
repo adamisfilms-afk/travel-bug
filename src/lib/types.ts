@@ -7,6 +7,8 @@ export interface Place {
   country?: string;
   lat: number;
   lng: number;
+  /** Set on "All airports" city entries: the airports searched together. */
+  airports?: string[];
 }
 
 export interface FlightLeg {
