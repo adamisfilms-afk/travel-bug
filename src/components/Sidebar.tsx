@@ -1,6 +1,6 @@
 "use client";
 
-import { AirplaneTilt, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
+import { AirplaneTilt, ForkKnife, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,16 +20,18 @@ function BedIcon({ className, style }: IconProps) {
   );
 }
 
-type NavIconDef = { Icon: ComponentType<IconProps>; viewBox: number };
+/** `holes`: the icon has cut-outs (pin centre, gear centre) — outline only its first outer shape. */
+type NavIconDef = { Icon: ComponentType<IconProps>; viewBox: number; holes?: boolean };
 
 /**
  * Renders the icon three times: an outline layer, a background "gap" layer, then the icon.
  * The two under-layers keep only each path's outer contour so holes (pin centre, gear
  * centre, checklist cut-outs) don't get outlined.
  */
-function NavIcon({ Icon, viewBox }: NavIconDef) {
+function NavIcon({ Icon, viewBox, holes }: NavIconDef) {
   const under = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
+    if (!holes) return; // icons made of several separate shapes (fork + knife) keep them all
     under.current?.querySelectorAll("path").forEach((p) => {
       const d = p.getAttribute("d") ?? "";
       const outer = d.split(/(?=[Mm])/)[0];
@@ -51,11 +53,12 @@ function NavIcon({ Icon, viewBox }: NavIconDef) {
 const TOP = [
   { href: "/flights", label: "Flights", icon: { Icon: AirplaneTilt, viewBox: 256 } },
   { href: "/stays", label: "Stays", icon: { Icon: BedIcon, viewBox: 32 } },
-  { href: "/explore", label: "Explore", icon: { Icon: MapPin, viewBox: 256 } },
+  { href: "/food", label: "Food", icon: { Icon: ForkKnife, viewBox: 256 } },
+  { href: "/explore", label: "Explore", icon: { Icon: MapPin, viewBox: 256, holes: true } },
 ];
 const BOTTOM = [
-  { href: "/trips", label: "Your trips", icon: { Icon: ListChecks, viewBox: 256 } },
-  { href: "/settings", label: "Settings", icon: { Icon: GearSix, viewBox: 256 } },
+  { href: "/trips", label: "Your trips", icon: { Icon: ListChecks, viewBox: 256, holes: true } },
+  { href: "/settings", label: "Settings", icon: { Icon: GearSix, viewBox: 256, holes: true } },
 ];
 
 function NavItem({ href, label, icon }: (typeof TOP)[number]) {

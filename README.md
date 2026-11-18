@@ -31,6 +31,7 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Maps use Mapbox tiles (commercial use allowed on the free tier) | CARTO's free tiles (fine for development) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` (places) | Event location search uses Mapbox geocoding | OpenStreetMap Nominatim (free, low volume — fine for development) |
 | `NEXT_PUBLIC_MAPBOX_STYLE` | A Mapbox Studio style, `username/style-id` (default `mapbox/light-v11`) | |
+| `GOOGLE_MAPS_API_KEY` | Food guide cards show each place's main photo from its Google Maps listing (Places API, New), with the photographer credit | Coloured placeholders |
 | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Trips are stored in Supabase | Trips are stored in the browser (`localStorage`) |
 
 ### Search credits (SearchApi)

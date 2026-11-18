@@ -37,6 +37,7 @@ A fixed left sidebar with icon navigation:
 | Avatar | `/` | Home / dashboard | Built (curated rows are coloured placeholders) |
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
+| Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (sample New York guide) |
 | Pin | `/explore` | Curated trip plans & things to do | Under construction |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |
