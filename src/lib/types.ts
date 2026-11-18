@@ -48,6 +48,9 @@ export interface BookingOption {
   reviews?: number;
   /** Room description for hotel offers ("Double room"). */
   room?: string;
+  /** Short terms for hotel offers, e.g. "Room only · Pay now". */
+  terms?: string;
+  logo?: string;
 }
 
 /** A flight option returned by search (one-way or return). */
@@ -116,6 +119,10 @@ export interface Hotel {
   totalPrice?: number;
   /** Every partner's offer (price per night), cheapest first. */
   bookingOptions?: BookingOption[];
+  /** Pre-discount nightly price, when the provider shows a deal. */
+  originalPricePerNight?: number;
+  /** Rating label, e.g. "Very Good". */
+  ratingWord?: string;
 }
 
 export interface SavedStay {
@@ -135,6 +142,8 @@ export interface SavedStay {
   bookingUrl: string;
   bookingOptions?: BookingOption[];
   imageUrl?: string;
+  guests?: number;
+  priceCheckedAt?: string | null;
   savedAt: string;
 }
 

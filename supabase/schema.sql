@@ -46,6 +46,11 @@ create table if not exists saved_stays (
   saved_at timestamptz not null default now()
 );
 
+alter table saved_stays add column if not exists booking_options jsonb;
+alter table saved_stays add column if not exists image_url text;
+alter table saved_stays add column if not exists guests int;
+alter table saved_stays add column if not exists price_checked_at timestamptz;
+
 create table if not exists saved_activities (
   id text primary key,
   trip_id text not null references trips(id) on delete cascade,

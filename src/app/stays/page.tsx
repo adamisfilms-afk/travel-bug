@@ -6,7 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Map, type MapPoint } from "@/components/Map";
 import { PriceRange } from "@/components/PriceRange";
 import { AddToTripButton } from "@/components/trips";
-import { FilterChip, PageTitle, PrimaryButton, useClickOutside } from "@/components/ui";
+import { ButtonLoadingBar, FilterChip, PageTitle, PrimaryButton, useClickOutside } from "@/components/ui";
 import { addDays, daysBetween, money, toDay } from "@/lib/format";
 import { useSearchStore, type StaySession } from "@/lib/searchStore";
 import { useSettings } from "@/lib/settingsStore";
@@ -38,7 +38,7 @@ function HotelOffers({ options, currency }: { options: BookingOption[]; currency
         <CaretDown weight="bold" className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-1.5 w-72 rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
+        <div className="absolute right-0 z-30 mt-1.5 w-[22rem] rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
           <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Price per night</p>
           {options.map((o, i) => (
             <a
@@ -51,7 +51,9 @@ function HotelOffers({ options, currency }: { options: BookingOption[]; currency
             >
               <span className="flex-1 min-w-0">
                 <span className="block truncate">{o.name}</span>
-                {o.room && <span className="block truncate text-[12px] text-ink-muted">{o.room}</span>}
+                {(o.room || o.terms) && (
+                  <span className="block truncate text-[12px] text-ink-muted">{[o.room, o.terms].filter(Boolean).join(" · ")}</span>
+                )}
               </span>
               {o.price != null && <span className="font-semibold tabular-nums">{money(o.price, currency)}</span>}
               <ArrowSquareOut className="size-3.5 text-ink-muted shrink-0" />
@@ -68,6 +70,7 @@ function HotelCard({
   nights,
   checkIn,
   checkOut,
+  guests,
   highlighted,
   onHover,
   onToast,
@@ -76,6 +79,7 @@ function HotelCard({
   nights: number;
   checkIn: string;
   checkOut: string;
+  guests: number;
   highlighted: boolean;
   onHover: (id: string | null) => void;
   onToast: (m: string) => void;
@@ -138,14 +142,20 @@ function HotelCard({
         {h.rating > 0 && (
           <p className="text-[13px]">
             <span className="font-semibold">{h.rating.toFixed(1)}</span>
-            <span className="text-ink-muted">
-              /5{h.reviews > 0 && ` · ${h.reviews.toLocaleString()} reviews`}
-            </span>
+            <span className="text-ink-muted">/5</span>
+            {h.ratingWord && <span className="font-medium"> {h.ratingWord}</span>}
+            {h.reviews > 0 && <span className="text-ink-muted"> · {h.reviews.toLocaleString()} reviews</span>}
           </p>
         )}
         {h.tags.length > 0 && <p className="text-[12px] text-ink/70 leading-relaxed">{h.tags.join(" • ")}</p>}
       </div>
       <div className="sm:w-[190px] shrink-0 p-3.5 sm:border-l border-line flex flex-col gap-1">
+        {h.originalPricePerNight != null && h.originalPricePerNight > h.pricePerNight + 0.5 && (
+          <span className="self-start inline-flex items-center gap-1 rounded-md bg-accent-soft/40 text-accent-ink text-[11px] font-semibold px-1.5 py-0.5">
+            {money(h.originalPricePerNight - h.pricePerNight, h.currency)} cheaper
+            <span className="font-normal text-ink-muted line-through">{money(h.originalPricePerNight, h.currency)}</span>
+          </span>
+        )}
         <p>
           <span className="text-[20px] font-bold">{money(h.pricePerNight, h.currency)}</span>
           <span className="text-[13px] text-ink-muted"> a night</span>
@@ -167,7 +177,7 @@ function HotelCard({
             addedTo={savedTo}
             defaults={{ destination: h.city, startDate: checkIn, endDate: checkOut }}
             onAdd={(tripId) => {
-              saveStay(tripId, h, checkIn, checkOut);
+              saveStay(tripId, h, checkIn, checkOut, guests);
               onToast(`Saved to ${useStore.getState().trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
             }}
           />
@@ -296,7 +306,7 @@ function StaysInner() {
         className="pt-2 flex flex-wrap items-start gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          void search(q);
+          if (!loading) void search(q);
         }}
       >
         <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70">
@@ -324,8 +334,9 @@ function StaysInner() {
             </select>
           </label>
         </div>
-        <PrimaryButton type="submit" disabled={loading} className="ml-auto !h-11">
+        <PrimaryButton type="submit" aria-busy={loading} className="ml-auto relative overflow-hidden !h-11">
           {loading ? "Searching…" : "Search"}
+          <ButtonLoadingBar progress={loading} />
         </PrimaryButton>
       </form>
 
@@ -398,6 +409,7 @@ function StaysInner() {
               nights={nights}
               checkIn={checkIn}
               checkOut={checkOut}
+              guests={guests}
               highlighted={hover === h.id}
               onHover={setHover}
               onToast={setToast}

@@ -32,7 +32,7 @@ interface State extends TripData {
   saveFlight(tripId: string, offer: FlightOffer): SavedFlight;
   removeFlight(id: string): void;
 
-  saveStay(tripId: string, hotel: Hotel, checkIn: string, checkOut: string): SavedStay;
+  saveStay(tripId: string, hotel: Hotel, checkIn: string, checkOut: string, guests?: number): SavedStay;
   removeStay(id: string): void;
 
   addActivity(tripId: string, a: { name: string; category: ActivityCategory; lat?: number | null; lng?: number | null; notes?: string }): SavedActivity;
@@ -45,7 +45,7 @@ interface State extends TripData {
 
   applyPrices(
     flights: { id: string; price: number | null; bookingUrl?: string; bookingOptions?: SavedFlight["bookingOptions"] }[],
-    stays: { id: string; price: number | null }[],
+    stays: { id: string; price: number | null; bookingUrl?: string; bookingOptions?: SavedStay["bookingOptions"] }[],
     checkedAt: string,
   ): void;
 }
@@ -159,7 +159,7 @@ export const useStore = create<State>((set, get) => ({
     persist(get, {}, { flights: [id], itinerary: items });
   },
 
-  saveStay(tripId, hotel, checkIn, checkOut) {
+  saveStay(tripId, hotel, checkIn, checkOut, guests) {
     const nights = Math.max(1, daysBetween(checkIn, checkOut));
     const total = Math.round(hotel.totalPrice ?? hotel.pricePerNight * nights);
     const now = new Date().toISOString();
@@ -180,6 +180,8 @@ export const useStore = create<State>((set, get) => ({
       bookingUrl: hotel.bookingUrl,
       bookingOptions: hotel.bookingOptions,
       imageUrl: hotel.images?.[0],
+      guests,
+      priceCheckedAt: now,
       savedAt: now,
     };
     set((s) => ({ stays: [...s.stays, st] }));
@@ -255,7 +257,7 @@ export const useStore = create<State>((set, get) => ({
 
   applyPrices(flightPrices, stayPrices, checkedAt) {
     const fp = new Map(flightPrices.filter((p) => p.price != null).map((p) => [p.id, p]));
-    const sp = new Map(stayPrices.filter((p) => p.price != null).map((p) => [p.id, p.price!]));
+    const sp = new Map(stayPrices.filter((p) => p.price != null).map((p) => [p.id, p]));
     set((s) => ({
       flights: s.flights.map((f) => {
         const p = fp.get(f.id);
@@ -269,7 +271,17 @@ export const useStore = create<State>((set, get) => ({
           bookingOptions: p.bookingOptions ?? f.bookingOptions,
         };
       }),
-      stays: s.stays.map((st) => (sp.has(st.id) ? { ...st, priceCurrent: sp.get(st.id)! } : st)),
+      stays: s.stays.map((st) => {
+        const p = sp.get(st.id);
+        if (!p) return st;
+        return {
+          ...st,
+          priceCurrent: p.price!,
+          priceCheckedAt: checkedAt,
+          bookingUrl: p.bookingUrl ?? st.bookingUrl,
+          bookingOptions: p.bookingOptions ?? st.bookingOptions,
+        };
+      }),
     }));
     const s = get();
     persist(get, {

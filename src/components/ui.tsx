@@ -239,6 +239,27 @@ export function PrimaryButton({ children, className, ...rest }: React.ButtonHTML
   );
 }
 
+/**
+ * Thin bar along the bottom of a button while a search runs: fills with progress
+ * when `progress` has a total above 1, otherwise animates continuously.
+ */
+export function ButtonLoadingBar({ progress }: { progress: { done: number; total: number } | boolean | null }) {
+  if (!progress) return null;
+  const p = typeof progress === "object" && progress.total > 1 ? progress : null;
+  return (
+    <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25 overflow-hidden">
+      {p ? (
+        <span
+          className="absolute inset-y-0 left-0 bg-white transition-[width] duration-300"
+          style={{ width: `${Math.max(8, (p.done / p.total) * 100)}%` }}
+        />
+      ) : (
+        <span className="tb-indeterminate bg-white" />
+      )}
+    </span>
+  );
+}
+
 export function UnderConstruction({ title, blurb }: { title: string; blurb: string }) {
   return (
     <div className="space-y-10">

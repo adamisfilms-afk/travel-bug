@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { flightSource, refreshFlightPrice } from "@/lib/flights-server";
 import { findHotel } from "@/lib/hotels";
+import { searchApiEnabled } from "@/lib/searchapi";
+import { refreshStayPrice } from "@/lib/searchapi-hotels";
 import { daysBetween } from "@/lib/format";
 import type { SavedFlight, SavedStay } from "@/lib/types";
 
-/** Deterministic hotel drift for demo purposes (no live hotel provider yet). */
-function stayPrice(s: SavedStay): number {
+/** Deterministic price drift for the sample hotels (demo data only). */
+function demoStayPrice(s: SavedStay): number {
   if (s.id.startsWith("seed-")) return s.priceCurrent;
   const hotel = findHotel(s.hotelId);
   if (!hotel) return s.priceCurrent;
@@ -28,7 +30,7 @@ export async function POST(req: Request) {
   // Demo trips' flights are never re-priced with a live provider.
   const live = flightSource() !== "mock";
   const force = body.force === true;
-  const recent = (f: SavedFlight) => f.priceCheckedAt && Date.now() - Date.parse(f.priceCheckedAt) < 5 * 60_000;
+  const recent = (x: { priceCheckedAt?: string | null }) => x.priceCheckedAt && Date.now() - Date.parse(x.priceCheckedAt) < 5 * 60_000;
 
   const flightPrices = await Promise.all(
     flights.map(async (f) => {
@@ -43,9 +45,26 @@ export async function POST(req: Request) {
     }),
   );
 
+  // Stays found through live hotel search ("ss-hotel-…") are re-priced live (1 credit each);
+  // sample hotels keep their demo behaviour.
+  const stayPrices = await Promise.all(
+    stays.map(async (s) => {
+      const liveStay = s.hotelId.startsWith("ss-hotel-") && searchApiEnabled();
+      if (!liveStay) return { id: s.id, price: demoStayPrice(s) };
+      if (!force && recent(s)) return { id: s.id, price: null };
+      try {
+        const check = await refreshStayPrice(s);
+        return { id: s.id, price: check?.price ?? null, bookingUrl: check?.bookingUrl, bookingOptions: check?.bookingOptions };
+      } catch (e) {
+        console.error(e);
+        return { id: s.id, price: null };
+      }
+    }),
+  );
+
   return NextResponse.json({
     flights: flightPrices,
-    stays: stays.map((s) => ({ id: s.id, price: stayPrice(s) })),
+    stays: stayPrices,
     checkedAt: new Date().toISOString(),
   });
 }

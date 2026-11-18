@@ -11,7 +11,7 @@ import { FlightPath } from "@/components/FlightPath";
 import { PriceRange } from "@/components/PriceRange";
 import { RangeSlider } from "@/components/RangeSlider";
 import { AddToTripButton } from "@/components/trips";
-import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
+import { ButtonLoadingBar, FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { AIRPORTS, findAirport } from "@/lib/airports";
 import { addDays, durationLabel, hhmm, money, shortDate, toDay } from "@/lib/format";
 import { FULL_DAY, useSearchStore, type FlightSession, type FlightSort, type HourRange } from "@/lib/searchStore";
@@ -495,18 +495,7 @@ function FlightsInner() {
         <div className="ml-auto">
           <PrimaryButton type="submit" aria-busy={loading} className="relative overflow-hidden !h-11">
             {loading ? "Searching…" : "Search"}
-            {progress && (
-              <span aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25 overflow-hidden">
-                {progress.total > 1 ? (
-                  <span
-                    className="absolute inset-y-0 left-0 bg-white transition-[width] duration-300"
-                    style={{ width: `${Math.max(8, (progress.done / progress.total) * 100)}%` }}
-                  />
-                ) : (
-                  <span className="tb-indeterminate bg-white" />
-                )}
-              </span>
-            )}
+            <ButtonLoadingBar progress={progress} />
           </PrimaryButton>
         </div>
       </form>

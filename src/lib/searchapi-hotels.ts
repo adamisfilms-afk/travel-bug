@@ -33,7 +33,8 @@ function num(v: unknown): number | null {
   }
   if (v && typeof v === "object") {
     const o = v as Json;
-    return num(o.extracted_lowest ?? o.lowest ?? o.amount ?? o.value ?? o.raw ?? o.price ?? o.per_night ?? o.extracted);
+    // SearchApi: { extracted_price, extracted_price_before_taxes } (price including taxes first)
+    return num(o.extracted_price ?? o.extracted_lowest ?? o.lowest ?? o.amount ?? o.value ?? o.raw ?? o.price ?? o.per_night ?? o.extracted ?? o.extracted_price_before_taxes);
   }
   return null;
 }
@@ -63,7 +64,7 @@ function imagesOf(h: Json): string[] {
   const out: string[] = [];
   const add = (v: unknown) => {
     if (typeof v === "string" && /^https?:/.test(v)) out.push(v);
-    else if (v && typeof v === "object") add(str((v as Json).original_image, (v as Json).url, (v as Json).thumbnail, (v as Json).src, (v as Json).link));
+    else if (v && typeof v === "object") add(str((v as Json).original, (v as Json).original_image, (v as Json).url, (v as Json).thumbnail, (v as Json).src, (v as Json).link));
   };
   for (const key of ["images", "photos", "gallery"]) if (Array.isArray(h?.[key])) h[key].forEach(add);
   add(h?.thumbnail);
@@ -83,10 +84,35 @@ function offersOf(h: Json): BookingOption[] {
         str(o?.book_with, o?.partner, o?.partner_name, o?.provider, o?.source, o?.name, o?.seller, o?.agent) ??
         str(o?.partner?.name, o?.provider?.name, o?.seller?.name) ??
         "Partner";
-      out.push({ name, price: priceOf(o, NIGHTLY), url: affiliate(url), room: str(o?.room, o?.room_type, o?.room_name) });
+      out.push({
+        name,
+        price: priceOf(o, NIGHTLY),
+        url: affiliate(url),
+        room: str(o?.room_name, o?.room, o?.room_type),
+        terms: termsOf(o),
+        logo: str(o?.logo),
+      });
     }
   }
   return out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+}
+
+const MEAL: Record<string, string> = {
+  meals_not_included: "Room only",
+  room_only: "Room only",
+  breakfast_included: "Breakfast included",
+  half_board: "Half board",
+  full_board: "Full board",
+  all_inclusive: "All inclusive",
+};
+const PAYMENT: Record<string, string> = { pay_now: "Pay now", pay_later: "Pay later", pay_at_hotel: "Pay at hotel" };
+const humanise = (s: string) => s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+/** "Room only · Pay now" from an offer's meal_plan / payment_type codes. */
+function termsOf(o: Json): string | undefined {
+  const meal = typeof o?.meal_plan === "string" ? MEAL[o.meal_plan] ?? humanise(o.meal_plan) : undefined;
+  const pay = typeof o?.payment_type === "string" ? PAYMENT[o.payment_type] ?? humanise(o.payment_type) : undefined;
+  return [meal, pay].filter(Boolean).join(" · ") || undefined;
 }
 
 function starsOf(h: Json): number {
@@ -98,7 +124,9 @@ function starsOf(h: Json): number {
 function ratingOf(h: Json): { rating: number; reviews: number } {
   const r = h?.rating ?? h?.guest_rating ?? h?.overall_rating ?? h?.review_score ?? h?.reviews_summary?.score;
   let rating = typeof r === "number" ? r : num(r) ?? 0;
-  if (rating > 5) rating = rating / 2; // 10-point scales → out of 5
+  const max = num(h?.max_rating);
+  if (max && max !== 5) rating = (rating / max) * 5;
+  else if (rating > 5) rating = rating / 2; // 10-point scales → out of 5
   const reviews = num(h?.reviews ?? h?.reviews_count ?? h?.review_count ?? h?.number_of_reviews ?? h?.reviews_summary?.count) ?? 0;
   return { rating: Math.round(rating * 10) / 10, reviews: Math.round(reviews) };
 }
@@ -160,6 +188,8 @@ export async function skyscannerHotels(p: HotelSearchParams): Promise<Hotel[]> {
       amenities: (Array.isArray(h?.amenities) ? h.amenities : []).map((a: Json) => (typeof a === "string" ? a : str(a?.name, a?.title))).filter(Boolean),
       pricePerNight: nightly,
       totalPrice: priceOf(h, TOTAL) ?? undefined,
+      originalPricePerNight: priceOf(h, ["original_price_per_night"]) ?? undefined,
+      ratingWord: str(h?.rating_word),
       currency: p.currency,
       provider: offers[0]?.name ?? "Skyscanner",
       roomType: offers[0]?.room ?? str(h?.room_type) ?? "",
@@ -177,4 +207,40 @@ export async function skyscannerHotels(p: HotelSearchParams): Promise<Hotel[]> {
     dumpForDebugging(data, `${missingCoords} hotels without coordinates, ${missingPartners} without partner offers`);
   }
   return hotels;
+}
+
+export interface StayPriceCheck {
+  price: number; // stay total
+  bookingUrl?: string;
+  bookingOptions?: BookingOption[];
+}
+
+/**
+ * Live price for a saved stay: searches the hotel by name for the saved dates (1 credit)
+ * and matches the property by its Skyscanner id, falling back to an exact name match.
+ */
+export async function refreshStayPrice(s: {
+  hotelId: string;
+  name: string;
+  city: string;
+  checkIn: string;
+  checkOut: string;
+  guests?: number;
+  currency: string;
+}): Promise<StayPriceCheck | null> {
+  const hotels = await skyscannerHotels({
+    q: s.city && !s.name.toLowerCase().includes(s.city.toLowerCase()) ? `${s.name}, ${s.city}` : s.name,
+    checkIn: s.checkIn,
+    checkOut: s.checkOut,
+    adults: s.guests ?? 2,
+    currency: s.currency,
+  });
+  const match = hotels.find((h) => h.id === s.hotelId) ?? hotels.find((h) => h.name.toLowerCase() === s.name.toLowerCase());
+  if (!match) return null;
+  const nights = Math.max(1, Math.round((Date.parse(s.checkOut) - Date.parse(s.checkIn)) / 86_400_000));
+  return {
+    price: Math.round(match.totalPrice ?? match.pricePerNight * nights),
+    bookingUrl: match.bookingUrl,
+    bookingOptions: match.bookingOptions,
+  };
 }
