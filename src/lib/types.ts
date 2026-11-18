@@ -11,6 +11,18 @@ export interface Place {
   airports?: string[];
 }
 
+/** One actual flight within a leg (a leg with a stopover has two or more). */
+export interface FlightSegment {
+  from: Place;
+  to: Place;
+  depart: string; // local time at `from`
+  arrive: string; // local time at `to`
+  carrier: string;
+  carrierCode?: string;
+  flightNumber: string;
+  durationMins: number;
+}
+
 export interface FlightLeg {
   from: Place;
   to: Place;
@@ -22,6 +34,8 @@ export interface FlightLeg {
   arrive: string;
   stops: number;
   durationMins: number;
+  /** The individual flights making up this leg, when the provider supplies them. */
+  segments?: FlightSegment[];
 }
 
 /** One place the flight can be bought (airline or travel agent) with its own price and link. */

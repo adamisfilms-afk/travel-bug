@@ -133,6 +133,19 @@ function legOf(group: Json, fallbackDay: string): FlightLeg | null {
     arrive: isoOf(last.arrival_airport, fallbackDay),
     stops: segs.length - 1,
     durationMins: Number(group.total_duration) || segMins + layoverMins,
+    segments: segs.map((sg) => {
+      const fn = String(sg.flight_number ?? "").trim();
+      return {
+        from: placeOf(sg.departure_airport),
+        to: placeOf(sg.arrival_airport),
+        depart: isoOf(sg.departure_airport, fallbackDay),
+        arrive: isoOf(sg.arrival_airport, fallbackDay),
+        carrier: sg.airline ?? "Unknown airline",
+        carrierCode: fn.split(/\s+/)[0] || undefined,
+        flightNumber: fn || "—",
+        durationMins: Number(sg.duration) || 0,
+      };
+    }),
   };
 }
 

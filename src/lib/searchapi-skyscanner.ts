@@ -1,6 +1,6 @@
 import "server-only";
 import { isoOf, placeOf, priceOf, searchApiCall, type Json, type SearchApiParams } from "./searchapi";
-import type { BookingOption, Cabin, FlightLeg, FlightOffer } from "./types";
+import type { BookingOption, Cabin, FlightLeg, FlightOffer, FlightSegment } from "./types";
 
 /**
  * Skyscanner results via SearchApi.io (engine=skyscanner_flights).
@@ -76,10 +76,32 @@ function legOf(leg: Json, fallbackDay: string): FlightLeg | null {
     arrive: isoOf(leg?.arrival_time ? { time: leg.arrival_time } : arr, fallbackDay),
     stops: num(leg?.stops) ?? num(leg?.stop_count) ?? Math.max(0, segs.length - 1),
     durationMins: minutes(leg?.duration ?? leg?.total_duration ?? leg?.duration_in_minutes) || segMins,
+    segments: segs.length ? (segs.map((sg) => segmentOf(sg, fallbackDay)).filter(Boolean) as FlightSegment[]) : undefined,
   };
 }
 
-const NAME_KEY = /^(name|title|label|display_?name|seller(_?name)?|agent(_?name)?|vendor(_?name)?|provider(_?name)?|partner(_?name)?|merchant(_?name)?|site(_?name)?|website(_?name)?|source|company|brand|booking_?(site|partner)|ota|operator|airline)$/i;
+function segmentOf(sg: Json, fallbackDay: string): FlightSegment | null {
+  const dep = sg?.departure_airport ?? sg?.origin;
+  const arr = sg?.arrival_airport ?? sg?.destination;
+  if (!dep || !arr) return null;
+  const { name, code } = airlineOf(sg);
+  let flightNumber = str(sg?.flight_number) ?? "";
+  if (flightNumber && code && !flightNumber.toUpperCase().startsWith(code)) flightNumber = `${code} ${flightNumber}`;
+  const depart = isoOf(sg?.departure_time ? { time: sg.departure_time } : dep, fallbackDay);
+  const arrive = isoOf(sg?.arrival_time ? { time: sg.arrival_time } : arr, fallbackDay);
+  return {
+    from: placeOf(dep),
+    to: placeOf(arr),
+    depart,
+    arrive,
+    carrier: name,
+    carrierCode: code,
+    flightNumber: flightNumber || code || "—",
+    durationMins: minutes(sg?.duration ?? sg?.duration_in_minutes),
+  };
+}
+
+const NAME_KEY = /^(book_?with|book_?on|booking_?with|sold_?by|offered_?by|name|title|label|display_?name|seller(_?name)?|agent(_?name)?|vendor(_?name)?|provider(_?name)?|partner(_?name)?|merchant(_?name)?|site(_?name)?|website(_?name)?|source|company|brand|booking_?(site|partner)|ota|operator|airline)$/i;
 const ID_KEY = /^(agent|seller|provider|partner|vendor|merchant|booking_partner)_?(id|ids|code)?$|^id$/i;
 
 /** Find a seller name anywhere in a booking option (any depth), ignoring URLs and prices. */

@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AirlineLogo } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { AirportInput } from "@/components/AirportInput";
+import { FlightPath } from "@/components/FlightPath";
 import { PriceRange } from "@/components/PriceRange";
 import { RangeSlider } from "@/components/RangeSlider";
 import { AddToTripButton } from "@/components/trips";
@@ -219,10 +220,26 @@ function FlightRow({
   };
 
   const shownReturns = (returns ?? []).filter(returnFilter);
+  const [details, setDetails] = useState(false);
+  const toggleDetails = () => setDetails((d) => !d);
 
   return (
-    <div className="rounded-[10px] bg-surface border border-transparent hover:dashed-accent px-4 py-2.5">
-      <div className="flex items-center gap-3">
+    <div className={clsx("rounded-[10px] bg-surface border px-4 py-2.5", details ? "dashed-accent" : "border-transparent hover:dashed-accent")}>
+      {/* Clicking the row (anywhere but its buttons) opens the flight path */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={details}
+        aria-label={`${details ? "Hide" : "Show"} flight details`}
+        onClick={toggleDetails}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            toggleDetails();
+          }
+        }}
+        className="flex items-center gap-3 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent-soft rounded-md"
+      >
         <div className="flex-1 min-w-0 space-y-1">
           {o.legs.map((leg, i) => (
             <LegLine key={i} leg={leg} />
@@ -232,7 +249,7 @@ function FlightRow({
           <span className="font-semibold text-[15px] tabular-nums">{money(o.price, o.currency)}</span>
           {needsReturn && <span className="block text-[11px] leading-3 text-ink-muted">round trip from</span>}
         </div>
-        <div className={clsx(ACTIONS, "self-start")}>
+        <div className={clsx(ACTIONS, "self-start")} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <BookButton href={o.bookingUrl} options={o.bookingOptions} currency={o.currency} />
           {needsReturn ? (
             <button
@@ -249,6 +266,15 @@ function FlightRow({
           )}
         </div>
       </div>
+
+      {details && (
+        <div className="mt-3 pt-3 border-t border-line/70 grid gap-6 md:grid-cols-2">
+          {o.legs.map((leg, i) => (
+            <FlightPath key={i} leg={leg} label={i === 0 ? "Outbound" : "Return"} />
+          ))}
+          {needsReturn && <p className="text-[13px] text-ink-muted self-center">Choose a return flight to see its route.</p>}
+        </div>
+      )}
 
       {needsReturn && open && (
         <div className="mt-2.5 pt-2.5 border-t border-line/70 space-y-1.5">

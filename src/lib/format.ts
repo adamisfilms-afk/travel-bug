@@ -84,6 +84,7 @@ export function money(amount: number, currency = "USD") {
 export function durationLabel(mins: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
+  if (!h) return `${m}m`;
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 

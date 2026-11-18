@@ -309,17 +309,33 @@ function mockLeg(from: Place, to: Place, day: string, r: () => number, airline?:
   const departMins = Math.round((5.5 + r() * 16) * 12) * 5; // 05:30 - 21:30 on 5-min steps
   const tzShift = Math.round((to.lng - from.lng) / 15) * 60;
   const [carrier, code] = airline ?? CARRIERS[Math.floor(r() * CARRIERS.length)];
-  return {
-    from,
-    to,
-    carrier,
-    carrierCode: code,
-    flightNumber: `${code} ${Math.floor(10 + r() * 980)}`,
-    depart: addMinutes(day, departMins),
-    arrive: addMinutes(day, departMins + duration + tzShift),
-    stops,
-    durationMins: duration,
-  };
+  const flightNumber = `${code} ${Math.floor(10 + r() * 980)}`;
+  const depart = addMinutes(day, departMins);
+  const arrive = addMinutes(day, departMins + duration + tzShift);
+
+  let segments: FlightLeg["segments"];
+  if (stops) {
+    // Connect through a hub roughly between the two airports.
+    const hubs = ["FRA", "AMS", "DUB", "IST", "DOH", "DXB", "ORD", "YYZ", "MUC", "CDG"]
+      .map((c) => findAirport(c)!)
+      .filter((h) => h.code !== from.code && h.code !== to.code);
+    const hub = hubs.reduce((best, h) =>
+      distanceKm(from, h) + distanceKm(h, to) < distanceKm(from, best) + distanceKm(best, to) ? h : best,
+    );
+    const layover = 70 + Math.round(r() * 24) * 5;
+    const fly1 = Math.round(30 + distanceKm(from, hub) / 13.5);
+    const fly2 = Math.max(40, duration - layover - fly1);
+    const hubShift = Math.round((hub.lng - from.lng) / 15) * 60;
+    const seg1Arrive = addMinutes(day, departMins + fly1 + hubShift);
+    const seg2Depart = addMinutes(day, departMins + fly1 + layover + hubShift);
+    const code2 = r() < 0.7 ? code : CARRIERS[Math.floor(r() * CARRIERS.length)][1];
+    const carrier2 = CARRIERS.find(([, c]) => c === code2)?.[0] ?? carrier;
+    segments = [
+      { from, to: hub, depart, arrive: seg1Arrive, carrier, carrierCode: code, flightNumber, durationMins: fly1 },
+      { from: hub, to, depart: seg2Depart, arrive, carrier: carrier2, carrierCode: code2, flightNumber: `${code2} ${Math.floor(10 + r() * 980)}`, durationMins: fly2 },
+    ];
+  }
+  return { from, to, carrier, carrierCode: code, flightNumber, depart, arrive, stops, durationMins: duration, segments };
 }
 
 function mockSearch(p: FlightSearchParams): FlightOffer[] {
