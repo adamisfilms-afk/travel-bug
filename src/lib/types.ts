@@ -46,6 +46,8 @@ export interface BookingOption {
   /** Seller rating out of 5 and number of reviews, when the provider gives them. */
   rating?: number;
   reviews?: number;
+  /** Room description for hotel offers ("Double room"). */
+  room?: string;
 }
 
 /** A flight option returned by search (one-way or return). */
@@ -108,6 +110,12 @@ export interface Hotel {
   roomType: string;
   bookingUrl: string;
   imageColor: string;
+  /** Photos (first is the card image), when the provider supplies them. */
+  images?: string[];
+  /** Stay total for the searched dates, when the provider gives it (else nightly × nights). */
+  totalPrice?: number;
+  /** Every partner's offer (price per night), cheapest first. */
+  bookingOptions?: BookingOption[];
 }
 
 export interface SavedStay {
@@ -125,6 +133,8 @@ export interface SavedStay {
   priceSaved: number; // total
   priceCurrent: number;
   bookingUrl: string;
+  bookingOptions?: BookingOption[];
+  imageUrl?: string;
   savedAt: string;
 }
 

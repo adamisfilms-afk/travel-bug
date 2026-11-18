@@ -161,7 +161,7 @@ export const useStore = create<State>((set, get) => ({
 
   saveStay(tripId, hotel, checkIn, checkOut) {
     const nights = Math.max(1, daysBetween(checkIn, checkOut));
-    const total = Math.round(hotel.pricePerNight * nights);
+    const total = Math.round(hotel.totalPrice ?? hotel.pricePerNight * nights);
     const now = new Date().toISOString();
     const st: SavedStay = {
       id: uid(),
@@ -178,6 +178,8 @@ export const useStore = create<State>((set, get) => ({
       priceSaved: total,
       priceCurrent: total,
       bookingUrl: hotel.bookingUrl,
+      bookingOptions: hotel.bookingOptions,
+      imageUrl: hotel.images?.[0],
       savedAt: now,
     };
     set((s) => ({ stays: [...s.stays, st] }));

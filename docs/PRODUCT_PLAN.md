@@ -80,8 +80,10 @@ A fixed left sidebar with icon navigation:
 - Results list of hotel cards (image, stars, area, rating, tags, nightly +
   total price, provider, **Add to trip**), with a map on the right showing
   every result. Hovering a card highlights its pin.
-- Data comes from `/api/stays/search` (mock dataset today; swap in a hotels
-  provider later without changing the UI).
+- Data comes from `/api/stays/search`: Skyscanner hotels via SearchApi.io (photos,
+  stars, rating, coordinates, nightly + total price, every partner's rate and link),
+  or sample hotels without a key. "Go to site" opens the cheapest partner; the
+  "+N booking options" menu lists every partner's nightly price and room.
 
 ### 3.4 Explore (`/explore`)
 - Under construction. Will show curated trip plans and things to do per city,

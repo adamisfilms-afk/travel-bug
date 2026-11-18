@@ -1,19 +1,67 @@
 "use client";
 
-import { CalendarBlank, Heart, Star } from "@phosphor-icons/react";
+import { ArrowSquareOut, CalendarBlank, CaretDown, Heart, Star } from "@phosphor-icons/react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Map, type MapPoint } from "@/components/Map";
 import { PriceRange } from "@/components/PriceRange";
 import { AddToTripButton } from "@/components/trips";
-import { FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
+import { FilterChip, PageTitle, PrimaryButton, useClickOutside } from "@/components/ui";
 import { addDays, daysBetween, money, toDay } from "@/lib/format";
 import { useSearchStore, type StaySession } from "@/lib/searchStore";
 import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
-import type { Hotel } from "@/lib/types";
+import type { BookingOption, Hotel } from "@/lib/types";
 
 const selectCls = "bg-transparent outline-none text-[14px] cursor-pointer";
+
+/** "+9 booking options · Cheapest from £40" with a menu of every partner's nightly price. */
+function HotelOffers({ options, currency }: { options: BookingOption[]; currency: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const prices = options.map((o) => o.price).filter((p): p is number => p != null);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="w-full mt-1 flex items-center justify-between gap-2 rounded-md bg-surface px-2.5 py-1.5 text-left hover:bg-line/40"
+      >
+        <span className="text-[11px] leading-tight">
+          +{options.length - 1} booking options
+          {prices.length > 0 && (
+            <span className="block font-semibold">Cheapest from {money(Math.min(...prices), currency)}</span>
+          )}
+        </span>
+        <CaretDown weight="bold" className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1.5 w-72 rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
+          <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Price per night</p>
+          {options.map((o, i) => (
+            <a
+              key={i}
+              href={o.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2 hover:bg-surface"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block truncate">{o.name}</span>
+                {o.room && <span className="block truncate text-[12px] text-ink-muted">{o.room}</span>}
+              </span>
+              {o.price != null && <span className="font-semibold tabular-nums">{money(o.price, currency)}</span>}
+              <ArrowSquareOut className="size-3.5 text-ink-muted shrink-0" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function HotelCard({
   h,
@@ -35,6 +83,10 @@ function HotelCard({
   const stays = useStore((s) => s.stays);
   const saveStay = useStore((s) => s.saveStay);
   const savedTo = stays.filter((s) => s.hotelId === h.id && s.checkIn === checkIn && s.checkOut === checkOut).map((s) => s.tripId);
+  const photos = (h.images ?? []).slice(0, 5);
+  const [photo, setPhoto] = useState(0);
+  const [imgFailed, setImgFailed] = useState(false);
+  const total = h.totalPrice ?? h.pricePerNight * nights;
   return (
     // No overflow-hidden here: the "Add to trip" menu must be able to extend past the card.
     <article
@@ -42,38 +94,65 @@ function HotelCard({
       onMouseLeave={() => onHover(null)}
       className={`relative rounded-xl bg-surface-strong flex flex-col sm:flex-row border-2 transition-colors ${highlighted ? "border-[#3b82f6]" : "border-transparent"}`}
     >
-      <div className="sm:w-[170px] h-32 sm:h-auto shrink-0 relative rounded-t-[10px] sm:rounded-tr-none sm:rounded-l-[10px]" style={{ background: h.imageColor }}>
-        <span className="absolute inset-x-0 bottom-2.5 flex justify-center gap-1">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span key={i} className={`size-1.5 rounded-full ${i === 0 ? "bg-white" : "bg-white/50"}`} />
-          ))}
-        </span>
+      <div
+        className="sm:w-[170px] h-36 sm:h-auto shrink-0 relative overflow-hidden rounded-t-[10px] sm:rounded-tr-none sm:rounded-l-[10px]"
+        style={{ background: h.imageColor }}
+      >
+        {photos.length > 0 && !imgFailed && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photos[photo]}
+            alt={h.name}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+            className="absolute inset-0 size-full object-cover"
+          />
+        )}
+        {photos.length > 1 && !imgFailed && (
+          <span className="absolute inset-x-0 bottom-2.5 flex justify-center gap-1">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-label={`Photo ${i + 1}`}
+                onClick={() => setPhoto(i)}
+                className={`size-1.5 rounded-full shadow ${i === photo ? "bg-white" : "bg-white/55 hover:bg-white/80"}`}
+              />
+            ))}
+          </span>
+        )}
       </div>
       <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-[16px] font-semibold leading-tight">{h.name}</h3>
           <Heart weight={savedTo.length ? "fill" : "regular"} className={`size-4 shrink-0 ${savedTo.length ? "text-price-up" : "text-ink"}`} aria-label={savedTo.length ? "Saved" : "Not saved"} />
         </div>
-        <div className="flex gap-0.5 text-[#e8604c]" aria-label={`${h.stars} stars`}>
-          {Array.from({ length: h.stars }, (_, i) => (
-            <Star key={i} weight="fill" className="size-3" />
-          ))}
-        </div>
+        {h.stars > 0 && (
+          <div className="flex gap-0.5 text-[#e8604c]" aria-label={`${h.stars} stars`}>
+            {Array.from({ length: h.stars }, (_, i) => (
+              <Star key={i} weight="fill" className="size-3" />
+            ))}
+          </div>
+        )}
         <p className="text-[13px]">{h.area}</p>
-        <p className="text-[13px]">
-          <span className="font-semibold">{h.rating.toFixed(1)}</span>
-          <span className="text-ink-muted">/5 · {h.reviews.toLocaleString()} reviews</span>
-        </p>
-        <p className="text-[12px] text-ink/70 leading-relaxed">{h.tags.join(" • ")}</p>
+        {h.rating > 0 && (
+          <p className="text-[13px]">
+            <span className="font-semibold">{h.rating.toFixed(1)}</span>
+            <span className="text-ink-muted">
+              /5{h.reviews > 0 && ` · ${h.reviews.toLocaleString()} reviews`}
+            </span>
+          </p>
+        )}
+        {h.tags.length > 0 && <p className="text-[12px] text-ink/70 leading-relaxed">{h.tags.join(" • ")}</p>}
       </div>
       <div className="sm:w-[190px] shrink-0 p-3.5 sm:border-l border-line flex flex-col gap-1">
         <p>
           <span className="text-[20px] font-bold">{money(h.pricePerNight, h.currency)}</span>
           <span className="text-[13px] text-ink-muted"> a night</span>
         </p>
-        <p className="text-[13px] underline">{money(h.pricePerNight * nights, h.currency)} total</p>
-        <p className="text-[13px] font-semibold text-[#1a4fb3]">{h.provider}</p>
-        <p className="text-[12px] text-ink-muted">{h.roomType}</p>
+        <p className="text-[13px] underline">{money(total, h.currency)} total</p>
+        <p className="text-[13px] font-semibold text-[#1a4fb3] truncate">{h.provider}</p>
+        {h.roomType && <p className="text-[12px] text-ink-muted truncate">{h.roomType}</p>}
         <div className="mt-auto pt-1.5 flex items-center gap-2">
           <a
             href={h.bookingUrl}
@@ -93,6 +172,7 @@ function HotelCard({
             }}
           />
         </div>
+        {(h.bookingOptions?.length ?? 0) > 1 && <HotelOffers options={h.bookingOptions!} currency={h.currency} />}
       </div>
     </article>
   );
@@ -130,19 +210,36 @@ function StaysInner() {
   const [hover, setHover] = useState<string | null>(null);
   const [toast, setToast] = useState("");
 
+  const [error, setError] = useState("");
+  const [source, setSource] = useState<string>("");
+
   const search = async (query: string, extra: Partial<StaySession> = {}) => {
+    const st = { ...(useSearchStore.getState().stay ?? init), ...extra };
     setLoading(true);
+    setError("");
     try {
-      const cur = useSettings.getState().currency;
-      const res = await fetch(`/api/stays/search?q=${encodeURIComponent(query)}&currency=${cur}`);
+      const qs = new URLSearchParams({
+        q: query,
+        checkIn: st.checkIn,
+        checkOut: st.checkOut,
+        guests: String(st.guests),
+        currency: useSettings.getState().currency,
+      });
+      const res = await fetch(`/api/stays/search?${qs}`);
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Hotel search failed");
+      setSource(data.source);
       setStay({ ...extra, q: query, hotels: data.hotels, price: null, amenities: [], minStars: 0 }, init);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Hotel search failed");
+      setStay({ ...extra, q: query }, init);
     } finally {
       setLoading(false);
     }
   };
 
-  // Search on arrival only when there's nothing to show yet, or when arriving from a different trip.
+  // Search on arrival when coming from a trip ("Find stays"), or when there's a saved query but no
+  // results yet. An empty box never searches by itself (live searches cost a credit).
   useEffect(() => {
     if (!ready) return;
     const current = useSearchStore.getState().stay;
@@ -153,12 +250,13 @@ function StaysInner() {
         guests: presetTrip.travellers,
         prefilledFor: presetTrip.id,
       });
-    } else if (!current?.hotels || current.hotels[0]?.currency !== useSettings.getState().currency) {
-      // Nothing yet, or results are in an old currency (hotel search is free, so just redo it).
-      void search(params.get("q") ?? current?.q ?? "");
+    } else if (!current?.hotels && (params.get("q") ?? current?.q)) {
+      void search(params.get("q") ?? current!.q);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, presetTrip?.id, currency]);
+  }, [ready, presetTrip?.id]);
+
+  const staleCurrency = !!hotels?.length && hotels[0].currency !== currency;
 
   useEffect(() => {
     if (!toast) return;
@@ -181,7 +279,7 @@ function StaysInner() {
       h.stars >= minStars,
   );
 
-  const points: MapPoint[] = filtered.map((h) => ({
+  const points: MapPoint[] = filtered.filter((h) => h.lat || h.lng).map((h) => ({
     id: h.id,
     lat: h.lat,
     lng: h.lng,
@@ -266,16 +364,33 @@ function StaysInner() {
         </FilterChip>
         {hotels && (
           <span className="ml-auto text-[13px] text-ink-muted">
-            {filtered.length} stays · {nights} night{nights > 1 ? "s" : ""} · demo data
+            {filtered.length} stays · {nights} night{nights > 1 ? "s" : ""} · {source === "skyscanner" ? "Skyscanner" : "demo data"}
           </span>
         )}
       </div>
+
+      {error && <p className="text-price-up text-[14px]">{error}</p>}
+      {staleCurrency && (
+        <p className="text-[13px] text-ink-muted">
+          These results are in {hotels![0].currency}; your currency is now {currency}.{" "}
+          <button type="button" onClick={() => void search(q)} className="text-accent-ink underline underline-offset-2">
+            Search again in {currency}
+          </button>
+        </p>
+      )}
 
       <hr className="border-line" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="space-y-3 min-w-0">
-          {hotels && filtered.length === 0 && <p className="text-ink-muted">No stays found. Try New York, Budapest, London or Paris.</p>}
+          {!hotels && !loading && !error && <p className="text-ink-muted">Search for a city, area, hotel or landmark.</p>}
+          {loading && !hotels?.length &&
+            [0, 1, 2].map((i) => <div key={i} className="h-[170px] rounded-xl bg-surface-strong/70 animate-pulse" />)}
+          {hotels && !loading && filtered.length === 0 && (
+            <p className="text-ink-muted">
+              No stays found{source === "mock" ? ". The demo hotels cover New York, Budapest, London and Paris." : "."}
+            </p>
+          )}
           {filtered.map((h) => (
             <HotelCard
               key={h.id}

@@ -21,6 +21,8 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 | Variable | Effect when set | Without it |
 |---|---|---|
 | `SEARCHAPI_API_KEY` | Live flights from **Skyscanner via SearchApi.io**: complete itineraries with each seller's price and direct booking link (falls back to Google Flights via SearchApi if that fails) | Realistic generated flight data |
+| `SEARCHAPI_API_KEY` (hotels) | Live hotels from **Skyscanner via SearchApi.io**: photos, stars, guest rating, location, nightly/total price and every partner's rate and booking link | Sample hotels for New York, Budapest, London and Paris |
+| `HOTEL_PROVIDER=mock` | Keep using the sample hotels even with a SearchApi key | |
 | `FLIGHT_PROVIDER` | Force `skyscanner_searchapi`, `google_flights`, `skyscanner` (official partner API) or `mock` | Best provider for the keys present |
 | `AFFILIATE_LINK_TEMPLATE` | Wraps Skyscanner booking links in your affiliate tracking link; `{url}` marks where the Skyscanner URL goes | Links go to Skyscanner untracked |
 | `SEARCHAPI_COUNTRY` | Google country for Google Flights searches (default `uk`). Currency is chosen in the app's Settings page | |
@@ -42,6 +44,8 @@ Every search is live (no caching), so prices match the provider. Each request us
 - **Saved flights** are re-priced live when you open the trip planner (1 credit each with Skyscanner),
   skipping any checked in the last 5 minutes; **Refresh prices** forces a new check. Demo trips are never re-priced.
 - **Book** opens the seller's booking page directly (Skyscanner) — no credit used.
+- **Hotel search:** 1 credit per search. The Stays page only searches when you press Search
+  (or arrive from a trip's "Find stays"), never on an empty box.
 
 ### Supabase setup
 
@@ -58,11 +62,12 @@ the anon key read and write everything. Tighten them when auth is added.
 src/app/                 Pages (home, flights, stays, explore, trips, trips/[id]) and API routes
 src/app/api/flights      Flight search + return flights (SearchApi / Skyscanner / mock)
 src/app/api/prices       Re-prices saved flights/stays for the price-change colours
-src/app/api/stays        Hotel search (mock dataset for now)
+src/app/api/stays        Hotel search (Skyscanner via SearchApi, or sample hotels)
 src/components/          Sidebar, map, itinerary, shared UI
 src/lib/store.ts         Client state (zustand) + persistence
 src/lib/backend.ts       localStorage / Supabase adapters
 src/lib/flights-server.ts Provider selection, Skyscanner client, mock generator (server only)
 src/lib/searchapi.ts     Google Flights via SearchApi.io (server only)
+src/lib/searchapi-hotels.ts Skyscanner hotels via SearchApi.io (server only)
 supabase/schema.sql      Database schema
 ```
