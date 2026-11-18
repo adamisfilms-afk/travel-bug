@@ -728,7 +728,7 @@ export default function PlannerPage() {
         <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0">
             {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
-            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
               <div role="tablist" aria-label="Saved items" className="flex items-baseline gap-5">
                 {SAVED_TABS.map((t) => {
                   return (
@@ -828,7 +828,7 @@ export default function PlannerPage() {
           </div>
 
           <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-            <div role="tablist" aria-label="Itinerary or map" className="mb-4 flex items-baseline gap-5">
+            <div role="tablist" aria-label="Itinerary or map" className="mb-6 flex items-baseline gap-5">
               {(["itinerary", "map"] as const).map((t) => (
                 <button
                   key={t}
