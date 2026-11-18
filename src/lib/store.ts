@@ -43,7 +43,11 @@ interface State extends TripData {
   setItemTime(id: string, time: string | null): void;
   removeItineraryItem(id: string): void;
 
-  applyPrices(flights: { id: string; price: number | null }[], stays: { id: string; price: number | null }[], checkedAt: string): void;
+  applyPrices(
+    flights: { id: string; price: number | null; bookingUrl?: string; bookingOptions?: SavedFlight["bookingOptions"] }[],
+    stays: { id: string; price: number | null }[],
+    checkedAt: string,
+  ): void;
 }
 
 const EMPTY: TripData = { trips: [], flights: [], stays: [], activities: [], itinerary: [] };
@@ -141,6 +145,7 @@ export const useStore = create<State>((set, get) => ({
       priceCurrent: offer.price,
       priceCheckedAt: now,
       bookingUrl: offer.bookingUrl,
+      bookingOptions: offer.bookingOptions,
       savedAt: now,
     };
     set((s) => ({ flights: [...s.flights, f] }));
@@ -247,10 +252,21 @@ export const useStore = create<State>((set, get) => ({
   },
 
   applyPrices(flightPrices, stayPrices, checkedAt) {
-    const fp = new Map(flightPrices.filter((p) => p.price != null).map((p) => [p.id, p.price!]));
+    const fp = new Map(flightPrices.filter((p) => p.price != null).map((p) => [p.id, p]));
     const sp = new Map(stayPrices.filter((p) => p.price != null).map((p) => [p.id, p.price!]));
     set((s) => ({
-      flights: s.flights.map((f) => (fp.has(f.id) ? { ...f, priceCurrent: fp.get(f.id)!, priceCheckedAt: checkedAt } : f)),
+      flights: s.flights.map((f) => {
+        const p = fp.get(f.id);
+        if (!p) return f;
+        // Keep booking links fresh too (seller links can expire).
+        return {
+          ...f,
+          priceCurrent: p.price!,
+          priceCheckedAt: checkedAt,
+          bookingUrl: p.bookingUrl ?? f.bookingUrl,
+          bookingOptions: p.bookingOptions ?? f.bookingOptions,
+        };
+      }),
       stays: s.stays.map((st) => (sp.has(st.id) ? { ...st, priceCurrent: sp.get(st.id)! } : st)),
     }));
     const s = get();

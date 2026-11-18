@@ -22,6 +22,13 @@ export interface FlightLeg {
   durationMins: number;
 }
 
+/** One place the flight can be bought (airline or travel agent) with its own price and link. */
+export interface BookingOption {
+  name: string;
+  price: number | null;
+  url: string;
+}
+
 /** A flight option returned by search (one-way or return). */
 export interface FlightOffer {
   id: string;
@@ -31,6 +38,8 @@ export interface FlightOffer {
   cabin: Cabin;
   passengers: number;
   bookingUrl: string;
+  /** Direct booking links per seller, cheapest first (when the provider supplies them). */
+  bookingOptions?: BookingOption[];
   provider: string;
   /** Round trip still waiting for a return flight to be chosen (Google Flights two-step search). */
   departureToken?: string;
@@ -58,6 +67,7 @@ export interface SavedFlight {
   priceCurrent: number;
   priceCheckedAt: string | null;
   bookingUrl: string;
+  bookingOptions?: BookingOption[];
   savedAt: string;
 }
 

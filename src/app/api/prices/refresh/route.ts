@@ -23,16 +23,19 @@ export async function POST(req: Request) {
   const flights: SavedFlight[] = Array.isArray(body.flights) ? body.flights.slice(0, 30) : [];
   const stays: SavedStay[] = Array.isArray(body.stays) ? body.stays.slice(0, 30) : [];
 
-  // Live providers cost a search credit per check (two for round trips), so re-check each
-  // saved flight at most every 12 hours, and never re-price the demo trips' flights.
+  // Prices are checked live. To avoid paying twice when you hop between pages, a flight
+  // checked in the last few minutes is skipped unless `force` is set ("Refresh prices").
+  // Demo trips' flights are never re-priced with a live provider.
   const live = flightSource() !== "mock";
-  const fresh = (f: SavedFlight) => f.priceCheckedAt && Date.now() - Date.parse(f.priceCheckedAt) < 12 * 3_600_000;
+  const force = body.force === true;
+  const recent = (f: SavedFlight) => f.priceCheckedAt && Date.now() - Date.parse(f.priceCheckedAt) < 5 * 60_000;
 
   const flightPrices = await Promise.all(
     flights.map(async (f) => {
-      if (live && (f.id.startsWith("seed-") || fresh(f))) return { id: f.id, price: null };
+      if (live && (f.id.startsWith("seed-") || (!force && recent(f)))) return { id: f.id, price: null };
       try {
-        return { id: f.id, price: await refreshFlightPrice(f) };
+        const check = await refreshFlightPrice(f);
+        return { id: f.id, price: check?.price ?? null, bookingUrl: check?.bookingUrl, bookingOptions: check?.bookingOptions };
       } catch (e) {
         console.error(e);
         return { id: f.id, price: null };

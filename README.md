@@ -20,23 +20,23 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 
 | Variable | Effect when set | Without it |
 |---|---|---|
-| `SEARCHAPI_API_KEY` | Live Google Flights results via SearchApi.io (search, return flights, price re-checks) | Realistic generated flight data |
-| `SEARCHAPI_COUNTRY` | Google country for searches (default `uk`). Currency is chosen in the app's Settings page | |
+| `SEARCHAPI_API_KEY` | Live flights from **Skyscanner via SearchApi.io**: complete itineraries with each seller's price and direct booking link (falls back to Google Flights via SearchApi if that fails) | Realistic generated flight data |
+| `FLIGHT_PROVIDER` | Force `skyscanner_searchapi`, `google_flights`, `skyscanner` (official partner API) or `mock` | Best provider for the keys present |
+| `AFFILIATE_LINK_TEMPLATE` | Wraps Skyscanner booking links in your affiliate tracking link; `{url}` marks where the Skyscanner URL goes | Links go to Skyscanner untracked |
+| `SEARCHAPI_COUNTRY` | Google country for Google Flights searches (default `uk`). Currency is chosen in the app's Settings page | |
 | `SEARCHAPI_DEBUG=1` | Logs the shape of SearchApi responses in the server terminal | |
-| `SKYSCANNER_API_KEY` | Skyscanner partner API instead (needs partner approval) | |
-| `FLIGHT_PROVIDER` | Force `searchapi`, `skyscanner` or `mock` | Uses whichever key is set |
+| `SKYSCANNER_API_KEY` | Skyscanner's official partner API (needs partner approval) | |
 | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Trips are stored in Supabase | Trips are stored in the browser (`localStorage`) |
 
 ### Search credits (SearchApi)
 
-Each SearchApi request uses one credit. To make them last:
+Every search is live (no caching), so prices match the provider. Each request uses one credit:
 
-- One-way search: 1 credit. Round trip: 1 credit for the outbound list, plus 1 each
-  time you open **Choose return** on a flight (returns are remembered after that).
-- Identical requests within 30 minutes are served from memory (free).
-- Saved flights are re-priced at most every 12 hours when you open the planner
-  (1 credit one-way, 2 round trip). Demo trips are never re-priced.
-- **Book** opens the search on Google Flights (no credit used).
+- **Skyscanner (default):** 1 credit per search, one-way or round trip.
+- **Google Flights:** 1 credit per search, plus 1 each time you open **Choose return** on a round-trip result.
+- **Saved flights** are re-priced live when you open the trip planner (1 credit each with Skyscanner),
+  skipping any checked in the last 5 minutes; **Refresh prices** forces a new check. Demo trips are never re-priced.
+- **Book** opens the seller's booking page directly (Skyscanner) — no credit used.
 
 ### Supabase setup
 

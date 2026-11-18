@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { AirlineLogo } from "@/components/AirlineLogo";
+import { BookButton } from "@/components/BookButton";
 import { AirportInput } from "@/components/AirportInput";
 import { PriceRange } from "@/components/PriceRange";
 import { RangeSlider } from "@/components/RangeSlider";
@@ -30,6 +31,14 @@ const ROW_COLS =
 
 const segCls = "flex items-center gap-2 h-11 px-4";
 const selectCls = "bg-transparent outline-none text-[14px] cursor-pointer";
+
+const SOURCE_LABEL: Record<string, string> = {
+  mock: "demo data",
+  skyscanner_searchapi: "Skyscanner",
+  skyscanner: "Skyscanner",
+  google_flights: "Google Flights",
+  searchapi: "Google Flights",
+};
 
 const SORTS: { value: FlightSort; label: string; short: string }[] = [
   { value: "price", label: "Price (lowest first)", short: "Price" },
@@ -146,20 +155,6 @@ function LegLine({ leg }: { leg: FlightLeg }) {
 /** Fixed-width action area so outbound and return rows keep the same columns. */
 const ACTIONS = "h-6 flex items-center justify-end gap-2 w-[196px] shrink-0";
 
-function BookLink({ href }: { href: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      title="Book this flight"
-      className="h-8 px-4 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover inline-flex items-center"
-    >
-      Book
-    </a>
-  );
-}
-
 function tripDefaults(o: FlightOffer) {
   return {
     destination: o.legs[0].to.city,
@@ -226,7 +221,7 @@ function FlightRow({
           {needsReturn && <span className="block text-[11px] leading-3 text-ink-muted">round trip from</span>}
         </div>
         <div className={clsx(ACTIONS, "self-start")}>
-          <BookLink href={o.bookingUrl} />
+          <BookButton href={o.bookingUrl} options={o.bookingOptions} currency={o.currency} />
           {needsReturn ? (
             <button
               type="button"
@@ -256,7 +251,7 @@ function FlightRow({
               </div>
               <span className="w-[84px] text-right font-semibold text-[15px] leading-6 tabular-nums">{money(r.price, r.currency)}</span>
               <div className={ACTIONS}>
-                <BookLink href={r.bookingUrl} />
+                <BookButton href={r.bookingUrl} options={r.bookingOptions} currency={r.currency} />
                 <AddToTripButton compact addedTo={savedTrips(r)} defaults={tripDefaults(r)} onAdd={(tripId) => onSave(tripId, r)} />
               </div>
             </div>
@@ -283,6 +278,7 @@ function FlightsInner() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [toast, setToast] = useState("");
   const today = toDay(new Date());
   const currency = useSettings((s) => s.currency);
@@ -314,6 +310,7 @@ function FlightsInner() {
     if (!from || !to) return setError("Choose where you're flying from and to.");
     if (!depart) return setError("Choose a departure date.");
     setError("");
+    setNotice("");
     setLoading(true);
     try {
       const res = await fetch("/api/flights/search", {
@@ -324,6 +321,7 @@ function FlightsInner() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
       set({ offers: data.offers, source: data.source, returns: {}, ...RESET_FILTERS });
+      if (data.notice) setNotice(data.notice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
       set({ offers: null });
@@ -423,6 +421,7 @@ function FlightsInner() {
       </form>
 
       {error && <p className="text-price-up text-[14px]">{error}</p>}
+      {notice && <p className="text-[13px] text-ink-muted">{notice}</p>}
 
       {offers && (
         <div className="flex items-start gap-3">
@@ -485,7 +484,7 @@ function FlightsInner() {
         {/* Sort stays pinned top-right even when the filter chips wrap */}
         <div className="flex items-center gap-3 shrink-0">
           <span className="hidden md:inline text-[13px] text-ink-muted">
-            {filtered.length} of {offers.length} results{source === "mock" ? " · demo data" : source === "searchapi" ? " · Google Flights" : ""}
+            {filtered.length} of {offers.length} results{SOURCE_LABEL[source] ? ` · ${SOURCE_LABEL[source]}` : ""}
           </span>
           <FilterChip
             align="right"

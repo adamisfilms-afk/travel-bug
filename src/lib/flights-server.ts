@@ -2,6 +2,7 @@ import "server-only";
 import { AIRPORTS, findAirport } from "./airports";
 import { fromUsd } from "./currency";
 import { searchApiEnabled, searchApiReturns, searchApiSearch } from "./searchapi";
+import { skyscannerViaSearchApi } from "./searchapi-skyscanner";
 import type { Cabin, FlightLeg, FlightOffer, Place, SavedFlight } from "./types";
 
 export interface FlightSearchParams {
@@ -16,40 +17,67 @@ export interface FlightSearchParams {
 
 const SKY_BASE = "https://partners.api.skyscanner.net/apiservices/v3";
 
-export type FlightSource = "searchapi" | "skyscanner" | "mock";
+/**
+ * - skyscanner_searchapi: Skyscanner results via SearchApi (direct seller booking links) — default with a SearchApi key
+ * - google_flights: Google Flights via SearchApi (two-step round trips; Book opens Google Flights)
+ * - skyscanner: Skyscanner's official partner API (needs partner approval)
+ * - mock: generated demo data
+ */
+export type FlightSource = "skyscanner_searchapi" | "google_flights" | "skyscanner" | "mock";
 
-/** Which provider to use: FLIGHT_PROVIDER if set, else whichever API key is present, else demo data. */
+/** FLIGHT_PROVIDER if set (and its key exists), else the best provider for the keys present, else demo data. */
 export function flightSource(): FlightSource {
-  const forced = process.env.FLIGHT_PROVIDER as FlightSource | undefined;
-  if (forced === "searchapi" && searchApiEnabled()) return "searchapi";
-  if (forced === "skyscanner" && process.env.SKYSCANNER_API_KEY) return "skyscanner";
+  const forced = process.env.FLIGHT_PROVIDER;
   if (forced === "mock") return "mock";
-  if (searchApiEnabled()) return "searchapi";
+  if ((forced === "google_flights" || forced === "searchapi") && searchApiEnabled()) return "google_flights";
+  if (forced === "skyscanner_searchapi" && searchApiEnabled()) return "skyscanner_searchapi";
+  if (forced === "skyscanner" && process.env.SKYSCANNER_API_KEY) return "skyscanner";
+  if (searchApiEnabled()) return "skyscanner_searchapi";
   if (process.env.SKYSCANNER_API_KEY) return "skyscanner";
   return "mock";
 }
 
-export async function searchFlights(p: FlightSearchParams): Promise<{ offers: FlightOffer[]; source: FlightSource }> {
+export async function searchFlights(
+  p: FlightSearchParams,
+): Promise<{ offers: FlightOffer[]; source: FlightSource; notice?: string }> {
   const source = flightSource();
-  if (source === "searchapi") return { offers: await searchApiSearch(p), source };
+  if (source === "skyscanner_searchapi") {
+    try {
+      return { offers: await skyscannerViaSearchApi(p), source };
+    } catch (e) {
+      // Keep search working if the Skyscanner engine fails (e.g. format change): fall back to Google Flights.
+      console.error("[flights] Skyscanner via SearchApi failed, falling back to Google Flights:", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      return { offers: await searchApiSearch(p), source: "google_flights", notice: `Skyscanner results unavailable (${msg}); showing Google Flights.` };
+    }
+  }
+  if (source === "google_flights") return { offers: await searchApiSearch(p), source };
   if (source === "skyscanner") return { offers: await skyscannerSearch(p), source };
   return { offers: mockSearch(p), source };
 }
 
-/** Return options for a round-trip outbound flight (only needed for Google Flights results). */
+/** Return options for a round-trip outbound flight (Google Flights' two-step search, and demo data). */
 export async function searchReturnFlights(p: FlightSearchParams, outbound: FlightOffer): Promise<FlightOffer[]> {
-  const source = flightSource();
-  if (source === "searchapi") return searchApiReturns(p, outbound);
-  if (source === "mock") return mockReturns(p, outbound);
+  if (outbound.departureToken?.startsWith("mock-")) return mockReturns(p, outbound);
+  if (searchApiEnabled()) return searchApiReturns(p, outbound);
   return [];
 }
 
 const numKey = (legs: FlightLeg[]) => legs.map((l) => l.flightNumber.replace(/\s/g, "")).join("|");
 
-/** Returns the latest price for a saved flight, or null if it can no longer be found. */
-export async function refreshFlightPrice(f: SavedFlight): Promise<number | null> {
+export interface PriceCheck {
+  price: number;
+  bookingUrl?: string;
+  bookingOptions?: FlightOffer["bookingOptions"];
+}
+
+/** Latest price (and fresh booking links) for a saved flight, or null if it can no longer be found. */
+export async function refreshFlightPrice(f: SavedFlight): Promise<PriceCheck | null> {
   const source = flightSource();
-  if (source === "mock") return mockDrift(f.id, f.priceSaved);
+  if (source === "mock") {
+    const price = mockDrift(f.id, f.priceSaved);
+    return price == null ? null : { price };
+  }
   const out = f.legs[0];
   const back = f.legs[1];
   const params: FlightSearchParams = {
@@ -61,16 +89,24 @@ export async function refreshFlightPrice(f: SavedFlight): Promise<number | null>
     cabin: f.cabin,
     currency: f.currency, // compare like with like: re-price in the currency it was saved in
   };
-  if (source === "searchapi") {
+  const pick = (o?: FlightOffer): PriceCheck | null => (o ? { price: o.price, bookingUrl: o.bookingUrl, bookingOptions: o.bookingOptions } : null);
+
+  if (source === "skyscanner_searchapi") {
+    try {
+      return pick((await skyscannerViaSearchApi(params)).find((o) => numKey(o.legs) === numKey(f.legs)));
+    } catch (e) {
+      console.error("[flights] price check via Skyscanner failed:", e);
+      return null;
+    }
+  }
+  if (source === "google_flights") {
     const outbound = (await searchApiSearch(params)).find((o) => numKey(o.legs) === numKey([out]));
     if (!outbound) return null;
-    if (!back) return outbound.price;
+    if (!back) return { price: outbound.price };
     const full = (await searchApiReturns(params, outbound)).find((o) => numKey(o.legs) === numKey(f.legs));
-    return full ? full.price : null;
+    return full ? { price: full.price } : null;
   }
-  const offers = await skyscannerSearch(params);
-  const match = offers.find((o) => numKey(o.legs) === numKey(f.legs));
-  return match ? match.price : null;
+  return pick((await skyscannerSearch(params)).find((o) => numKey(o.legs) === numKey(f.legs)));
 }
 
 // ---------------------------------------------------------------------------

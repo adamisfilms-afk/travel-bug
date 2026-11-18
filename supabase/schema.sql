@@ -23,8 +23,10 @@ create table if not exists saved_flights (
   price_current numeric not null,
   price_checked_at timestamptz,
   booking_url text not null,
+  booking_options jsonb,
   saved_at timestamptz not null default now()
 );
+alter table saved_flights add column if not exists booking_options jsonb;
 
 create table if not exists saved_stays (
   id text primary key,

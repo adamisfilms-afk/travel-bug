@@ -17,19 +17,21 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_ICON, ItineraryEntry, legForDay, makeLookup, type Lookup } from "@/components/itinerary";
 import { Map, type MapPoint } from "@/components/Map";
 import { itineraryPoints } from "@/components/tripPoints";
-import { ArrowButton, Field, inputCls, Modal, PriceTag, PrimaryButton, SectionTitle } from "@/components/ui";
+import { AirlineLogo } from "@/components/AirlineLogo";
+import { BookButton } from "@/components/BookButton";
+import { Field, inputCls, Modal, PriceTag, PrimaryButton, SectionTitle } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
-import { dayMonth, daysBetween, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
+import { dayMonth, daysBetween, durationLabel, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
 import { itineraryByDay, useStore } from "@/lib/store";
-import type { ActivityCategory, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
+import type { ActivityCategory, BookingOption, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
 
 type SourceData = { type: "source"; kind: ItemKind; refId: string };
 type ItemData = { type: "item"; day: string };
@@ -89,15 +91,29 @@ function RowShell({
   );
 }
 
-/** Price + book button, both centred on the first 24px text line. */
-function PriceAndBook({ kind, saved, current, currency, href }: { kind: "flight" | "stay"; saved: number; current: number; currency: string; href: string }) {
+/** Price + Book button, both centred on the first 24px text line. */
+function PriceAndBook({
+  kind,
+  saved,
+  current,
+  currency,
+  href,
+  options,
+}: {
+  kind: "flight" | "stay";
+  saved: number;
+  current: number;
+  currency: string;
+  href: string;
+  options?: BookingOption[];
+}) {
   return (
     <>
       <div className="w-[72px] text-right self-start leading-6 text-[15px]">
         <PriceTag kind={kind} saved={saved} current={current} currency={currency} />
       </div>
-      <div onPointerDown={(e) => e.stopPropagation()} className="self-start h-6 flex items-center">
-        <ArrowButton href={href} label={kind === "flight" ? "Book this flight" : "Book this stay"} />
+      <div className="self-start h-6 flex items-center justify-end w-[86px]">
+        <BookButton href={href} options={options} currency={currency} />
       </div>
     </>
   );
@@ -114,22 +130,34 @@ function FlightRowBody({ f }: { f: SavedFlight }) {
             key={i}
             className={clsx(
               ROW_TEXT,
-              "flex flex-wrap gap-x-4 md:grid md:grid-cols-[84px_minmax(0,1fr)_56px_96px_88px] md:gap-x-4",
+              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[84px_22px_56px_96px_88px_minmax(0,1fr)] md:gap-x-4",
             )}
           >
             <span className="font-medium whitespace-nowrap">
               {leg.from.code} - {leg.to.code}
             </span>
-            <span className="text-ink-muted truncate">{leg.carrier}</span>
+            <span title={leg.carrier} aria-label={leg.carrier} className="flex items-center">
+              <AirlineLogo leg={leg} />
+            </span>
             <span className="text-ink-muted whitespace-nowrap">{leg.flightNumber}</span>
             <span className="text-ink-muted whitespace-nowrap tabular-nums">
               {hhmm(leg.depart)} - {hhmm(leg.arrive)}
             </span>
             <span className="text-ink-muted whitespace-nowrap">{shortDate(leg.depart)}</span>
+            <span className="text-ink-muted whitespace-nowrap text-[13px] truncate">
+              {leg.stops ? `${leg.stops} stop${leg.stops > 1 ? "s" : ""}` : "Direct"} · {durationLabel(leg.durationMins)}
+            </span>
           </div>
         ))}
       </div>
-      <PriceAndBook kind="flight" saved={f.priceSaved} current={f.priceCurrent} currency={f.currency} href={f.bookingUrl} />
+      <PriceAndBook
+        kind="flight"
+        saved={f.priceSaved}
+        current={f.priceCurrent}
+        currency={f.currency}
+        href={f.bookingUrl}
+        options={f.bookingOptions}
+      />
     </div>
   );
 }
@@ -354,31 +382,42 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
 // Page
 // ---------------------------------------------------------------------------
 
+/** Checks live prices when the planner opens; `refresh()` forces a new check. */
 function usePriceRefresh(tripId: string | undefined) {
   const [status, setStatus] = useState<"idle" | "checking" | "done" | "error">("idle");
   const ready = useStore((s) => s.ready);
   const done = useRef<string | null>(null);
+
+  const run = useCallback(
+    (force: boolean) => {
+      if (!tripId) return;
+      const { flights, stays, applyPrices } = useStore.getState();
+      const f = flights.filter((x) => x.tripId === tripId);
+      const s = stays.filter((x) => x.tripId === tripId);
+      if (!f.length && !s.length) return;
+      setStatus("checking");
+      fetch("/api/prices/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ flights: f, stays: s, force }),
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((d) => {
+          applyPrices(d.flights, d.stays, d.checkedAt);
+          setStatus("done");
+        })
+        .catch(() => setStatus("error"));
+    },
+    [tripId],
+  );
+
   useEffect(() => {
     if (!ready || !tripId || done.current === tripId) return;
     done.current = tripId;
-    const { flights, stays, applyPrices } = useStore.getState();
-    const f = flights.filter((x) => x.tripId === tripId);
-    const s = stays.filter((x) => x.tripId === tripId);
-    if (!f.length && !s.length) return;
-    setStatus("checking");
-    fetch("/api/prices/refresh", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ flights: f, stays: s }),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d) => {
-        applyPrices(d.flights, d.stays, d.checkedAt);
-        setStatus("done");
-      })
-      .catch(() => setStatus("error"));
-  }, [ready, tripId]);
-  return status;
+    run(false);
+  }, [ready, tripId, run]);
+
+  return { status, refresh: () => run(true) };
 }
 
 type PanelTab = "itinerary" | "map";
@@ -396,7 +435,7 @@ export default function PlannerPage() {
   const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState<PanelTab>("itinerary");
   const [active, setActive] = useState<{ kind: ItemKind; refId: string; day?: string } | null>(null);
-  const priceStatus = usePriceRefresh(trip?.id);
+  const { status: priceStatus, refresh: refreshPrices } = usePriceRefresh(trip?.id);
 
   const tripFlights = flights.filter((f) => f.tripId === id);
   const tripStays = stays.filter((s) => s.tripId === id);
@@ -442,9 +481,10 @@ export default function PlannerPage() {
 
   const defaultTime = (kind: ItemKind, refId: string, day: string): string | null => {
     if (kind === "flight") {
+      // The leg departing that day (the return leg on the return date), otherwise the outbound leg.
       const f = lookup.flights.get(refId);
       const leg = f && legForDay(f, day);
-      return leg && leg.depart.startsWith(day) ? hhmm(leg.depart) : null;
+      return leg ? hhmm(leg.depart) : null;
     }
     if (kind === "stay") {
       const s = lookup.stays.get(refId);
@@ -508,6 +548,15 @@ export default function PlannerPage() {
             {priceStatus === "checking" && <span>Checking latest prices…</span>}
             {priceStatus === "done" && <span>Prices updated just now</span>}
             {priceStatus === "error" && <span className="text-price-up">Couldn&apos;t refresh prices</span>}
+            {priceStatus !== "checking" && tripFlights.length + tripStays.length > 0 && (
+              <button
+                type="button"
+                onClick={refreshPrices}
+                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-surface hover:bg-white text-ink text-[14px]"
+              >
+                <ArrowClockwise className="size-3.5" /> Refresh prices
+              </button>
+            )}
             <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-surface hover:bg-white text-ink text-[14px]">
               <PencilSimple className="size-3.5" /> Edit trip
             </button>

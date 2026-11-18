@@ -8,15 +8,14 @@ import type { Cabin, FlightLeg, FlightOffer, Place } from "./types";
  * Google Flights returns round trips in two steps: the first search lists outbound
  * flights priced as a round trip, each with a `departure_token`; a second search with
  * that token lists the matching return flights. Each request costs one search credit,
- * so returns are only fetched when the user asks for them, and identical requests are
- * cached in memory for 30 minutes.
+ * so returns are only fetched when the user asks for them. Requests are always live
+ * (no caching) so prices match the provider exactly.
  */
 
 const ENDPOINT = "https://www.searchapi.io/api/v1/search";
-const CACHE_MS = 30 * 60_000;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = any;
+export type Json = any;
 
 export interface SearchApiParams {
   from: string;
@@ -39,16 +38,12 @@ export function searchApiEnabled() {
   return Boolean(process.env.SEARCHAPI_API_KEY);
 }
 
-const cache = new Map<string, { at: number; data: Json }>();
-
-async function call(params: Record<string, string | number | undefined>): Promise<Json> {
-  const qs = new URLSearchParams({ engine: "google_flights" });
+/** One live SearchApi request (one search credit). */
+export async function searchApiCall(engine: string, params: Record<string, string | number | undefined>): Promise<Json> {
+  const qs = new URLSearchParams({ engine });
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
-  const key = qs.toString();
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
 
-  const res = await fetch(`${ENDPOINT}?${key}`, {
+  const res = await fetch(`${ENDPOINT}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${process.env.SEARCHAPI_API_KEY}` },
     cache: "no-store",
   });
@@ -63,13 +58,14 @@ async function call(params: Record<string, string | number | undefined>): Promis
     throw new Error(`SearchApi ${res.status}: ${data?.error ?? text.slice(0, 200)}`);
   }
   if (process.env.SEARCHAPI_DEBUG) {
-    console.log("[searchapi] top-level keys:", Object.keys(data));
-    const first = (data.best_flights ?? data.other_flights ?? [])[0];
-    if (first) console.log("[searchapi] first result:", JSON.stringify(first).slice(0, 1500));
+    console.log(`[searchapi:${engine}] top-level keys:`, Object.keys(data));
+    const first = (data.itineraries ?? data.best_flights ?? data.other_flights ?? [])[0];
+    if (first) console.log(`[searchapi:${engine}] first result:`, JSON.stringify(first).slice(0, 3000));
   }
-  cache.set(key, { at: Date.now(), data });
   return data;
 }
+
+const call = (params: Record<string, string | number | undefined>) => searchApiCall("google_flights", params);
 
 function baseParams(p: SearchApiParams) {
   return {
@@ -90,7 +86,7 @@ function baseParams(p: SearchApiParams) {
 // Parsing (defensive: accepts "YYYY-MM-DD HH:MM" or separate date + time fields)
 // ---------------------------------------------------------------------------
 
-function to24h(t: string): string {
+export function to24h(t: string): string {
   const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/);
   if (!m) return t.slice(0, 5);
   let h = Number(m[1]);
@@ -100,16 +96,19 @@ function to24h(t: string): string {
   return `${String(h).padStart(2, "0")}:${m[2]}`;
 }
 
-function isoOf(a: Json, fallbackDay: string): string {
-  if (typeof a?.time === "string" && /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(a.time)) {
-    const [d, t] = a.time.split(/[ T]/);
-    return `${d}T${to24h(t)}`;
+export function isoOf(a: Json, fallbackDay: string): string {
+  // Full timestamps in any of the usual fields: "2026-12-23 07:30", "2026-12-23T07:30:00"
+  for (const v of [a?.time, a?.datetime, a?.date_time, a?.local_time]) {
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}/.test(v)) {
+      const [d, t] = v.split(/[ T]/);
+      return `${d}T${to24h(t.slice(0, 5).replace(/:$/, ""))}`;
+    }
   }
   const day = typeof a?.date === "string" && /^\d{4}-\d{2}-\d{2}/.test(a.date) ? a.date.slice(0, 10) : fallbackDay;
   return `${day}T${typeof a?.time === "string" ? to24h(a.time) : "00:00"}`;
 }
 
-function placeOf(a: Json): Place {
+export function placeOf(a: Json): Place {
   const code = String(a?.id ?? a?.code ?? "").toUpperCase();
   return findAirport(code) ?? { code: code || "???", name: a?.name ?? code, city: a?.city ?? a?.name ?? code, lat: 0, lng: 0 };
 }
@@ -137,14 +136,14 @@ function legOf(group: Json, fallbackDay: string): FlightLeg | null {
   };
 }
 
-function priceOf(group: Json): number | null {
+export function priceOf(group: Json): number | null {
   const p = group?.price;
   if (typeof p === "number") return p;
   if (typeof p === "string") {
     const n = Number(p.replace(/[^\d.]/g, ""));
     return Number.isFinite(n) && n > 0 ? n : null;
   }
-  if (p && typeof p === "object") return priceOf({ price: p.amount ?? p.value ?? p.total });
+  if (p && typeof p === "object") return priceOf({ price: p.amount ?? p.value ?? p.total ?? p.raw ?? p.extracted ?? p.formatted });
   return null;
 }
 

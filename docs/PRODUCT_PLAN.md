@@ -63,11 +63,14 @@ A fixed left sidebar with icon navigation:
   across a refresh in the same tab).
 - Each result row: route, flight number, times, date, price, and **Add to trip**
   (choose an existing trip or create one).
-- Powered by **Google Flights via SearchApi.io** through server-side routes
+- Powered by **Skyscanner via SearchApi.io** (Google Flights as fallback) through server-side routes
   (`/api/flights/search`, `/api/flights/returns`) so the API key never reaches
   the browser. Skyscanner's partner API is supported as an alternative. Without
   a key the routes return realistic mock data so the UI is fully usable.
-- Round trips are two-step, like Google Flights: results list outbound flights
+- **Book** goes straight to the seller's booking page (airline or travel agent); with
+  several sellers it opens a menu of them with their prices. Skyscanner links can carry
+  affiliate tracking.
+- With Google Flights results, round trips are two-step: results list outbound flights
   with a "round trip from" price; **Choose return** loads that flight's return
   options (one search credit), each with its own price, **Book** and **+**.
 
@@ -134,7 +137,9 @@ check-out).
 
 | Service | Used for | Config |
 |---|---|---|
-| SearchApi.io (Google Flights) | Live flight search, return flights, price refresh | `SEARCHAPI_API_KEY` (server only) |
+| SearchApi.io → Skyscanner | Live flight search with per-seller direct booking links, price refresh | `SEARCHAPI_API_KEY` (server only) |
+| SearchApi.io → Google Flights | Fallback / alternative provider | `SEARCHAPI_API_KEY`, `FLIGHT_PROVIDER=google_flights` |
+| Skyscanner affiliate programme (Impact) | Commission on booking redirects | `AFFILIATE_LINK_TEMPLATE` |
 | Skyscanner Travel API (optional) | Alternative provider if accepted as a partner | `SKYSCANNER_API_KEY` (server only) |
 | Supabase | Persistence | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 | OpenStreetMap / CARTO tiles via Leaflet | Maps | none |
