@@ -127,7 +127,10 @@ const NEW_YORK: CuratedGuide = {
 
 /** Curated write-ups and price levels (1–4) — sample copy. */
 const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
-  "ny-carbone": { priceLevel: 4, description: "Red-sauce theatre at its most polished — tuxedoed captains, tableside Caesar and the spicy rigatoni everyone posts about. Booking is a sport, but the night lives up to it." },
+  "ny-carbone": {
+    priceLevel: 4,
+    social: ["https://www.instagram.com/p/DQzdNKnDNDH/"],
+    description: "Red-sauce theatre at its most polished — tuxedoed captains, tableside Caesar and the spicy rigatoni everyone posts about. Booking is a sport, but the night lives up to it." },
   "ny-le-bernardin": { priceLevel: 4, description: "Eric Ripert's temple to seafood, where fish is treated with almost religious restraint. Calm, formal and flawless — the special-occasion meal that never feels stuffy." },
   "ny-via-carota": { priceLevel: 3, description: "A candlelit West Village trattoria that feels like it's been here forever. No reservations, so put your name down, have a drink nearby and come back for the cacio e pepe and the insalata verde." },
   "ny-lilia": { priceLevel: 3, description: "Missy Robbins' wood-fired Williamsburg favourite, set in an old auto-body shop. The pastas are the reason to go — the sheep's milk agnolotti especially — with a lovely café counter by day." },
