@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareOut, CaretDown } from "@phosphor-icons/react";
+import { ArrowSquareOut, CaretDown, Star } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { money } from "@/lib/format";
 import type { BookingOption } from "@/lib/types";
@@ -33,7 +33,7 @@ export function BookButton({ href, options, currency }: { href: string; options?
         <CaretDown weight="bold" className="size-3" />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
+        <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
           <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Book with</p>
           {options.map((o, i) => (
             <a
@@ -44,7 +44,16 @@ export function BookButton({ href, options, currency }: { href: string; options?
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 px-4 py-2 hover:bg-surface"
             >
-              <span className="flex-1 truncate">{o.name}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block truncate">{o.name}</span>
+                {o.rating != null && (
+                  <span className="flex items-center gap-1 text-[12px] text-ink-muted">
+                    <Star weight="fill" className="size-3 text-[#e8a13c]" />
+                    {o.rating.toFixed(1)}
+                    {o.reviews != null && <span>· {o.reviews.toLocaleString()} reviews</span>}
+                  </span>
+                )}
+              </span>
               {o.price != null && <span className="font-semibold tabular-nums">{money(o.price, currency)}</span>}
               <ArrowSquareOut className="size-3.5 text-ink-muted shrink-0" />
             </a>

@@ -43,6 +43,9 @@ export interface BookingOption {
   name: string;
   price: number | null;
   url: string;
+  /** Seller rating out of 5 and number of reviews, when the provider gives them. */
+  rating?: number;
+  reviews?: number;
 }
 
 /** A flight option returned by search (one-way or return). */

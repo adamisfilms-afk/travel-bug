@@ -208,8 +208,11 @@ function sellersOf(it: Json, dir: Map<string, string>, raw?: Json): BookingOptio
       const url = str(o?.link, o?.url, o?.booking_link, o?.deep_link, o?.deeplink, o?.tracking_link, o?.items?.[0]?.url, o?.items?.[0]?.deep_link);
       if (!url) continue;
       const byId = [...sellerIdsOf(o), sellerIdFromUrl(url)].map((id) => id && dir.get(id)).find(Boolean);
-      const name = byId ?? findName(o) ?? nameFromUrl(url) ?? "Book";
-      out.push({ name, price: num(o?.price ?? o?.amount ?? o?.total_price), url });
+      // SearchApi's field is `book_with` (e.g. "Kiwi.com"); the rest are fallbacks for other layouts.
+      const name = str(o?.book_with) ?? byId ?? findName(o) ?? nameFromUrl(url) ?? "Book";
+      const rating = typeof o?.rating === "number" && o.rating > 0 && o.rating <= 5 ? o.rating : undefined;
+      const reviews = typeof o?.reviews === "number" && o.reviews > 0 ? o.reviews : undefined;
+      out.push({ name, price: num(o?.price ?? o?.amount ?? o?.total_price), url, rating, reviews });
     }
   }
   if (out.some((o) => o.name === "Book")) dumpForDebugging(it, raw);
