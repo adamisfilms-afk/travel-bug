@@ -144,6 +144,15 @@ export interface SavedStay {
   bookingUrl: string;
   bookingOptions?: BookingOption[];
   imageUrl?: string;
+  /** Hotel details kept for the planner's expanded view (stays saved before this have none). */
+  images?: string[];
+  stars?: number;
+  rating?: number;
+  ratingWord?: string;
+  reviews?: number;
+  roomType?: string;
+  provider?: string;
+  amenities?: string[];
   guests?: number;
   priceCheckedAt?: string | null;
   savedAt: string;

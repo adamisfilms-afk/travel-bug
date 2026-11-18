@@ -50,6 +50,14 @@ alter table saved_stays add column if not exists booking_options jsonb;
 alter table saved_stays add column if not exists image_url text;
 alter table saved_stays add column if not exists guests int;
 alter table saved_stays add column if not exists price_checked_at timestamptz;
+alter table saved_stays add column if not exists images jsonb;
+alter table saved_stays add column if not exists stars int;
+alter table saved_stays add column if not exists rating numeric;
+alter table saved_stays add column if not exists rating_word text;
+alter table saved_stays add column if not exists reviews int;
+alter table saved_stays add column if not exists room_type text;
+alter table saved_stays add column if not exists provider text;
+alter table saved_stays add column if not exists amenities jsonb;
 
 create table if not exists saved_activities (
   id text primary key,

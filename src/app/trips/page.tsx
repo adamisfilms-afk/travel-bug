@@ -81,7 +81,7 @@ function TripsInner() {
           </section>
 
           <section className="h-[360px] lg:h-[calc(100vh-200px)] lg:min-h-[460px] lg:sticky lg:top-8 overflow-hidden rounded-[10px]">
-            <Map points={points} route legend />
+            <Map points={points} legend />
           </section>
         </div>
       )}
