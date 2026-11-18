@@ -1,0 +1,128 @@
+export type Cabin = "economy" | "premium_economy" | "business" | "first";
+
+export interface Place {
+  code: string; // IATA
+  name: string; // "London Heathrow"
+  city: string; // "London"
+  country?: string;
+  lat: number;
+  lng: number;
+}
+
+export interface FlightLeg {
+  from: Place;
+  to: Place;
+  carrier: string; // "Air Canada"
+  flightNumber: string; // "AC 855"
+  depart: string; // ISO local datetime "2026-12-23T07:30"
+  arrive: string;
+  stops: number;
+  durationMins: number;
+}
+
+/** A flight option returned by search (one-way or return). */
+export interface FlightOffer {
+  id: string;
+  legs: FlightLeg[];
+  price: number;
+  currency: string;
+  cabin: Cabin;
+  passengers: number;
+  bookingUrl: string;
+  provider: string;
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  destination: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  travellers: number;
+  createdAt: string;
+}
+
+export interface SavedFlight {
+  id: string;
+  tripId: string;
+  legs: FlightLeg[];
+  cabin: Cabin;
+  passengers: number;
+  currency: string;
+  priceSaved: number;
+  priceCurrent: number;
+  priceCheckedAt: string | null;
+  bookingUrl: string;
+  savedAt: string;
+}
+
+export interface Hotel {
+  id: string;
+  name: string;
+  stars: number;
+  area: string;
+  city: string;
+  lat: number;
+  lng: number;
+  rating: number;
+  reviews: number;
+  tags: string[];
+  amenities: string[];
+  pricePerNight: number;
+  currency: string;
+  provider: string;
+  roomType: string;
+  bookingUrl: string;
+  imageColor: string;
+}
+
+export interface SavedStay {
+  id: string;
+  tripId: string;
+  hotelId: string;
+  name: string;
+  area: string;
+  city: string;
+  lat: number;
+  lng: number;
+  checkIn: string; // YYYY-MM-DD
+  checkOut: string;
+  currency: string;
+  priceSaved: number; // total
+  priceCurrent: number;
+  bookingUrl: string;
+  savedAt: string;
+}
+
+export type ActivityCategory = "sight" | "food" | "show" | "outdoors" | "shopping" | "other";
+
+export interface SavedActivity {
+  id: string;
+  tripId: string;
+  name: string;
+  category: ActivityCategory;
+  lat: number | null;
+  lng: number | null;
+  notes: string;
+  savedAt: string;
+}
+
+export type ItemKind = "flight" | "stay" | "activity";
+
+export interface ItineraryItem {
+  id: string;
+  tripId: string;
+  day: string; // YYYY-MM-DD
+  position: number;
+  time: string | null; // HH:mm
+  kind: ItemKind;
+  refId: string;
+}
+
+export interface TripData {
+  trips: Trip[];
+  flights: SavedFlight[];
+  stays: SavedStay[];
+  activities: SavedActivity[];
+  itinerary: ItineraryItem[];
+}
