@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORY_ICON, ItineraryEntry, legForDay, makeLookup, type Lookup } from "@/components/itinerary";
 import { Map, type MapPoint } from "@/components/Map";
 import { itineraryPoints } from "@/components/tripPoints";
-import { AirlineLogo } from "@/components/AirlineLogo";
+import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton, SectionTitle } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
@@ -130,14 +130,14 @@ function FlightRowBody({ f }: { f: SavedFlight }) {
             key={i}
             className={clsx(
               ROW_TEXT,
-              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[84px_22px_56px_96px_88px_minmax(0,1fr)] md:gap-x-4",
+              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[84px_44px_56px_96px_88px_minmax(0,1fr)] md:gap-x-4",
             )}
           >
             <span className="font-medium whitespace-nowrap">
               {leg.from.code} - {leg.to.code}
             </span>
-            <span title={leg.carrier} aria-label={leg.carrier} className="flex items-center">
-              <AirlineLogo leg={leg} />
+            <span title={carrierLabel(leg)} aria-label={carriersOf(leg).map((c) => c.carrier).join(", ")} className="flex items-center">
+              <AirlineStack leg={leg} />
             </span>
             <span className="text-ink-muted whitespace-nowrap">{leg.flightNumber}</span>
             <span className="text-ink-muted whitespace-nowrap tabular-nums">

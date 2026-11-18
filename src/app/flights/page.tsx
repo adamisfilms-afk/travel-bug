@@ -4,7 +4,7 @@ import { ArrowsDownUp, ArrowsLeftRight, CalendarBlank, CaretDown, Check } from "
 import clsx from "clsx";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { AirlineLogo } from "@/components/AirlineLogo";
+import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
 import { AirportInput } from "@/components/AirportInput";
 import { FlightPath } from "@/components/FlightPath";
@@ -149,9 +149,9 @@ function LegLine({ leg }: { leg: FlightLeg }) {
       <span className="truncate" title={`${leg.from.name} (${leg.from.code}) - ${leg.to.name} (${leg.to.code})`}>
         {leg.from.name} ({leg.from.code}) - {leg.to.name} ({leg.to.code})
       </span>
-      <span className="flex items-center gap-1.5 min-w-0 text-ink-muted">
-        <AirlineLogo leg={leg} />
-        <span className="truncate">{leg.carrier}</span>
+      <span className="flex items-center gap-1.5 min-w-0 text-ink-muted" title={carriersOf(leg).map((c) => c.carrier).join(", ")}>
+        <AirlineStack leg={leg} />
+        <span className="truncate">{carrierLabel(leg)}</span>
       </span>
       <span className="hidden md:block text-ink-muted whitespace-nowrap">{leg.flightNumber}</span>
       <span className="text-ink-muted whitespace-nowrap tabular-nums">

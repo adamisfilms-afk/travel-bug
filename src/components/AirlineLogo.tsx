@@ -30,3 +30,51 @@ export function AirlineLogo({ leg, size = 22 }: { leg: Pick<FlightLeg, "carrierC
     />
   );
 }
+
+type Carrier = { carrier: string; carrierCode?: string; flightNumber: string };
+
+/** Distinct airlines flying a leg, in order (from its segments when known). */
+export function carriersOf(leg: FlightLeg): Carrier[] {
+  const list: Carrier[] = leg.segments?.length ? leg.segments : [leg];
+  const seen = new Set<string>();
+  return list.filter((c) => {
+    const key = (c.carrierCode || c.carrier).toUpperCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** "easyJet", or "easyJet + 1" when other airlines fly part of the leg. */
+export function carrierLabel(leg: FlightLeg) {
+  const list = carriersOf(leg);
+  return list.length > 1 ? `${list[0].carrier} + ${list.length - 1}` : list[0].carrier;
+}
+
+/**
+ * Airline logos for a leg. Several airlines are stacked like overlapping cards
+ * (each offset and slightly shadowed so every logo stays recognisable).
+ */
+export function AirlineStack({ leg, size = 22 }: { leg: FlightLeg; size?: number }) {
+  const list = carriersOf(leg).slice(0, 3);
+  if (list.length === 1) return <AirlineLogo leg={list[0]} size={size} />;
+  const step = Math.round(size * 0.45);
+  return (
+    <span
+      className="relative inline-block shrink-0"
+      style={{ width: size + step * (list.length - 1), height: size }}
+      title={carriersOf(leg).map((c) => c.carrier).join(", ")}
+    >
+      {list.map((c, i) => (
+        <span
+          key={i}
+          className="absolute top-0 [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.35))_drop-shadow(1px_1px_1px_rgba(0,0,0,0.15))]"
+          // first airline on top, later ones peeking out behind it
+          style={{ left: i * step, zIndex: list.length - i, transform: `translateY(${i * 1.5}px) scale(${1 - i * 0.06})` }}
+        >
+          <AirlineLogo leg={c} size={size} />
+        </span>
+      ))}
+    </span>
+  );
+}
