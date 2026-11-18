@@ -27,7 +27,7 @@ const KIND_COLOR: Record<MapPoint["kind"], string> = {
   flight: "#3c6fb0",
   stay: "#111111",
   hotel: "#111111",
-  activity: "#5e9a50",
+  activity: "#274321",
 };
 
 const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -41,7 +41,7 @@ function badgeIcon(p: MapPoint) {
   });
 }
 
-const GREEN = "#5e9a50";
+const GREEN = "#274321";
 const GREY = "#9a9d97";
 
 /** Circle marker for events: green and numbered when on the itinerary, hollow grey when not. */
@@ -59,7 +59,7 @@ function circleIcon(p: MapPoint) {
 }
 
 function pinIcon(p: MapPoint) {
-  const color = p.highlighted ? "#7ab06b" : p.scheduled === true ? GREEN : p.scheduled === false ? GREY : KIND_COLOR[p.kind];
+  const color = p.highlighted ? GREEN : p.scheduled === true ? GREEN : p.scheduled === false ? GREY : KIND_COLOR[p.kind];
   const size = p.highlighted ? 34 : 28;
   const inner = p.n != null ? `<span style="position:absolute;top:5px;left:0;right:0;text-align:center;color:#fff;font:600 11px/1 Inter,sans-serif">${p.n}</span>` : "";
   return L.divIcon({
@@ -179,7 +179,7 @@ export default function MapView({
       <TileLayer key={TILES.url} {...TILES} />
       <FitBounds points={points} />
       <HoverReset onLeave={onPointHover ? () => onPointHover(null) : undefined} />
-      {route && routeLine.length > 1 && <Polyline positions={routeLine} pathOptions={{ color: "#5e9a50", weight: 2, dashArray: "4 6" }} />}
+      {route && routeLine.length > 1 && <Polyline positions={routeLine} pathOptions={{ color: GREEN, weight: 2, dashArray: "4 6" }} />}
       {points.map((p) => (
         <Marker
           key={p.id}

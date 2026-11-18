@@ -157,7 +157,7 @@ check-out).
 
 The look is calm, airy and paper-like: a warm off-white canvas, soft light
 cards with hairline dashed green borders for "selected/saved" things, a single
-sage-green accent and heavy black headlines.
+deep forest-green accent (#274321) and heavy black headlines.
 
 ### Colour tokens
 
@@ -169,9 +169,9 @@ sage-green accent and heavy black headlines.
 | `line` | `#D6D8D2` | Dividers, sidebar edge |
 | `ink` | `#111111` | Headlines, primary text |
 | `ink-muted` | `#8C8C8C` | Secondary text (flight numbers, dates) |
-| `accent` | `#7AB06B` | Search button, round arrow buttons, active chip |
-| `accent-soft` | `#A9CFA0` | Dashed borders on selected/saved items |
-| `accent-ink` | `#5E9A50` | "Trip Planner" link |
+| `accent` | `#274321` | Search button, round arrow buttons, active chip |
+| `accent-soft` | `#93AD8C` | Dashed borders on selected/saved items |
+| `accent-ink` | `#274321` | "Trip Planner" link |
 | `price-up` | `#A35F5F` | Price increased |
 | `price-down` | `#4F8A42` | Price decreased |
 | Placeholders | `#DFC174` mustard · `#A3CBD9` sky · `#C5D9AC` sage · `#DADC8C` lime | Curated card placeholders |
