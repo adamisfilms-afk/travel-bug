@@ -34,7 +34,9 @@ A fixed left sidebar with icon navigation:
 
 | Icon | Route | Page | Status |
 |---|---|---|---|
-| Avatar | `/` | Home / dashboard | Built (curated rows are coloured placeholders) |
+| — | `/` | Public landing page (hero, "Every trip, perfectly planned / curated / organised / priced.") | Built |
+| — | `/login` | Log in (placeholder — accounts not built yet) | Placeholder |
+| Avatar | `/home` | Home / dashboard | Built (curated rows are coloured placeholders) |
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
 | Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (sample New York guide) |

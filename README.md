@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. On first launch two demo trips (New York City and
+Open http://localhost:3000 for the landing page, or http://localhost:3000/home for the app. On first launch two demo trips (New York City and
 Budapest) are created so every screen has content.
 
 ## Configuration
@@ -64,7 +64,10 @@ the anon key read and write everything. Tighten them when auth is added.
 ## Structure
 
 ```
-src/app/                 Pages (home, flights, stays, explore, trips, trips/[id]) and API routes
+src/app/(marketing)/     Public landing page (/) and placeholder login (/login)
+src/app/(app)/           The app, with the sidebar: home, flights, stays, food, explore, trips, settings
+src/app/api/             API routes
+src/lib/brand.ts         Product name (placeholder) and the landing headline's rotating words
 src/app/api/flights      Flight search + return flights (SearchApi / Skyscanner / mock)
 src/app/api/prices       Re-prices saved flights/stays for the price-change colours
 src/app/api/stays        Hotel search (Skyscanner via SearchApi, or sample hotels)
