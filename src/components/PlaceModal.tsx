@@ -198,10 +198,13 @@ export function socialEmbed(url: string): { src: string; platform: string; w: nu
       const m = u.pathname.match(/\/video\/(\d+)/);
       if (m) return { src: `https://www.tiktok.com/embed/v2/${m[1]}`, platform: "TikTok", w: 325, h: 575 };
     }
-    if (host === "youtu.be") return { src: `https://www.youtube.com/embed/${u.pathname.slice(1)}`, platform: "YouTube", w: 315, h: 560 };
+    if (host === "youtu.be") return { src: `https://www.youtube.com/embed/${u.pathname.slice(1)}`, platform: "YouTube", w: 640, h: 360 };
     if (host.endsWith("youtube.com")) {
-      const id = u.pathname.match(/^\/shorts\/([\w-]+)/)?.[1] ?? u.searchParams.get("v");
-      if (id) return { src: `https://www.youtube.com/embed/${id}`, platform: "YouTube", w: 315, h: 560 };
+      const short = u.pathname.match(/^\/shorts\/([\w-]+)/)?.[1];
+      if (short) return { src: `https://www.youtube.com/embed/${short}`, platform: "YouTube", w: 315, h: 560 };
+      // Regular videos are landscape (16:9)
+      const id = u.searchParams.get("v");
+      if (id) return { src: `https://www.youtube.com/embed/${id}`, platform: "YouTube", w: 640, h: 360 };
     }
   } catch {
     /* not a URL */

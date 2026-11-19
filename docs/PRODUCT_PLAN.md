@@ -39,7 +39,7 @@ A fixed left sidebar with icon navigation:
 | Avatar | `/home` | Home / dashboard | Built (curated rows are coloured placeholders) |
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
-| Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (sample New York guide) |
+| Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (New York and Vienna guides) |
 | Pin | `/explore` | Curated things to do (city search → Sights, Museums, Shows, Parks, Neighbourhoods, Experiences rows) | Built (sample New York guide) |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |

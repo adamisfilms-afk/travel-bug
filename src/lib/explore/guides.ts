@@ -110,7 +110,32 @@ const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
   "nyx-high-line": { description: "A park built on an old elevated rail line, running from the Meatpacking District to Hudson Yards. Walk it north to south and finish in Chelsea Market." },
 };
 
-export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS)];
+
+const vx = placeFactory("Vienna, Austria", "sight");
+
+const VIENNA: CuratedGuide = {
+  slug: "vienna",
+  city: "Vienna",
+  country: "Austria",
+  aliases: ["vienna", "wien", "vienne"],
+  intro: "The Vienna we'd send our friends to — imperial palaces, grand museums and the city beyond the postcards.",
+  sections: [
+    {
+      id: "sights",
+      title: "Iconic sights",
+      places: [vx("vix-hofburg", "The Hofburg", "Imperial palace", "Innere Stadt", 48.2066, 16.3655)],
+    },
+  ],
+};
+
+const VIENNA_DETAILS: Parameters<typeof withDetails>[1] = {
+  "vix-hofburg": {
+    social: ["https://www.youtube.com/watch?v=8h--YHE5rWQ"],
+    description: "The Habsburgs' winter palace for over six centuries. See the Imperial Apartments and the Sisi Museum, then the Spanish Riding School and the Imperial Treasury.",
+  },
+};
+
+export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS)];
 
 export const exploreGuideBySlug = (slug: string | null | undefined) => findGuide(EXPLORE_GUIDES, slug);
 export const matchExploreGuides = (q: string) => match(EXPLORE_GUIDES, q);

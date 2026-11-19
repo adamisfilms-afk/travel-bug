@@ -152,7 +152,101 @@ const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
   "ny-bemelmans": { description: "A gilded piano bar in The Carlyle, wrapped in Ludwig Bemelmans' whimsical murals. Classic martinis, live music and old New York glamour." },
 };
 
-export const FOOD_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS)];
+
+// ---------------------------------------------------------------------------
+// Vienna
+// ---------------------------------------------------------------------------
+
+const v = placeFactory("Vienna, Austria", "food");
+
+const YT_VIENNA_1 = "https://www.youtube.com/watch?v=8h--YHE5rWQ";
+const YT_VIENNA_2 = "https://www.youtube.com/watch?v=e23eFbtBSGw";
+const YT_CAFES = "https://www.youtube.com/shorts/OAJtgONQL6k";
+const YT_CLASSICS = "https://www.youtube.com/shorts/McNbVgJHm88";
+
+const VIENNA: CuratedGuide = {
+  slug: "vienna",
+  city: "Vienna",
+  country: "Austria",
+  aliases: ["vienna", "wien", "vienne"],
+  intro: "Where we'd eat in Vienna — schnitzel institutions and grand cafés, sausage stands at midnight and the new wave cooking around them.",
+  sections: [
+    {
+      id: "dinner",
+      title: "Dinner",
+      places: [
+        v("vie-skopik-lohn", "Skopik & Lohn", "Viennese bistro", "Leopoldstadt", 48.216, 16.3772),
+        v("vie-glacis-beisl", "Glacis Beisl", "Viennese Beisl", "MuseumsQuartier", 48.2036, 16.3578),
+        v("vie-figlmuller", "Figlmüller", "Schnitzel institution", "Innere Stadt", 48.209, 16.3742),
+        v("vie-schwarzen-kameel", "Zum Schwarzen Kameel", "Viennese classic", "Innere Stadt", 48.2104, 16.3687),
+        v("vie-mraz-sohn", "Mraz & Sohn", "Tasting menu", "Brigittenau", 48.2297, 16.3707),
+        v("vie-cucina-itameshi", "Cucina Itameshi", "Italian-Japanese", "Leopoldstadt", 48.216, 16.388),
+        v("vie-chez-bernard", "Chez Bernard", "Rooftop brasserie", "Mariahilf", 48.1982, 16.3485),
+        v("vie-palmenhaus", "Brasserie Palmenhaus", "Glasshouse brasserie", "Burggarten", 48.2052, 16.3664),
+        v("vie-cop", "Collection of Produce", "Seasonal produce", "Innere Stadt", 48.2097, 16.3797),
+      ],
+    },
+    {
+      id: "lunch",
+      title: "Quick bites",
+      places: [
+        v("vie-wurstelstand-leo", "Würstelstand Leo", "Historic sausage stand", "Döbling", 48.231, 16.3555),
+        v("vie-alles-wurscht", "Alles Wurscht", "Sausage stand", "Innere Stadt", 48.2149, 16.364),
+        v("vie-xo-grill", "XO-Grill", "Smash burgers", "Margareten", 48.1963, 16.3606),
+      ],
+    },
+    {
+      id: "coffee",
+      title: "Coffee & cake",
+      places: [
+        v("vie-cafe-central", "Café Central", "Grand café", "Innere Stadt", 48.2104, 16.3655),
+        v("vie-demel", "Demel", "Imperial confectioner", "Innere Stadt", 48.2087, 16.3672),
+        v("vie-cafe-sacher", "Café Sacher", "Sachertorte", "Innere Stadt", 48.2039, 16.3693),
+        v("vie-gerstner", "Gerstner", "K.u.K. pâtisserie", "Innere Stadt", 48.2033, 16.37),
+        v("vie-cafe-khm", "Café im Kunsthistorischen Museum", "Museum café", "Maria-Theresien-Platz", 48.2039, 16.3617),
+        v("vie-coffee-pirates-bakery", "Coffee Pirates Bakery", "Specialty bakery", "Alsergrund", 48.2208, 16.3528),
+      ],
+    },
+    {
+      id: "drinks",
+      title: "Drinks",
+      places: [
+        v("vie-bar-pigalle", "Bar Pigalle", "French bar", "Leopoldstadt", 48.2128, 16.3802),
+        v("vie-das-loft", "Das Loft Sky Bar", "Skyline views", "Leopoldstadt", 48.2125, 16.3797),
+        v("vie-ammutson", "Ammutsøn", "Craft beer", "Mariahilf", 48.1983, 16.3537),
+        v("vie-wind-mills", "Wind&Mills", "Pub & karaoke", "Mariahilf", 48.1966, 16.3584),
+      ],
+    },
+  ],
+};
+
+/** Curated write-ups, price levels (1–4) and social posts. */
+const VIENNA_DETAILS: Parameters<typeof withDetails>[1] = {
+  "vie-skopik-lohn": { priceLevel: 3, social: [YT_VIENNA_1], description: "A buzzy Leopoldstadt bistro under a ceiling covered in black scribbled murals — Viennese and French classics done properly, and a great room for a long dinner." },
+  "vie-glacis-beisl": { priceLevel: 2, social: [YT_VIENNA_1], description: "A proper Viennese Beisl tucked behind the MuseumsQuartier, with a leafy garden in summer. Schnitzel, goulash and Austrian wines after an afternoon at the museums." },
+  "vie-figlmuller": { priceLevel: 2, social: [YT_CLASSICS], description: "The schnitzel that hangs over the edge of the plate. Pork, pounded thin and fried golden — touristy, yes, but a Vienna rite of passage. Book ahead." },
+  "vie-schwarzen-kameel": { priceLevel: 3, social: [YT_VIENNA_2], description: "A delicatessen and restaurant trading since 1618. Stand at the bar for tiny open sandwiches and a glass of wine, or sit down in the Art Nouveau dining room." },
+  "vie-mraz-sohn": { priceLevel: 4, social: [YT_VIENNA_2], description: "Father-and-sons cooking with two Michelin stars in an unassuming corner of Brigittenau. Playful, surprising tasting menus — one of Vienna's great special-occasion meals." },
+  "vie-cucina-itameshi": { priceLevel: 3, social: [YT_VIENNA_2], description: "Italian meets Japanese on Praterstraße, from the team behind Mochi — think udon cacio e pepe and hamachi tataki in a stylish, lively room." },
+  "vie-chez-bernard": { priceLevel: 3, social: [YT_VIENNA_1, YT_CLASSICS], description: "A Parisian-style brasserie and bar on the roof of Hotel Motto on Mariahilfer Straße, with sweeping views over the city. Come for dinner or just a sunset drink." },
+  "vie-palmenhaus": { priceLevel: 3, social: [YT_CAFES, YT_CLASSICS], description: "Dinner, brunch or a drink under the glass roof of an Art Nouveau palm house in the Burggarten. The terrace over the gardens is one of the loveliest in the city." },
+  "vie-cop": { social: [YT_VIENNA_1], description: "Seasonal, vegetable-led cooking where the produce takes centre stage. It has had a turbulent time at its first-district address, so check it's open before you go." },
+  "vie-wurstelstand-leo": { priceLevel: 1, social: [YT_VIENNA_1], description: "Vienna's oldest sausage stand, serving since 1928. Order a Käsekrainer with mustard and a slice of bread — essential after a night out." },
+  "vie-alles-wurscht": { priceLevel: 1, social: [YT_VIENNA_1], description: "A modern take on the Würstelstand by the Börse — cheese Krainer made with ox meat, good bread and even calamari fritti." },
+  "vie-xo-grill": { priceLevel: 2, social: [YT_VIENNA_1], description: "Some of Europe's best-ranked smash burgers, a short walk from the Naschmarkt. Crispy edges, messy fingers, no regrets." },
+  "vie-cafe-central": { priceLevel: 2, social: [YT_CAFES, YT_CLASSICS], description: "Vaulted ceilings, marble pillars and a century and a half of coffee-house history. Expect a queue — go early, order a Melange and apple strudel, and take your time." },
+  "vie-demel": { priceLevel: 2, social: [YT_CAFES, YT_CLASSICS], description: "The former imperial confectioner on the Kohlmarkt. Watch the pastry chefs through the glass, then choose from a counter of tortes — the Annatorte is the house favourite." },
+  "vie-cafe-sacher": { priceLevel: 3, social: [YT_CAFES], description: "The home of the original Sachertorte, served with unsweetened whipped cream in a red-velvet room by the Opera. A classic for a reason." },
+  "vie-gerstner": { priceLevel: 2, social: [YT_CAFES], description: "A former court confectioner on Kärntner Straße — beautiful cakes and a grand upstairs salon looking out towards the Opera." },
+  "vie-cafe-khm": { priceLevel: 2, social: [YT_CAFES], description: "Coffee and cake beneath the dome of the Kunsthistorisches Museum — possibly the most beautiful café in Vienna. Worth the museum ticket on its own." },
+  "vie-coffee-pirates-bakery": { priceLevel: 1, social: [YT_VIENNA_1], description: "The bakery offshoot of one of Vienna's best specialty roasters, across the street from the café. Pastries and bread to go with properly good coffee." },
+  "vie-bar-pigalle": { priceLevel: 2, social: [YT_VIENNA_1], description: "A small, very French bar on Praterstraße — crémant, croque monsieur and cocktails until late." },
+  "vie-das-loft": { priceLevel: 3, social: [YT_CLASSICS], description: "On the 18th floor of the Sofitel, with a glowing art ceiling and floor-to-ceiling views over the old town. Go at sunset." },
+  "vie-ammutson": { priceLevel: 2, social: [YT_VIENNA_1], description: "A Nordic-themed craft-beer dive near the Haus des Meeres, with a long, rotating tap list and late hours." },
+  "vie-wind-mills": { priceLevel: 2, social: [YT_VIENNA_1], description: "A rustic pub on Gumpendorfer Straße with a karaoke bar — a fun, unpretentious late night." },
+};
+
+export const FOOD_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS)];
 
 export const guideBySlug = (slug: string | null | undefined) => findGuide(FOOD_GUIDES, slug);
 export const matchGuides = (q: string) => match(FOOD_GUIDES, q);
