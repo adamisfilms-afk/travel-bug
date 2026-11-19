@@ -11,12 +11,12 @@ const LINKS = [
 
 export function MarketingNav() {
   return (
-    <header className="absolute inset-x-3 sm:inset-x-6 lg:inset-x-[3.4%] top-3 sm:top-6 lg:top-10 z-20">
-      <nav className="grid grid-cols-[auto_1fr_auto] items-center gap-4 h-14 lg:h-[66px] rounded-full bg-ph-sky/95 backdrop-blur-sm px-5 sm:px-8 lg:px-11 shadow-sm">
-        <Link href="/" className="text-[20px] lg:text-[30px] font-bold tracking-tight">
+    <header className="absolute inset-x-3 sm:inset-x-6 lg:inset-x-[4%] top-3 sm:top-5 lg:top-7 z-20">
+      <nav className="grid grid-cols-[auto_1fr_auto] items-center gap-4 h-12 lg:h-[54px] rounded-full bg-ph-sky/95 backdrop-blur-sm px-5 sm:px-7 lg:px-9 shadow-sm">
+        <Link href="/" className="text-[18px] lg:text-[23px] font-bold tracking-tight">
           {BRAND}
         </Link>
-        <ul className="hidden md:flex items-center justify-center gap-10 lg:gap-[clamp(2.5rem,5vw,5.5rem)] text-[16px] lg:text-[20px]">
+        <ul className="hidden md:flex items-center justify-center gap-8 lg:gap-[clamp(2rem,3.8vw,4.25rem)] text-[14px] lg:text-[16px]">
           {LINKS.map((l) => (
             <li key={l.href}>
               <Link href={l.href} className="hover:underline underline-offset-4 decoration-1">
@@ -25,12 +25,12 @@ export function MarketingNav() {
             </li>
           ))}
         </ul>
-        <Link href="/login" className="col-start-3 text-[16px] lg:text-[20px] hover:underline underline-offset-4 decoration-1">
+        <Link href="/login" className="col-start-3 text-[14px] lg:text-[16px] hover:underline underline-offset-4 decoration-1">
           Log in
         </Link>
       </nav>
       {/* Small screens: sections as a row of chips under the bar */}
-      <ul className="md:hidden mt-2 flex justify-center gap-2 text-[14px]">
+      <ul className="md:hidden mt-2 flex justify-center gap-1.5 text-[13px]">
         {LINKS.map((l) => (
           <li key={l.href}>
             <Link href={l.href} className="inline-block rounded-full bg-ph-sky/90 px-3 py-1">
