@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { flightSource, refreshFlightPrice } from "@/lib/flights-server";
 import { findHotel } from "@/lib/hotels";
-import { searchApiEnabled } from "@/lib/searchapi";
+import { PRICE_CHECK_MAX_AGE, searchApiEnabled, withMaxAge } from "@/lib/searchapi";
 import { refreshStayPrice } from "@/lib/searchapi-hotels";
 import { daysBetween } from "@/lib/format";
 import type { SavedFlight, SavedStay } from "@/lib/types";
@@ -25,16 +25,22 @@ export async function POST(req: Request) {
   const flights: SavedFlight[] = Array.isArray(body.flights) ? body.flights.slice(0, 30) : [];
   const stays: SavedStay[] = Array.isArray(body.stays) ? body.stays.slice(0, 30) : [];
 
-  // Prices are checked live. To avoid paying twice when you hop between pages, a flight
-  // checked in the last few minutes is skipped unless `force` is set ("Refresh prices").
-  // Demo trips' flights are never re-priced with a live provider.
+  // Each live check costs a search credit, so:
+  // - opening the planner reuses any response from the last PRICE_CHECK_TTL_MINUTES (default 6 hours),
+  //   including the search the item was saved from; "Refresh prices" (`force`) reuses only the last 10 minutes;
+  // - saved items with the same route/dates/hotel share one request;
+  // - items already in the past, and demo trips' items, aren't checked.
   const live = flightSource() !== "mock";
   const force = body.force === true;
-  const recent = (x: { priceCheckedAt?: string | null }) => x.priceCheckedAt && Date.now() - Date.parse(x.priceCheckedAt) < 5 * 60_000;
+  const maxAge = force ? 10 * 60_000 : PRICE_CHECK_MAX_AGE;
+  const today = new Date().toISOString().slice(0, 10);
+  return withMaxAge(maxAge, () => check(flights, stays, live, today));
+}
 
+async function check(flights: SavedFlight[], stays: SavedStay[], live: boolean, today: string) {
   const flightPrices = await Promise.all(
     flights.map(async (f) => {
-      if (live && (f.id.startsWith("seed-") || (!force && recent(f)))) return { id: f.id, price: null };
+      if (live && (f.id.startsWith("seed-") || f.legs[0]?.depart.slice(0, 10) < today)) return { id: f.id, price: null };
       try {
         const check = await refreshFlightPrice(f);
         return { id: f.id, price: check?.price ?? null, bookingUrl: check?.bookingUrl, bookingOptions: check?.bookingOptions };
@@ -51,7 +57,7 @@ export async function POST(req: Request) {
     stays.map(async (s) => {
       const liveStay = s.hotelId.startsWith("ss-hotel-") && searchApiEnabled();
       if (!liveStay) return { id: s.id, price: demoStayPrice(s) };
-      if (!force && recent(s)) return { id: s.id, price: null };
+      if (s.checkIn < today) return { id: s.id, price: null };
       try {
         const check = await refreshStayPrice(s);
         return { id: s.id, price: check?.price ?? null, bookingUrl: check?.bookingUrl, bookingOptions: check?.bookingOptions };

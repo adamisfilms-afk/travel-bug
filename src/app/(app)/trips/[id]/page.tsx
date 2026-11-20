@@ -735,7 +735,7 @@ export default function PlannerPage() {
           </div>
           <div className="ml-auto flex items-center gap-4 text-[13px] text-ink-muted">
             {priceStatus === "checking" && <span>Checking latest prices…</span>}
-            {priceStatus === "done" && <span>Prices updated just now</span>}
+            {priceStatus === "done" && <span>Prices up to date</span>}
             {priceStatus === "error" && <span className="text-price-up">Couldn&apos;t refresh prices</span>}
             {priceStatus !== "checking" && tripFlights.length + tripStays.length > 0 && (
               <button

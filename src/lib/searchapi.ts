@@ -1,4 +1,5 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { findAirport } from "./airports";
 import type { Cabin, FlightLeg, FlightOffer, Place } from "./types";
 
@@ -8,8 +9,7 @@ import type { Cabin, FlightLeg, FlightOffer, Place } from "./types";
  * Google Flights returns round trips in two steps: the first search lists outbound
  * flights priced as a round trip, each with a `departure_token`; a second search with
  * that token lists the matching return flights. Each request costs one search credit,
- * so returns are only fetched when the user asks for them. Requests are always live
- * (no caching) so prices match the provider exactly.
+ * so returns are only fetched when the user asks for them.
  */
 
 const ENDPOINT = "https://www.searchapi.io/api/v1/search";
@@ -38,11 +38,50 @@ export function searchApiEnabled() {
   return Boolean(process.env.SEARCHAPI_API_KEY);
 }
 
-/** One live SearchApi request (one search credit). */
+// ---------------------------------------------------------------------------
+// Credit saving: identical requests share one response
+// ---------------------------------------------------------------------------
+
+/** How old a cached response may be for searches (re-running the same search, page reloads). */
+const SEARCH_MAX_AGE = 10 * 60_000;
+/** How old a cached response may be for background price checks in the planner. */
+export const PRICE_CHECK_MAX_AGE = Math.max(0, Number(process.env.PRICE_CHECK_TTL_MINUTES ?? 360)) * 60_000;
+
+type CacheEntry = { at: number; data: Promise<Json> };
+// On globalThis so dev hot reloads don't empty it.
+const g = globalThis as unknown as { __searchApiCache?: Map<string, CacheEntry>; __searchApiCredits?: number };
+const cache = (g.__searchApiCache ??= new Map());
+const maxAgeCtx = new AsyncLocalStorage<number>();
+
+/** Run `fn` with SearchApi responses up to `ms` old reused instead of spending a new credit. */
+export function withMaxAge<T>(ms: number, fn: () => Promise<T>): Promise<T> {
+  return maxAgeCtx.run(ms, fn);
+}
+
+/**
+ * One SearchApi request — one search credit, unless the same request was made recently
+ * (see SEARCH_MAX_AGE / withMaxAge), in which case that response is reused. Identical
+ * requests made at the same moment also share one call.
+ */
 export async function searchApiCall(engine: string, params: Record<string, string | number | undefined>): Promise<Json> {
   const qs = new URLSearchParams({ engine });
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  const key = qs.toString();
+  const maxAge = maxAgeCtx.getStore() ?? SEARCH_MAX_AGE;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < maxAge) return hit.data;
 
+  const data = liveCall(engine, qs);
+  cache.set(key, { at: Date.now(), data });
+  data.catch(() => cache.delete(key)); // don't keep failures
+  // Drop entries nothing will reuse
+  if (cache.size > 500) for (const [k, e] of cache) if (Date.now() - e.at > Math.max(PRICE_CHECK_MAX_AGE, SEARCH_MAX_AGE)) cache.delete(k);
+  return data;
+}
+
+async function liveCall(engine: string, qs: URLSearchParams): Promise<Json> {
+  g.__searchApiCredits = (g.__searchApiCredits ?? 0) + 1;
+  console.log(`[searchapi] ${engine} — live request (${g.__searchApiCredits} credit${g.__searchApiCredits === 1 ? "" : "s"} used since the server started)`);
   const res = await fetch(`${ENDPOINT}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${process.env.SEARCHAPI_API_KEY}` },
     cache: "no-store",
