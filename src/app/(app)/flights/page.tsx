@@ -184,6 +184,7 @@ function FlightRow({
   returnFilter,
   savedTrips,
   onSave,
+  onUnsave,
 }: {
   offer: FlightOffer;
   returns?: FlightOffer[];
@@ -191,6 +192,7 @@ function FlightRow({
   returnFilter: (r: FlightOffer) => boolean;
   savedTrips: (o: FlightOffer) => string[];
   onSave: (tripId: string, o: FlightOffer) => void;
+  onUnsave: (tripId: string, o: FlightOffer) => void;
 }) {
   const needsReturn = Boolean(o.departureToken);
   const [open, setOpen] = useState(false);
@@ -262,7 +264,7 @@ function FlightRow({
               <CaretDown weight="bold" className={clsx("size-3 transition-transform", open && "rotate-180")} />
             </button>
           ) : (
-            <AddToTripButton compact addedTo={savedTrips(o)} defaults={tripDefaults(o)} onAdd={(tripId) => onSave(tripId, o)} />
+            <AddToTripButton compact addedTo={savedTrips(o)} defaults={tripDefaults(o)} onAdd={(tripId) => onSave(tripId, o)} onRemove={(tripId) => onUnsave(tripId, o)} />
           )}
         </div>
       </div>
@@ -290,7 +292,7 @@ function FlightRow({
               <span className="w-[84px] text-right font-semibold text-[15px] leading-6 tabular-nums">{money(r.price, r.currency)}</span>
               <div className={ACTIONS}>
                 <BookButton href={r.bookingUrl} options={r.bookingOptions} currency={r.currency} />
-                <AddToTripButton compact addedTo={savedTrips(r)} defaults={tripDefaults(r)} onAdd={(tripId) => onSave(tripId, r)} />
+                <AddToTripButton compact addedTo={savedTrips(r)} defaults={tripDefaults(r)} onAdd={(tripId) => onSave(tripId, r)} onRemove={(tripId) => onUnsave(tripId, r)} />
               </div>
             </div>
           ))}
@@ -645,6 +647,11 @@ function FlightsInner() {
             onSave={(tripId, offer) => {
               saveFlight(tripId, offer);
               setToast(`Saved to ${useStore.getState().trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
+            }}
+            onUnsave={(tripId, offer) => {
+              const st = useStore.getState();
+              st.flights.filter((f) => f.tripId === tripId && savedKey(f.legs) === savedKey(offer.legs)).forEach((f) => st.removeFlight(f.id));
+              setToast(`Removed from ${st.trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
             }}
           />
         ))}

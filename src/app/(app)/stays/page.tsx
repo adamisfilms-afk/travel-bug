@@ -208,6 +208,11 @@ function HotelCard({
               saveStay(tripId, h, checkIn, checkOut, guests);
               onToast(`Saved to ${useStore.getState().trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
             }}
+            onRemove={(tripId) => {
+              const st = useStore.getState();
+              st.stays.filter((s) => s.tripId === tripId && s.hotelId === h.id && s.checkIn === checkIn && s.checkOut === checkOut).forEach((s) => st.removeStay(s.id));
+              onToast(`Removed from ${st.trips.find((t) => t.id === tripId)?.name ?? "trip"}`);
+            }}
           />
         </div>
         {(h.bookingOptions?.length ?? 0) > 1 && <HotelOffers options={h.bookingOptions!} currency={h.currency} />}

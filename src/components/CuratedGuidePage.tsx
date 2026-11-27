@@ -80,6 +80,7 @@ function PlaceCard({
   const [failed, setFailed] = useState(cached === "failed");
   const activities = useStore((s) => s.activities);
   const addActivity = useStore((s) => s.addActivity);
+  const removeActivity = useStore((s) => s.removeActivity);
   const addedTo = activities.filter((a) => a.name === place.name).map((a) => a.tripId);
 
   // Load the photo once the card is near the viewport
@@ -222,6 +223,7 @@ function PlaceCard({
           addedTo={addedTo}
           defaults={{ destination: guide.city }}
           onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
+          onRemove={(tripId) => activities.filter((a) => a.tripId === tripId && a.name === place.name).forEach((a) => removeActivity(a.id))}
         />
       </div>
     </div>

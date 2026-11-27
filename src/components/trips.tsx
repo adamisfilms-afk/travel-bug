@@ -170,6 +170,7 @@ export function TripChips({
 /** Button + menu for adding a search result to one of the user's trips. */
 export function AddToTripButton({
   onAdd,
+  onRemove,
   label = "Add to trip",
   addedTo,
   defaults,
@@ -177,6 +178,8 @@ export function AddToTripButton({
   tone = "light",
 }: {
   onAdd: (tripId: string) => void;
+  /** Remove it from a trip it's already saved to (clicking that trip in the menu). */
+  onRemove?: (tripId: string) => void;
   label?: string;
   /** Round icon-only button. */
   compact?: boolean;
@@ -199,7 +202,7 @@ export function AddToTripButton({
         <button
           type="button"
           aria-label={added ? `${label} (saved to ${added} trip${added > 1 ? "s" : ""})` : label}
-          title={added ? "Saved — add to another trip" : label}
+          title={added ? (onRemove ? "Saved — add to another trip or remove it" : "Saved — add to another trip") : label}
           onClick={() => setOpen((o) => !o)}
           className={clsx(
             "grid place-items-center size-8 rounded-full border transition-colors cursor-pointer",
@@ -229,19 +232,34 @@ export function AddToTripButton({
           <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Add to…</p>
           {trips.map((t) => {
             const done = addedTo?.includes(t.id);
+            const removable = done && !!onRemove;
             return (
               <button
                 key={t.id}
                 type="button"
-                disabled={done}
+                disabled={done && !removable}
+                title={removable ? `Remove from ${t.name}` : undefined}
                 onClick={() => {
-                  onAdd(t.id);
+                  if (done) onRemove?.(t.id);
+                  else onAdd(t.id);
                   setOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-surface disabled:text-ink-muted disabled:hover:bg-transparent flex justify-between"
+                className="group/trip w-full text-left px-4 py-2 hover:bg-surface disabled:text-ink-muted disabled:hover:bg-transparent flex justify-between items-center gap-3"
               >
-                <span>{t.name}</span>
-                {done && <span className="text-xs text-accent-ink">Saved</span>}
+                <span className="truncate">{t.name}</span>
+                {done &&
+                  (removable ? (
+                    <span className="shrink-0 text-xs">
+                      <span className="inline-flex items-center gap-1 text-ink-muted group-hover/trip:hidden">
+                        <Check weight="bold" className="size-3" /> Saved
+                      </span>
+                      <span className="hidden group-hover/trip:inline-flex items-center gap-1 text-price-up">
+                        <X weight="bold" className="size-3" /> Remove
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-accent-ink">Saved</span>
+                  ))}
               </button>
             );
           })}

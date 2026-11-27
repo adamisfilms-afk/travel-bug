@@ -439,6 +439,7 @@ export function PlaceModal({
   const d = typeof details === "object" ? details : null;
   const activities = useStore((s) => s.activities);
   const addActivity = useStore((s) => s.addActivity);
+  const removeActivity = useStore((s) => s.removeActivity);
   const addedTo = activities.filter((a) => a.name === place.name).map((a) => a.tripId);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -529,6 +530,7 @@ export function PlaceModal({
             addedTo={addedTo}
             defaults={{ destination: guide.city }}
             onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
+            onRemove={(tripId) => activities.filter((a) => a.tripId === tripId && a.name === place.name).forEach((a) => removeActivity(a.id))}
           />}
           <button ref={closeRef} type="button" aria-label="Close" onClick={onClose} className="grid place-items-center size-8 rounded-full hover:bg-line/50">
             <X weight="bold" className="size-4" />
