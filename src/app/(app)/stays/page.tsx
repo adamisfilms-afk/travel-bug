@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Map, type MapPoint } from "@/components/Map";
 import { PriceRange } from "@/components/PriceRange";
 import { CityInput } from "@/components/CityInput";
+import { LiveSearchNote, StaySkeletons } from "@/components/Skeletons";
 import { AddToTripButton } from "@/components/trips";
 import { ButtonLoadingBar, FilterChip, PageTitle, PrimaryButton, useClickOutside } from "@/components/ui";
 import { addDays, daysBetween, money, toDay } from "@/lib/format";
@@ -575,14 +576,18 @@ function StaysInner() {
               )}
             </p>
           )}
-          {loading && !hotels?.length &&
-            [0, 1, 2].map((i) => <div key={i} className="h-[190px] rounded-xl bg-surface-strong/70 animate-pulse" />)}
+          {loading && (
+            <>
+              <LiveSearchNote what="stays" />
+              <StaySkeletons />
+            </>
+          )}
           {hotels && !loading && filtered.length === 0 && (
             <p className="text-ink-muted">
               No stays found{source === "mock" ? ". The demo hotels cover New York, Budapest, London and Paris." : "."}
             </p>
           )}
-          {filtered.map((h) => (
+          {!loading && filtered.map((h) => (
             <HotelCard
               key={h.id}
               h={h}

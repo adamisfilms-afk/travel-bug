@@ -10,6 +10,7 @@ import { AirportInput } from "@/components/AirportInput";
 import { FlightPath } from "@/components/FlightPath";
 import { PriceRange } from "@/components/PriceRange";
 import { RangeSlider } from "@/components/RangeSlider";
+import { FlightSkeletons, LiveSearchNote } from "@/components/Skeletons";
 import { AddToTripButton } from "@/components/trips";
 import { ButtonLoadingBar, FilterChip, PageTitle, PrimaryButton } from "@/components/ui";
 import { AIRPORTS, findAirport } from "@/lib/airports";
@@ -623,18 +624,17 @@ function FlightsInner() {
       <hr className="border-line" />
       </div>
 
-      {loading && !offers?.length && (
-        <div className="space-y-3" aria-label="Loading flights">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-[52px] rounded-[10px] bg-surface animate-pulse" style={{ animationDelay: `${i * 120}ms` }} />
-          ))}
+      {loading && (
+        <div className="space-y-3">
+          <LiveSearchNote what="flights" />
+          <FlightSkeletons />
         </div>
       )}
 
       {offers && !loading && filtered.length === 0 && <p className="text-ink-muted">No flights match these filters.</p>}
 
       <div className="space-y-3">
-        {filtered.map((o) => (
+        {!loading && filtered.map((o) => (
           <FlightRow
             key={o.id}
             offer={o}
