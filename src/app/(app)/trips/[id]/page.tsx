@@ -30,6 +30,7 @@ import { BookButton } from "@/components/BookButton";
 import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
+import { ShareTripButton, useOwnsTrip } from "@/components/ShareTripDialog";
 import { shareTrip } from "@/lib/share";
 import { useOverrides } from "@/lib/curated/overrides";
 import { LocationsInput, tripLocations } from "@/components/trips";
@@ -387,6 +388,7 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
   const updateTrip = useStore((s) => s.updateTrip);
   const deleteTrip = useStore((s) => s.deleteTrip);
   const router = useRouter();
+  const owns = useOwnsTrip(trip);
   const [form, setForm] = useState({ ...trip, locations: tripLocations(trip) });
   useEffect(() => setForm({ ...trip, locations: tripLocations(trip) }), [trip, open]);
   return (
@@ -425,6 +427,9 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
           <input type="number" min={1} className={inputCls} value={form.travellers} onChange={(e) => setForm({ ...form, travellers: Number(e.target.value) })} />
         </Field>
         <div className="pt-2 flex justify-between items-center">
+          {!owns ? (
+            <span className="text-[13px] text-ink-muted">Shared with you — leave from Invite.</span>
+          ) : (
           <button
             type="button"
             className="text-price-up hover:underline text-[14px]"
@@ -437,6 +442,7 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
           >
             Delete trip
           </button>
+          )}
           <PrimaryButton type="submit" className="!text-base !h-11 !px-6">
             Save
           </PrimaryButton>
@@ -705,6 +711,7 @@ export default function PlannerPage() {
                 <ArrowClockwise className="size-3.5" /> Refresh prices
               </button>
             )}
+            <ShareTripButton trip={trip} />
             <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-surface hover:bg-white text-ink text-[14px]">
               <PencilSimple className="size-3.5" /> Edit trip
             </button>
@@ -896,7 +903,7 @@ export default function PlannerPage() {
               )}
             </div>
             {tab === "itinerary" ? (
-              <div className="rounded-[10px] dashed-accent px-5 py-5 lg:max-h-[calc(100vh-110px)] overflow-y-auto divide-y divide-line/70">
+              <div className="rounded-[10px] dashed-accent px-5 py-5 lg:max-h-[calc(100vh-110px)] overflow-y-auto no-scrollbar divide-y divide-line/70">
                 {days.map((d) => (
                   <DaySection key={d} day={d} items={byDay[d] ?? []} lookup={lookup} />
                 ))}

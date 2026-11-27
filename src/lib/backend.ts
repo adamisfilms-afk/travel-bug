@@ -70,7 +70,8 @@ function supabaseBackend(client: SupabaseClient): Backend {
         (Object.entries(TABLE_FOR) as [keyof TripData, Table][]).map(async ([key, table]) => {
           const { data, error } = await client.from(table).select("*");
           if (error) throw new Error(`${table}: ${error.message}`);
-          return [key, (data ?? []).map((r) => { const o = mapKeys(r, camel) as Record<string, unknown>; delete o.userId; return o; })] as const;
+          // Keep trips' owner (userId) to tell shared trips apart; it's never written back (LOCAL_ONLY)
+          return [key, (data ?? []).map((r) => { const o = mapKeys(r, camel) as Record<string, unknown>; if (key !== "trips") delete o.userId; return o; })] as const;
         }),
       );
       return Object.fromEntries(entries) as unknown as TripData;

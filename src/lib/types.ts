@@ -79,6 +79,8 @@ export interface Trip {
   destination: string;
   /** Every place the trip covers, e.g. ["Vienna", "Budapest"]. Older trips may only have `destination`. */
   locations?: string[];
+  /** Owner's user id (with accounts). Trips owned by someone else were shared with you. */
+  userId?: string;
   /** Set once the itinerary is shared: the public link is /share/<shareId>. */
   shareId?: string;
   /** Secret that lets this browser update the shared copy (never part of the link). */
