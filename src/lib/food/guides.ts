@@ -208,7 +208,6 @@ const VIENNA: CuratedGuide = {
         va("vie-kubey", "Kübey", "Neo-Turkish tapas", "Innere Stadt", "Rudolfsplatz 3, 1010 Wien", 48.2145, 16.3705),
         va("vie-el-gaucho", "El Gaucho", "Steakhouse", "Leopoldstadt", "Praterstraße 1, 1020 Wien", 48.212, 16.3795),
         va("vie-lao-lao", "Lao Lao", "Laotian", "Mariahilf", "Mariahilfer Straße 126, 1070 Wien", 48.1955, 16.341),
-        va("vie-trosch-iii", "Trosch III", "Restaurant", "Weißgerberviertel", "Krieglergasse 8, 1030 Wien", 48.2085, 16.3924),
         va("vie-sura", "Sura", "Restaurant", "Innere Stadt", "Singerstraße 13, 1010 Wien", 48.207, 16.374),
         va("vie-asia-pavillon", "Asia Pavillon", "Asian kitchen", "Wieden", "Favoritenstraße 1, 1040 Wien", 48.198, 16.3705),
         va("vie-arici", "Arici", "Bar & restaurant", "Josefstadt", "Blindengasse 3, 1080 Wien", 48.208, 16.344),
@@ -421,7 +420,6 @@ const MELBOURNE_DETAILS: Parameters<typeof withDetails>[1] = {
 
 /** Places added from the curated Vienna list (price levels, posts, write-ups). */
 const VIENNA_ADDED: Parameters<typeof withDetails>[1] = {
-  "vie-trosch-iii": {"social": ["https://www.instagram.com/p/DRmlPsHjJH8/"]},
   "vie-figlmuller": {"social": ["https://www.instagram.com/p/DaTMoJnDkaA/"]},
   "vie-steirereck": {"priceLevel": 4, "social": ["https://www.instagram.com/p/DFsPstOMwRz/", "https://www.instagram.com/p/DLQO5OQtMm1/"], "description": "Vienna's most celebrated restaurant, in a glass pavilion in the Stadtpark — Heinz Reitbauer's inventive Austrian cooking and a legendary bread trolley. Book well ahead."},
   "vie-mochi": {"priceLevel": 2, "social": ["https://www.instagram.com/p/DFsPstOMwRz/", "https://www.instagram.com/p/DaTMoJnDkaA/"], "description": "The Leopoldstadt original that started Vienna's Mochi family — lively, modern Japanese cooking that's been packed since day one."},
