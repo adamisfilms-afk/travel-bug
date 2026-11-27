@@ -31,7 +31,7 @@ export default function HomePage() {
       </h1>
       <section className="space-y-5">
         <SectionTitle>Upcoming trips</SectionTitle>
-        <TripChips onSelect={(id) => router.push(`/trips?trip=${id}`)} />
+        <TripChips onSelect={(id) => router.push(`/trips/${id}`)} />
       </section>
       <CuratedRow title="Curated things to do" />
       <CuratedRow title="Curated stays" />

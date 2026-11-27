@@ -75,7 +75,10 @@ export interface FlightOffer {
 export interface Trip {
   id: string;
   name: string;
+  /** The main place (the first of `locations`). */
   destination: string;
+  /** Every place the trip covers, e.g. ["Vienna", "Budapest"]. Older trips may only have `destination`. */
+  locations?: string[];
   startDate: string; // YYYY-MM-DD
   endDate: string;
   travellers: number;

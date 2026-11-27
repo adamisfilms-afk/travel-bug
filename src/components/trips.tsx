@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Plus } from "@phosphor-icons/react";
+import { Check, Plus, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRef, useState } from "react";
 import { addDays, toDay } from "@/lib/format";
@@ -13,6 +13,46 @@ interface DialogProps {
   onClose: () => void;
   onCreated?: (t: Trip) => void;
   defaults?: Partial<Trip>;
+}
+
+/** A trip's places (oldest trips only have `destination`). */
+export const tripLocations = (t: Pick<Trip, "destination" | "locations">) => (t.locations?.length ? t.locations : [t.destination].filter(Boolean));
+
+/** Chips for each location, plus a box to type another (Enter or comma adds it). */
+export function LocationsInput({ value, onChange, autoFocus }: { value: string[]; onChange: (v: string[]) => void; autoFocus?: boolean }) {
+  const [text, setText] = useState("");
+  const add = () => {
+    const t = text.trim().replace(/,$/, "").trim();
+    if (t && !value.some((v) => v.toLowerCase() === t.toLowerCase())) onChange([...value, t]);
+    setText("");
+  };
+  return (
+    <div className={clsx(inputCls, "!h-auto min-h-11 flex flex-wrap items-center gap-1.5 py-1.5")}>
+      {value.map((v) => (
+        <span key={v} className="inline-flex items-center gap-1 h-7 pl-3 pr-1.5 rounded-full bg-guide-active text-[13px]">
+          {v}
+          <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter((x) => x !== v))} className="rounded-full p-0.5 hover:bg-black/10">
+            <X className="size-3" weight="bold" />
+          </button>
+        </span>
+      ))}
+      <input
+        autoFocus={autoFocus}
+        aria-label="Add a location"
+        className="flex-1 min-w-32 bg-transparent outline-none h-8"
+        placeholder={value.length ? "Add another place…" : "e.g. Vienna — press Enter to add"}
+        value={text}
+        onChange={(e) => (e.target.value.endsWith(",") ? (setText(e.target.value), setTimeout(add)) : setText(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && text.trim()) {
+            e.preventDefault();
+            add();
+          } else if (e.key === "Backspace" && !text && value.length) onChange(value.slice(0, -1));
+        }}
+        onBlur={add}
+      />
+    </div>
+  );
 }
 
 export function NewTripDialog(props: DialogProps) {
@@ -29,7 +69,7 @@ function NewTripForm({ onClose, onCreated, defaults }: DialogProps) {
   const today = toDay(new Date());
   const [form, setForm] = useState({
     name: defaults?.name ?? "",
-    destination: defaults?.destination ?? "",
+    locations: defaults?.locations ?? (defaults?.destination ? [defaults.destination] : []),
     startDate: defaults?.startDate ?? addDays(today, 30),
     endDate: defaults?.endDate ?? addDays(today, 35),
     travellers: defaults?.travellers ?? 1,
@@ -38,11 +78,12 @@ function NewTripForm({ onClose, onCreated, defaults }: DialogProps) {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.destination.trim()) return setError("Where are you going?");
+    if (!form.locations.length) return setError("Where are you going? Add at least one place.");
     if (form.endDate < form.startDate) return setError("The trip must end after it starts.");
     const trip = createTrip({
-      name: form.name.trim() || form.destination.trim(),
-      destination: form.destination.trim(),
+      name: form.name.trim() || form.locations.join(" & "),
+      destination: form.locations[0],
+      locations: form.locations,
       startDate: form.startDate,
       endDate: form.endDate,
       travellers: Math.max(1, form.travellers),
@@ -54,19 +95,13 @@ function NewTripForm({ onClose, onCreated, defaults }: DialogProps) {
 
   return (
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Destination">
-          <input
-            autoFocus
-            className={inputCls}
-            placeholder="e.g. Lisbon"
-            value={form.destination}
-            onChange={(e) => setForm({ ...form, destination: e.target.value })}
-          />
+        <Field label="Locations">
+          <LocationsInput autoFocus value={form.locations} onChange={(locations) => setForm({ ...form, locations })} />
         </Field>
         <Field label="Trip name (optional)">
           <input
             className={inputCls}
-            placeholder={form.destination || "Summer in Lisbon"}
+            placeholder={form.locations.join(" & ") || "Summer in Lisbon"}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />

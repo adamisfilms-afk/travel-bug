@@ -6,6 +6,7 @@ create table if not exists trips (
   id text primary key,
   name text not null,
   destination text not null,
+  locations text[],
   start_date date not null,
   end_date date not null,
   travellers int not null default 1,
@@ -100,3 +101,6 @@ begin
     execute format('create policy "anon full access" on %I for all to anon, authenticated using (true) with check (true)', t);
   end loop;
 end $$;
+
+-- Added later: several locations per trip (safe to re-run)
+alter table trips add column if not exists locations text[];

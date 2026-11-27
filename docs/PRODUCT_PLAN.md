@@ -107,10 +107,9 @@ A fixed left sidebar with icon navigation:
   exported with "Copy picks".
 
 ### 3.5 Your trips (`/trips`)
-- Trip chips at the top (+ Add new trip).
-- Selecting a trip loads its **itinerary** (read-only, grouped by day) on the
-  left and a **map** with every located itinerary item on the right.
-- **Trip Planner** link opens the planner.
+- **Upcoming** (ends today or later, soonest first) and **Past** (most recent first) grids of tall photo cards, each with the trip name (serif) and date range. Clicking a card opens its planner; a dashed "Plan a new trip" card creates one.
+- A trip can cover several **locations** (e.g. Vienna and Budapest), entered as chips when creating or editing it; the default trip name joins them ("Vienna & Budapest").
+- Card photo, in order: a curated place saved to the trip → a saved stay's photo → a highlight from the city guide for its first location → plain dark green (#151f15). Photos get the film treatment (darkened, grain).
 
 ### 3.6 Trip planner (`/trips/[id]`)
 - Header: trip name + date range.
@@ -129,7 +128,7 @@ A fixed left sidebar with icon navigation:
 ## 4. Data model
 
 ```
-trips            id, name, destination, start_date, end_date, travellers, created_at
+trips            id, name, destination, locations (text[]), start_date, end_date, travellers, created_at
 saved_flights    id, trip_id, legs (jsonb), cabin, passengers, currency,
                  price_saved, price_current, price_checked_at, booking_url, saved_at
 saved_stays      id, trip_id, hotel_id, name, area, city, lat, lng, image_url,

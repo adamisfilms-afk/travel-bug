@@ -30,6 +30,7 @@ import { BookButton } from "@/components/BookButton";
 import { FlightPath } from "@/components/FlightPath";
 import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
+import { LocationsInput, tripLocations } from "@/components/trips";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
 import { AIRPORTS } from "@/lib/airports";
@@ -454,8 +455,8 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
   const updateTrip = useStore((s) => s.updateTrip);
   const deleteTrip = useStore((s) => s.deleteTrip);
   const router = useRouter();
-  const [form, setForm] = useState(trip);
-  useEffect(() => setForm(trip), [trip, open]);
+  const [form, setForm] = useState({ ...trip, locations: tripLocations(trip) });
+  useEffect(() => setForm({ ...trip, locations: tripLocations(trip) }), [trip, open]);
   return (
     <Modal open={open} onClose={onClose} title="Edit trip">
       <form
@@ -465,7 +466,8 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
           if (form.endDate < form.startDate) return;
           updateTrip(trip.id, {
             name: form.name.trim() || trip.name,
-            destination: form.destination.trim() || trip.destination,
+            destination: form.locations[0] ?? trip.destination,
+            locations: form.locations.length ? form.locations : tripLocations(trip),
             startDate: form.startDate,
             endDate: form.endDate,
             travellers: Math.max(1, form.travellers),
@@ -476,8 +478,8 @@ function EditTripDialog({ trip, open, onClose }: { trip: Trip; open: boolean; on
         <Field label="Trip name">
           <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </Field>
-        <Field label="Destination">
-          <input className={inputCls} value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+        <Field label="Locations">
+          <LocationsInput value={form.locations} onChange={(locations) => setForm({ ...form, locations })} />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Start">
@@ -724,7 +726,7 @@ export default function PlannerPage() {
       <div className="space-y-8">
         <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href={`/trips?trip=${trip.id}`} aria-label="Back to your trips" className="p-1.5 -ml-1.5 rounded-full hover:bg-surface">
+            <Link href="/trips" aria-label="Back to your trips" className="p-1.5 -ml-1.5 rounded-full hover:bg-surface">
               <ArrowLeft className="size-5" />
             </Link>
             {/* Title and dates share a text baseline */}
