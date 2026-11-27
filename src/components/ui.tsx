@@ -74,7 +74,7 @@ export function FilterChip({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          "h-7 px-3 rounded-full text-[13px] transition-colors inline-flex items-center gap-1.5",
+          "h-7 px-3 rounded-full text-[13px] transition-colors inline-flex items-center gap-1.5 whitespace-nowrap",
           active ? "bg-guide-active text-ink" : "bg-surface hover:bg-surface-strong",
         )}
       >
@@ -97,7 +97,7 @@ export function FilterChip({
       {open && children && (
         <div
           className={clsx(
-            "absolute z-30 mt-2 min-w-64 rounded-xl bg-surface-strong shadow-lg border border-line p-4 text-[14px]",
+            "absolute z-30 mt-2 min-w-64 max-w-[calc(100vw-2.5rem)] rounded-xl bg-surface-strong shadow-lg border border-line p-4 text-[14px]",
             align === "right" ? "right-0" : "left-0",
           )}
         >

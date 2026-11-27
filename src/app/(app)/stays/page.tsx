@@ -422,7 +422,7 @@ function StaysInner() {
       <PageTitle>Stays</PageTitle>
 
       {/* Search bar, filter chips and divider stay pinned while the results scroll */}
-      <div ref={headerRef} className="sticky top-0 z-20 bg-canvas -mx-5 px-5 md:-mx-12 md:px-12 pt-4 space-y-5">
+      <div ref={headerRef} className="md:sticky md:top-0 z-20 bg-canvas -mx-5 px-5 md:-mx-12 md:px-12 pt-4 space-y-5">
         <form
           className="flex flex-wrap items-start gap-3"
           onSubmit={(e) => {
@@ -430,7 +430,7 @@ function StaysInner() {
             if (!loading) void search(q);
           }}
         >
-          <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70">
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-y sm:divide-y-0 sm:divide-x divide-line/70">
             <CityInput
               className="w-full sm:w-[340px]"
               inputClassName="h-11 px-4 w-full bg-transparent outline-none text-[14px] placeholder:text-ink-muted"
@@ -438,11 +438,11 @@ function StaysInner() {
               value={q}
               onChange={(v) => set({ q: v })}
             />
-            <label className="flex items-center gap-2 h-11 px-4">
+            <label className="flex items-center gap-2 h-11 px-4 w-full sm:w-auto">
               <CalendarBlank weight="fill" className="size-4 shrink-0" />
-              <input aria-label="Check-in" type="date" className={selectCls} value={checkIn} min={today} onChange={(e) => set({ checkIn: e.target.value })} />
+              <input aria-label="Check-in" type="date" className={`${selectCls} flex-1 min-w-0 sm:flex-none`} value={checkIn} min={today} onChange={(e) => set({ checkIn: e.target.value })} />
               <span className="text-ink-muted">–</span>
-              <input aria-label="Check-out" type="date" className={selectCls} value={checkOut} min={addDays(checkIn, 1)} onChange={(e) => set({ checkOut: e.target.value })} />
+              <input aria-label="Check-out" type="date" className={`${selectCls} flex-1 min-w-0 sm:flex-none`} value={checkOut} min={addDays(checkIn, 1)} onChange={(e) => set({ checkOut: e.target.value })} />
             </label>
             <label className="flex items-center gap-2 h-11 px-4">
               <span className="text-ink-muted text-[13px]">Guests</span>
@@ -455,7 +455,7 @@ function StaysInner() {
               </select>
             </label>
           </div>
-          <PrimaryButton type="submit" aria-busy={loading} className="ml-auto relative overflow-hidden !h-11">
+          <PrimaryButton type="submit" aria-busy={loading} className="w-full sm:w-auto sm:ml-auto relative overflow-hidden !h-11">
             {loading ? "Searching…" : "Search"}
             <ButtonLoadingBar progress={loading} />
           </PrimaryButton>
@@ -627,7 +627,7 @@ function StaysInner() {
         </div>
       </div>
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white text-[14px] px-5 py-2 shadow-lg">{toast}</div>}
+      {toast && <div className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white text-[14px] px-5 py-2 shadow-lg">{toast}</div>}
     </div>
   );
 }

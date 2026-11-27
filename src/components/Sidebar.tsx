@@ -83,7 +83,10 @@ export function Sidebar() {
   return (
     <aside
       className={clsx(
-        "fixed inset-y-0 left-0 z-40 w-[64px] md:w-[84px] border-r flex flex-col items-center py-8",
+        // Phones: a tab bar along the bottom. Tablets and up: the sidebar on the left.
+        "fixed z-40 flex items-center",
+        "inset-x-0 bottom-0 h-[calc(60px+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] px-2 justify-around border-t",
+        "md:inset-x-auto md:inset-y-0 md:left-0 md:h-auto md:w-[84px] md:flex-col md:justify-start md:px-0 md:pb-8 md:pt-8 md:border-t-0 md:border-r",
         dark ? "sidebar-dark bg-guide-bg border-white/10" : "border-line bg-canvas",
       )}
     >
@@ -93,18 +96,18 @@ export function Sidebar() {
         title="Home"
         aria-current={path === "/home" ? "page" : undefined}
         className={clsx(
-          "size-9 md:size-10 rounded-full shadow-sm ring-offset-2 transition",
+          "shrink-0 size-8 md:size-10 rounded-full shadow-sm ring-offset-2 transition",
           dark ? "ring-offset-guide-bg" : "ring-offset-canvas",
           path === "/home" ? "ring-[1.5px] ring-accent-soft" : "hover:ring-[1.5px] hover:ring-[#bdb8a3]",
         )}
         style={{ background: "radial-gradient(circle at 30% 25%, #f7e98b 0%, #c9e3a3 35%, #9fcde0 70%, #e9d6a5 100%)" }}
       />
-      <nav className="mt-7 flex flex-col gap-4">
+      <nav className="contents md:flex md:mt-7 md:flex-col md:gap-4">
         {TOP.map((i) => (
           <NavItem key={i.href} {...i} />
         ))}
       </nav>
-      <nav className="mt-auto flex flex-col gap-4">
+      <nav className="contents md:flex md:mt-auto md:flex-col md:gap-4">
         {BOTTOM.map((i) => (
           <NavItem key={i.href} {...i} />
         ))}
