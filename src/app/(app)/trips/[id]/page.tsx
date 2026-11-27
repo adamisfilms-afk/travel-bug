@@ -581,6 +581,27 @@ export default function PlannerPage() {
   const loadOverrides = useOverrides((s) => s.load);
   useEffect(loadOverrides, [loadOverrides]);
 
+  // Food tab filter chips: each saved place's City Guide section (Dinner, Coffee, Drinks…);
+  // places that aren't in a guide go under "Other". Only chips with something in them are shown.
+  const foodSectionOf = (a: SavedActivity) => {
+    const hit = curatedFor.get(a.id);
+    return hit?.guide.sections.find((sec) => sec.places.some((p) => p.id === hit.place.id))?.title ?? "Other";
+  };
+  const foodChips = useMemo(() => {
+    const order = new globalThis.Map<string, number>();
+    for (const a of tripFood) {
+      const hit = curatedFor.get(a.id);
+      const t = foodSectionOf(a);
+      if (!order.has(t)) order.set(t, t === "Other" ? 999 : (hit?.guide.sections.findIndex((sec) => sec.title === t) ?? 998));
+    }
+    return [...order.entries()].sort((x, y) => x[1] - y[1]).map(([t]) => t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripFood.map((a) => a.id).join(), curatedFor]);
+  const [foodFilter, setFoodFilter] = useState<string | null>(null);
+  useEffect(() => {
+    if (foodFilter && !foodChips.includes(foodFilter)) setFoodFilter(null);
+  }, [foodChips, foodFilter]);
+
   // Hovering a saved item highlights its place on the map
   const [hovered, setHovered] = useState<string | null>(null);
   const [copied, setCopied] = useState<"" | "copied" | "error">("");
@@ -768,6 +789,25 @@ export default function PlannerPage() {
 
             {(savedTab === "food" || savedTab === "explore") && (
               <section role="tabpanel" aria-label={savedTab === "food" ? "Food" : "Explore"} className="space-y-4">
+                {savedTab === "food" && foodChips.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter food">
+                    {foodChips.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={foodFilter === t}
+                        onClick={() => setFoodFilter((f) => (f === t ? null : t))}
+                        className={clsx(
+                          "h-7 px-3 rounded-full text-[13px] transition-colors",
+                          foodFilter === t ? "bg-guide-active text-ink" : "bg-surface hover:bg-surface-strong",
+                        )}
+                      >
+                        {t}
+                        <span className="ml-1.5 text-ink/45">{tripFood.filter((a) => foodSectionOf(a) === t).length}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-2.5">
                   {(savedTab === "food" ? tripFood : tripExplore).length === 0 && (
                     <Empty>
@@ -776,7 +816,7 @@ export default function PlannerPage() {
                         : "Nothing saved yet — add something below or from the Explore guides."}
                     </Empty>
                   )}
-                  {(savedTab === "food" ? tripFood : tripExplore).map((a) => (
+                  {(savedTab === "food" ? tripFood.filter((a) => !foodFilter || foodSectionOf(a) === foodFilter) : tripExplore).map((a) => (
                     <RowShell onHover={setHovered} key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
                       <ActivityRowBody
                         a={a}
