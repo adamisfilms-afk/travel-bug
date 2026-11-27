@@ -1,11 +1,13 @@
 "use client";
 
-import { ArrowSquareOut, CaretLeft, CaretRight, Clock, Globe, MapPin, Plus, Star, Trash, X, type Icon } from "@phosphor-icons/react";
+import { ArrowSquareOut, CaretLeft, CaretRight, Clock, Globe, Images, MapPin, PencilSimple, Plus, Star, Trash, X, type Icon } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { IS_ADMIN, useCuratedPlace, useOverrides, type PhotoItem } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
+import { PhotoEditor } from "./PhotoEditor";
 import { AddToTripButton } from "./trips";
 
 // ---------------------------------------------------------------------------
@@ -59,8 +61,9 @@ const fmtCount = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 
 
 const PLACEHOLDERS = ["bg-ph-mustard", "bg-ph-sky", "bg-ph-sage", "bg-ph-lime"];
 
-function Slide({ name, alt }: { name: string; alt: string }) {
+export function Slide({ name, alt }: { name: string; alt: string }) {
   const [url, setUrl] = useState<string | null>(() => mediaCache.get(name) ?? null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (mediaCache.has(name)) return setUrl(mediaCache.get(name)!);
     let cancelled = false;
@@ -70,11 +73,12 @@ function Slide({ name, alt }: { name: string; alt: string }) {
         mediaCache.set(name, d.url);
         if (!cancelled) setUrl(d.url);
       })
-      .catch(() => {});
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
   }, [name]);
+  if (failed) return null; // e.g. Google no longer serves this photo — leaves the placeholder colour
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={url} alt={alt} className="absolute inset-0 size-full object-cover" draggable={false} />
@@ -85,7 +89,7 @@ function Slide({ name, alt }: { name: string; alt: string }) {
 
 type SlideSrc = { kind: "google"; name: string } | { kind: "own"; src: string; alt?: string; credit?: string; creditUrl?: string };
 
-function Carousel({ photos, alt, EmptyIcon }: { photos: SlideSrc[] | null; alt: string; EmptyIcon: Icon }) {
+function Carousel({ photos, alt, EmptyIcon, children }: { photos: SlideSrc[] | null; alt: string; EmptyIcon: Icon; children?: React.ReactNode }) {
   const slides = photos?.length ? photos : null;
   const count = slides?.length ?? 4; // placeholders until real photos exist
   const [i, setI] = useState(0);
@@ -177,6 +181,7 @@ function Carousel({ photos, alt, EmptyIcon }: { photos: SlideSrc[] | null; alt: 
           {(slides[i] as { credit?: string }).credit}
         </a>
       )}
+      {children}
     </div>
   );
 }
@@ -302,13 +307,101 @@ function SocialRow({
 }
 
 // ---------------------------------------------------------------------------
+// Admin: content editor
+// ---------------------------------------------------------------------------
+
+const field = "w-full rounded-lg bg-white px-3 border border-line outline-none focus:border-accent-soft text-[14px]";
+
+function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; place: CuratedPlace; onDone: () => void }) {
+  const current = useOverrides((s) => s.overrides[place.id]);
+  const save = useOverrides((s) => s.save);
+  const [f, setF] = useState({
+    name: place.name,
+    tagline: place.tagline,
+    neighbourhood: place.neighbourhood,
+    priceLevel: place.priceLevel ?? null,
+    description: place.description ?? "",
+    social: (place.social ?? []).join("\n"),
+  });
+  const [status, setStatus] = useState<"idle" | "saving" | string>("idle");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setF((x) => ({ ...x, [k]: k === "priceLevel" ? (e.target.value ? Number(e.target.value) : null) : e.target.value }));
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("saving");
+    try {
+      await save(place.id, {
+        ...current,
+        name: f.name.trim() !== basePlace.name ? f.name.trim() : undefined,
+        tagline: f.tagline.trim(),
+        neighbourhood: f.neighbourhood.trim(),
+        priceLevel: f.priceLevel,
+        description: f.description.trim(),
+        social: f.social.split(/\s+/).filter(Boolean),
+      });
+      onDone();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Couldn't save.");
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-3 pr-28">
+      <label className="block">
+        <span className="text-[12px] text-ink-muted">Name</span>
+        <input value={f.name} onChange={set("name")} required className={clsx(field, "h-11 text-[20px] font-bold")} />
+      </label>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+        <label className="block">
+          <span className="text-[12px] text-ink-muted">Tagline (two words)</span>
+          <input value={f.tagline} onChange={set("tagline")} className={clsx(field, "h-10")} />
+        </label>
+        <label className="block">
+          <span className="text-[12px] text-ink-muted">Neighbourhood</span>
+          <input value={f.neighbourhood} onChange={set("neighbourhood")} className={clsx(field, "h-10")} />
+        </label>
+        <label className="block">
+          <span className="text-[12px] text-ink-muted">Price</span>
+          <select value={f.priceLevel ?? ""} onChange={set("priceLevel")} className={clsx(field, "h-10 pr-8")}>
+            <option value="">Google&apos;s</option>
+            {[1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>
+                {"$".repeat(n)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="block">
+        <span className="text-[12px] text-ink-muted">Description</span>
+        <textarea value={f.description} onChange={set("description")} rows={4} className={clsx(field, "py-2 leading-relaxed")} />
+      </label>
+      <label className="block">
+        <span className="text-[12px] text-ink-muted">Social posts — Instagram, TikTok or YouTube links, one per line</span>
+        <textarea value={f.social} onChange={set("social")} rows={3} className={clsx(field, "py-2 font-mono text-[12px]")} />
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="submit" disabled={status === "saving"} className="h-9 px-5 rounded-full bg-accent text-white text-[14px] disabled:opacity-60">
+          {status === "saving" ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={onDone} className="h-9 px-4 rounded-full border border-line bg-white text-[14px] hover:border-ink/40">
+          Cancel
+        </button>
+        {status !== "idle" && status !== "saving" && <span className="text-[13px] text-price-up">{status}</span>}
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal
 // ---------------------------------------------------------------------------
 
 const socialKey = (kind: string, slug: string) => `travel-bug:social-picks:${kind}:${slug}`;
 
 export function PlaceModal({
-  place,
+  place: basePlace,
   guide,
   kind,
   curate,
@@ -325,6 +418,7 @@ export function PlaceModal({
   EmptyIcon: Icon;
   onClose: () => void;
 }) {
+  const place = useCuratedPlace(basePlace);
   const details = useDetails(place.mapsQuery);
   const d = typeof details === "object" ? details : null;
   const activities = useStore((s) => s.activities);
@@ -351,9 +445,18 @@ export function PlaceModal({
   };
   const posts = [...(place.social ?? []), ...(extra[place.id] ?? [])];
 
-  // Escape closes; lock page scroll while open
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Admin editing
+  const [editing, setEditing] = useState(false);
+  const [photoEditor, setPhotoEditor] = useState(false);
+  const editingRef = useRef(false);
+  editingRef.current = editing || photoEditor;
+
+  // Escape closes (unless an editor is open); lock page scroll while open
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !editingRef.current && onClose();
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -370,16 +473,20 @@ export function PlaceModal({
       ? [d.photos[photoPick], ...d.photos.filter((_, n) => n !== photoPick)]
       : d.photos
     : [];
-  const photos: SlideSrc[] | null = [
-    ...(place.images ?? []).map((im) => ({ kind: "own" as const, ...im })),
-    ...google.map((g) => ({ kind: "google" as const, name: g.name })),
-  ];
+  const photos: SlideSrc[] | null = place.photos
+    ? place.photos.map((p) => (p.kind === "url" ? { kind: "own" as const, src: p.src } : p))
+    : [...(place.images ?? []).map((im) => ({ kind: "own" as const, ...im })), ...google.map((g) => ({ kind: "google" as const, name: g.name }))];
+  const photoItems: PhotoItem[] = photos.map((p) => (p.kind === "own" ? { kind: "url", src: p.src } : p));
   const price = place.priceLevel ?? d?.priceLevel ?? null;
 
-  if (typeof document === "undefined") return null;
+  // Portals need the browser; render after mounting so server and client HTML match
+  if (!mounted) return null;
   // Portal to <body> so the overlay isn't affected by the page's layout (margins, stacking)
   return createPortal(
-    <div className="fixed inset-y-0 right-0 left-[64px] md:left-[84px] z-[60] flex items-start justify-center overflow-y-auto bg-ink/35 backdrop-blur-md p-3 sm:p-6 md:p-10" onMouseDown={onClose}>
+    <div
+      className="fixed inset-y-0 right-0 left-[64px] md:left-[84px] z-[60] flex items-start justify-center overflow-y-auto bg-ink/35 backdrop-blur-md p-3 sm:p-6 md:p-10"
+      onMouseDown={() => !editing && onClose()}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -388,6 +495,16 @@ export function PlaceModal({
         className="relative w-full max-w-[800px] rounded-2xl bg-surface border border-line shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
+          {IS_ADMIN && !editing && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              title="Edit this place (admin)"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-line bg-white text-[13px] hover:border-ink/40"
+            >
+              <PencilSimple className="size-3.5" /> Edit
+            </button>
+          )}
           <AddToTripButton
             compact
             tone="dark"
@@ -400,7 +517,10 @@ export function PlaceModal({
           </button>
         </div>
 
-        <header className="pr-24">
+        {editing ? (
+          <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} />
+        ) : (
+        <header className={IS_ADMIN ? "pr-40" : "pr-24"}>
           <h2 className="text-[27px] md:text-[34px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>
@@ -415,10 +535,22 @@ export function PlaceModal({
             )}
           </div>
         </header>
+        )}
 
-        <Carousel photos={photos} alt={place.name} EmptyIcon={EmptyIcon} />
+        <Carousel photos={photos} alt={place.name} EmptyIcon={EmptyIcon}>
+          {editing && (
+            <button
+              type="button"
+              onClick={() => setPhotoEditor(true)}
+              className="absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/95 text-[13px] shadow hover:bg-white"
+            >
+              <Images className="size-4" /> Edit photos
+            </button>
+          )}
+        </Carousel>
+        {photoEditor && <PhotoEditor placeId={place.id} placeName={place.name} initial={photoItems} custom={!!place.photos} onClose={() => setPhotoEditor(false)} />}
 
-        {place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
+        {!editing && place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-3">

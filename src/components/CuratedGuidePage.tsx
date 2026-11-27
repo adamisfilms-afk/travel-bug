@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
 import { PageTitle, SectionTitle, useClickOutside } from "@/components/ui";
+import { useCuratedPlace } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
 
@@ -48,7 +49,7 @@ function writePicks(kind: string, slug: string, picks: Record<string, number>) {
 // --- Card ---------------------------------------------------------------------------------------
 
 function PlaceCard({
-  place,
+  place: basePlace,
   index,
   guide,
   curate,
@@ -68,6 +69,7 @@ function PlaceCard({
   /** Open the place view. */
   onOpen: () => void;
 }) {
+  const place = useCuratedPlace(basePlace);
   const ref = useRef<HTMLDivElement>(null);
   const cached = photoCache.get(photoKey(place.mapsQuery, pick));
   const [visible, setVisible] = useState(!!cached);
@@ -86,11 +88,25 @@ function PlaceCard({
     return () => io.disconnect();
   }, []);
 
-  // Your own/licensed photo, when the place has one, replaces Google's (and skips that request)
-  const own = place.images?.[0];
+  // An admin-curated cover, or your own/licensed photo, replaces the automatic Google pick (and skips that request)
+  const cover = place.photos?.[0];
+  const own = cover?.kind === "url" ? { src: cover.src, alt: undefined } : cover ? undefined : place.images?.[0];
+  const googleCover = cover?.kind === "google" ? cover.name : null;
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible || !googleCover) return;
+    let cancelled = false;
+    fetch(`/api/curated/media?name=${encodeURIComponent(googleCover)}&w=800`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: { url: string }) => !cancelled && setCoverUrl(d.url))
+      .catch(() => !cancelled && setCoverUrl(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, googleCover]);
 
   useEffect(() => {
-    if (!visible || own) return;
+    if (!visible || own || googleCover) return;
     const key = photoKey(place.mapsQuery, pick);
     const hit = photoCache.get(key);
     if (hit) {
@@ -116,7 +132,7 @@ function PlaceCard({
     return () => {
       cancelled = true;
     };
-  }, [visible, place.mapsQuery, pick, own]);
+  }, [visible, place.mapsQuery, pick, own, googleCover]);
 
   const step = (d: number) => {
     if (!photo) return;
@@ -149,6 +165,16 @@ function PlaceCard({
               loading="lazy"
               className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             />
+          ) : googleCover ? (
+            coverUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverUrl}
+                alt={place.name}
+                loading="lazy"
+                className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            )
           ) : photo && !failed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -165,7 +191,7 @@ function PlaceCard({
               <EmptyIcon weight="fill" className="size-10" />
             </span>
           )}
-          {curate && !own && photo && photo.count > 1 && (
+          {curate && !own && !googleCover && photo && photo.count > 1 && (
             <>
               <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
                 <CaretLeft weight="bold" className="size-4" />
