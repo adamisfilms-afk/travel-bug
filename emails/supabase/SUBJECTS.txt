@@ -1,0 +1,5 @@
+confirm-signup: Confirm your email for wheretonext
+magic-link: Your log-in link for wheretonext
+reset-password: Reset your wheretonext password
+change-email: Confirm your new email for wheretonext
+invite: You've been invited to wheretonext

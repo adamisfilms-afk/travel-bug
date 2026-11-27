@@ -56,12 +56,44 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState("");
+  const [invited, setInvited] = useState<{ email: string; sent_at: string }[]>([]);
 
   const loadPeople = useCallback(async () => {
     const { data, error } = await sb.rpc("trip_people", { tid: trip.id });
     if (error) return setError(friendly(error.message));
     setPeople((data as Person[]) ?? []);
+    // Emailed invites (the table may not exist until 003_email_invites.sql has been run)
+    const { data: inv } = await sb.from("trip_invite_emails").select("email, sent_at").eq("trip_id", trip.id).order("sent_at", { ascending: false });
+    setInvited((inv as { email: string; sent_at: string }[] | null) ?? []);
   }, [sb, trip.id]);
+
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const to = email.trim();
+    if (!to) return;
+    setSending(true);
+    setError("");
+    setSent("");
+    try {
+      const res = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/invite`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: to }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? "Couldn't send the invite.");
+      setSent(`Invite sent to ${to}`);
+      setEmail("");
+      void loadPeople();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send the invite.");
+    } finally {
+      setSending(false);
+    }
+  };
   useEffect(() => void loadPeople(), [loadPeople]);
 
   const makeLink = async (reset = false) => {
@@ -86,6 +118,10 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
     }
   };
 
+  // Emailed invites still waiting (hide anyone who has since joined; latest invite per address)
+  const joined = new Set((people ?? []).map((p) => p.email?.toLowerCase()));
+  const pending = invited.filter((i, n) => !joined.has(i.email.toLowerCase()) && invited.findIndex((x) => x.email === i.email) === n);
+
   const remove = async (p: Person) => {
     const leaving = p.is_you;
     if (!confirm(leaving ? `Leave "${trip.name}"? You'll lose access unless someone invites you again.` : `Remove ${p.name ?? p.email} from "${trip.name}"?`)) return;
@@ -100,10 +136,29 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3">
+      <form onSubmit={sendInvite} className="space-y-2">
         <p className="text-[14px] text-ink-muted">
-          Send this link to friends or family. Once they log in, they can see and edit the whole trip with you — flights, stays, places and the itinerary.
+          Invite friends or family to plan with you. They can see and edit the whole trip — flights, stays, places and the itinerary.
         </p>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Their email address"
+            autoComplete="off"
+            className="flex-1 min-w-0 h-10 rounded-lg bg-surface px-3 text-[14px] border border-line outline-none focus:border-accent-soft"
+          />
+          <button type="submit" disabled={sending} className="h-10 px-4 rounded-lg bg-accent text-white text-[14px] inline-flex items-center gap-1.5 hover:bg-accent-hover disabled:opacity-60">
+            <PaperPlaneTilt className="size-4" /> {sending ? "Sending…" : "Send invite"}
+          </button>
+        </div>
+        {sent && <p className="text-[13px] text-accent-ink">{sent}</p>}
+      </form>
+
+      <section className="space-y-3">
+        <p className="text-[13px] text-ink-muted">Or share a link yourself:</p>
         {link ? (
           <div className="flex items-center gap-2">
             <input readOnly value={link} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 h-10 rounded-lg bg-surface px-3 text-[13px] border border-line outline-none" />
@@ -127,7 +182,7 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
             onClick={() => void makeLink()}
             className="h-10 px-5 rounded-full bg-accent text-white text-[14px] inline-flex items-center gap-2 hover:bg-accent-hover disabled:opacity-60"
           >
-            <PaperPlaneTilt className="size-4" /> {busy ? "Creating link…" : "Copy invite link"}
+            <Copy className="size-4" /> {busy ? "Creating link…" : "Copy invite link"}
           </button>
         )}
         {link && (
@@ -165,7 +220,22 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
             </li>
           ))}
         </ul>
-        {people?.length === 1 && <p className="text-[13px] text-ink-muted">Just you so far.</p>}
+        {pending.length > 0 && (
+          <ul className="divide-y divide-line/70 border-t border-line/70">
+            {pending.map((i) => (
+              <li key={i.email} className="flex items-center gap-3 py-2.5">
+                <span className="grid place-items-center size-8 rounded-full border border-dashed border-ink/30 text-ink/50 text-[13px] shrink-0">
+                  {i.email[0]?.toUpperCase()}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[14px] truncate">{i.email}</span>
+                  <span className="block text-[12px] text-ink-muted">Invited {new Date(i.sent_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })} · hasn&apos;t joined yet</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {people?.length === 1 && !pending.length && <p className="text-[13px] text-ink-muted">Just you so far.</p>}
       </section>
 
       {error && <p className="text-[13px] text-price-up">{error}</p>}
