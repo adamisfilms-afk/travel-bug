@@ -54,9 +54,9 @@ const TOP = [
   { href: "/flights", label: "Flights", icon: { Icon: AirplaneTilt, viewBox: 256 } },
   { href: "/stays", label: "Stays", icon: { Icon: BedIcon, viewBox: 32 } },
   { href: "/guides", label: "City Guides", icon: { Icon: MapPin, viewBox: 256, holes: true } },
+  { href: "/trips", label: "Your trips", icon: { Icon: ListChecks, viewBox: 256, holes: true } },
 ];
 const BOTTOM = [
-  { href: "/trips", label: "Your trips", icon: { Icon: ListChecks, viewBox: 256, holes: true } },
   { href: "/settings", label: "Settings", icon: { Icon: GearSix, viewBox: 256, holes: true } },
 ];
 

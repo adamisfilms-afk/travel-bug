@@ -151,7 +151,7 @@ function FlightRowBody({ f }: { f: SavedFlight }) {
             key={i}
             className={clsx(
               ROW_TEXT,
-              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[84px_44px_56px_96px_88px_minmax(0,1fr)] md:gap-x-4",
+              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[76px_36px_52px_100px_84px_minmax(0,1fr)] md:gap-x-3",
             )}
           >
             <span className="font-medium whitespace-nowrap">
@@ -752,7 +752,7 @@ export default function PlannerPage() {
           </div>
         </header>
 
-        <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_minmax(400px,0.65fr)]">
           <div className="min-w-0">
             {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
