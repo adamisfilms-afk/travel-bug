@@ -14,7 +14,7 @@ export default function LoginPage() {
       <MarketingNav />
       <main className="relative z-10 min-h-[100svh] flex items-center justify-center px-5 pt-28 pb-16">
         <div className="w-full max-w-[420px] rounded-3xl bg-canvas/95 backdrop-blur shadow-2xl p-8">
-          <h1 className="text-[28px] font-extrabold tracking-tight">Log in to {BRAND}</h1>
+          <h1 className="font-serif text-[30px] leading-tight">Log in to {BRAND}</h1>
           <p className="mt-1 text-[14px] text-ink-muted">Welcome back — pick up where you left off.</p>
           <form
             className="mt-6 space-y-3"
@@ -36,7 +36,7 @@ export default function LoginPage() {
             </button>
           </form>
           {sent && (
-            <p role="status" className="mt-4 rounded-lg bg-ph-sky/40 px-3 py-2 text-[13px]">
+            <p role="status" className="mt-4 rounded-lg bg-guide-active/40 px-3 py-2 text-[13px]">
               Accounts are coming soon — logging in isn&apos;t switched on yet.
             </p>
           )}

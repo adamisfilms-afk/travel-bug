@@ -91,7 +91,7 @@ function SharedItinerary({ data, updatedAt }: { data: SharedTrip; updatedAt: str
       <main className="px-5 md:px-12 py-8 md:py-10">
         <div className="max-w-[640px] space-y-8">
           <header className="space-y-2">
-            <Link href="/" className="text-[15px] font-bold tracking-tight">
+            <Link href="/" className="font-serif text-[18px] font-semibold tracking-tight">
               {BRAND}
             </Link>
             <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.05] pt-4">{trip.name}</h1>
