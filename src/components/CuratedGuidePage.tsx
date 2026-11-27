@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight, Copy, ForkKnife, MapPin, type Icon } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, Copy, ForkKnife, MapPin, MapTrifold, X, type Icon } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -421,6 +421,24 @@ export function CuratedGuidePage() {
     .filter((p) => !overrides[p.id]?.hidden);
   const total = (guide?.sections ?? []).flatMap((sec) => sec.places).filter((p) => !overrides[p.id]?.hidden).length;
 
+  // The map can be hidden to give the places the full width (remembered in this browser)
+  const [mapOpen, setMapOpenState] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("travel-bug:guide-map") === "hidden") setMapOpenState(false);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const setMapOpen = (open: boolean) => {
+    setMapOpenState(open);
+    try {
+      localStorage.setItem("travel-bug:guide-map", open ? "shown" : "hidden");
+    } catch {
+      /* ignore */
+    }
+  };
+
   // Card ↔ map pin hover
   const [hovered, setHovered] = useState<string | null>(null);
   const points: MapPoint[] = visible.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, label: p.name, kind: "guide" }));
@@ -430,12 +448,25 @@ export function CuratedGuidePage() {
       {/* Dark page background (behind the content, under the fixed sidebar) */}
       <div className="fixed inset-0 z-0 bg-guide-bg" aria-hidden />
 
-      <div className={clsx("relative z-[1] space-y-6", guide && "lg:max-w-[calc(58vw-180px)]")}>
+      <div className={clsx("relative z-[1] space-y-6", guide && mapOpen && "lg:max-w-[calc(58vw-180px)]")}>
         {/* Title (city search) and filter chips stay pinned while the places scroll */}
         <div className="sticky top-0 z-20 bg-guide-bg -mx-5 px-5 md:-mx-12 md:px-12 -mt-8 md:-mt-10 pt-8 md:pt-10 pb-4 space-y-6">
           <div className="flex items-baseline justify-between gap-x-6">
             <TitleSearch value={guide?.city ?? ""} onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
-            {guide && <span className="shrink-0 text-[13px] text-guide-ink/75">{total} curated places</span>}
+            {guide && (
+              <span className="shrink-0 flex items-baseline gap-4 text-[13px] text-guide-ink/75">
+                {total} curated places
+                {!mapOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setMapOpen(true)}
+                    className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border border-guide-ink/30 text-guide-ink text-[13px] hover:border-guide-ink/70 self-center"
+                  >
+                    <MapTrifold className="size-4" /> Show map
+                  </button>
+                )}
+              </span>
+            )}
           </div>
           {guide && (
             <div className="flex flex-wrap gap-1.5">
@@ -491,7 +522,7 @@ export function CuratedGuidePage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6 pt-1">
+            <div className={clsx("grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6 pt-1", !mapOpen && "lg:grid-cols-3")}>
               {visible.map((p) => (
                 <PlaceCard
                   key={p.id}
@@ -512,8 +543,16 @@ export function CuratedGuidePage() {
       </div>
 
       {/* Map of the city's places (large screens) */}
-      {guide && (
+      {guide && mapOpen && (
         <div className="hidden lg:block fixed inset-y-0 right-0 w-[42vw] z-[2] border-l border-white/10">
+          <button
+            type="button"
+            onClick={() => setMapOpen(false)}
+            aria-label="Hide map"
+            className="absolute top-3 right-3 z-[500] inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-guide-bg text-guide-ink text-[13px] shadow hover:bg-[#243024]"
+          >
+            <X weight="bold" className="size-3.5" /> Hide map
+          </button>
           <GuideMap
             points={points}
             greyscale

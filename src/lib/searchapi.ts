@@ -81,12 +81,15 @@ export async function searchApiCall(engine: string, params: Record<string, strin
 
 async function liveCall(engine: string, qs: URLSearchParams): Promise<Json> {
   g.__searchApiCredits = (g.__searchApiCredits ?? 0) + 1;
-  console.log(`[searchapi] ${engine} — live request (${g.__searchApiCredits} credit${g.__searchApiCredits === 1 ? "" : "s"} used since the server started)`);
+  const n = g.__searchApiCredits;
+  const started = Date.now();
   const res = await fetch(`${ENDPOINT}?${qs.toString()}`, {
     headers: { Authorization: `Bearer ${process.env.SEARCHAPI_API_KEY}` },
     cache: "no-store",
   });
   const text = await res.text();
+  // How long SearchApi took (most of any search's wait) and the running credit count
+  console.log(`[searchapi] ${engine} — ${((Date.now() - started) / 1000).toFixed(1)}s (${n} credit${n === 1 ? "" : "s"} used since the server started)`);
   let data: Json;
   try {
     data = JSON.parse(text);

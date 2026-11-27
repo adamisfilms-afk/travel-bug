@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Map, type MapPoint } from "@/components/Map";
 import { PriceRange } from "@/components/PriceRange";
+import { CityInput } from "@/components/CityInput";
 import { AddToTripButton } from "@/components/trips";
 import { ButtonLoadingBar, FilterChip, PageTitle, PrimaryButton, useClickOutside } from "@/components/ui";
 import { addDays, daysBetween, money, toDay } from "@/lib/format";
@@ -316,10 +317,23 @@ function StaysInner() {
     }
   };
 
+  // Scrolling near the end of the list loads the next page by itself (one credit each, and only
+  // if you actually scroll that far), up to AUTO_PAGES; after that it's the "Show more" button.
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && !loadingMoreRef.current && void loadMore(), { rootMargin: "800px" });
+    io.observe(el);
+    return () => io.disconnect();
+  });
+  const loadingMoreRef = useRef(false);
+
   /** Next page of the last search, appended (one more search credit). */
   const loadMore = async () => {
     const cur = useSearchStore.getState().stay;
-    if (!cur?.searched || !cur.hotels) return;
+    if (!cur?.searched || !cur.hotels || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     setError("");
     try {
@@ -331,6 +345,7 @@ function StaysInner() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load more stays");
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
   };
@@ -415,12 +430,12 @@ function StaysInner() {
           }}
         >
           <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70">
-            <input
-              aria-label="City, hotel or landmark"
-              className="h-11 px-4 w-full sm:w-[340px] bg-transparent outline-none text-[14px] placeholder:text-ink-muted"
+            <CityInput
+              className="w-full sm:w-[340px]"
+              inputClassName="h-11 px-4 w-full bg-transparent outline-none text-[14px] placeholder:text-ink-muted"
               placeholder="Enter a city, hotel or landmark"
               value={q}
-              onChange={(e) => set({ q: e.target.value })}
+              onChange={(v) => set({ q: v })}
             />
             <label className="flex items-center gap-2 h-11 px-4">
               <CalendarBlank weight="fill" className="size-4 shrink-0" />
@@ -580,6 +595,7 @@ function StaysInner() {
               onToast={setToast}
             />
           ))}
+          {hotels && session.hasMore && !loading && (session.page ?? 1) < AUTO_PAGES && <div ref={moreRef} aria-hidden className="h-px" />}
           {hotels && session.hasMore && !loading && (
             <div className="flex justify-center pt-2 pb-6">
               <button
@@ -634,6 +650,9 @@ function sortHotels(list: Hotel[], sort: StaySort): Hotel[] {
 }
 
 const cardId = (id: string) => `hotel-${id.replace(/[^\w-]/g, "_")}`;
+
+/** Pages (about 35 stays each) loaded automatically while scrolling, before asking. */
+const AUTO_PAGES = 4;
 
 export default function StaysPage() {
   return (

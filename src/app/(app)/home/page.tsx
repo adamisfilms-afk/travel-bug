@@ -186,11 +186,11 @@ function NextTrip({ trip }: { trip: Trip }) {
   const next: { label: string; href: string; why: string } = !savedFlight
     ? { label: "Find flights", href: `/flights?trip=${trip.id}`, why: "You haven't saved a flight yet." }
     : !flightPlaced
-      ? { label: "Add your flight to the itinerary", href: `/trips/${trip.id}`, why: "Your flight is saved — drag it onto its day in the planner." }
+      ? { label: "Add your flight", href: `/trips/${trip.id}`, why: "Your flight is saved — drag it onto its day in the planner." }
       : !savedStay
         ? { label: `Find a stay in ${place}`, href: `/stays?trip=${trip.id}&q=${encodeURIComponent(place)}`, why: "You've got flights — now somewhere to stay." }
         : !stayPlaced
-          ? { label: "Add your stay to the itinerary", href: `/trips/${trip.id}`, why: "Your stay is saved — drag it onto your check-in day." }
+          ? { label: "Add your stay", href: `/trips/${trip.id}`, why: "Your stay is saved — drag it onto your check-in day." }
           : saves === 0
             ? { label: guide ? `Browse the ${guide.city} guide` : "Browse the city guides", href: guide ? `/guides?city=${guide.slug}` : "/guides", why: "Save some places to eat and things to do." }
             : firstEmpty
@@ -212,9 +212,9 @@ function NextTrip({ trip }: { trip: Trip }) {
           <div className="mt-4 flex flex-wrap gap-2">
             <Step done={flightPlaced}>Flights</Step>
             <Step done={stayPlaced}>Stay</Step>
-            <Step done={saves > 0}>
+            <span className="inline-flex items-center h-7 px-3 rounded-full text-[12px] bg-white/15 text-guide-ink">
               {saves} {saves === 1 ? "save" : "saves"}
-            </Step>
+            </span>
           </div>
         </TripCard>
         <div className="rounded-2xl bg-surface p-6 flex flex-col justify-between gap-6">
