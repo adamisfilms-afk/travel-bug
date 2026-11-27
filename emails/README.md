@@ -3,8 +3,9 @@
 All emails share one design, defined in `src/lib/email/templates.ts`.
 
 ## Trip invites (sent by the app)
-Sent through [Resend](https://resend.com) when someone uses **Invite → Send invite** in the trip planner.
-Needs `RESEND_API_KEY` and `EMAIL_FROM` (see `.env.example`). Preview: open `trip-invite-preview.html`.
+Sent when someone uses **Invite → Send invite** in the trip planner — through Gmail (`SMTP_USER` +
+`SMTP_PASS` app password) or [Resend](https://resend.com) (`RESEND_API_KEY`). See `.env.example`.
+Preview: open `trip-invite-preview.html`.
 
 ## Supabase account emails (sign-up, log-in link, password reset, email change)
 Paste these into **Supabase → Authentication → Emails → Templates** (one tab per email):

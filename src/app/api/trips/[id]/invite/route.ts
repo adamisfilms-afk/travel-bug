@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: "Log in first." }, { status: 401 });
-  if (!emailEnabled()) return NextResponse.json({ error: "Email invites aren't set up yet (RESEND_API_KEY). Copy the invite link instead." }, { status: 503 });
+  if (!emailEnabled()) return NextResponse.json({ error: "Email invites aren't set up yet (SMTP_USER/SMTP_PASS or RESEND_API_KEY). Copy the invite link instead." }, { status: 503 });
 
   const body = await req.json().catch(() => null);
   const to = String(body?.email ?? "").trim().toLowerCase();
