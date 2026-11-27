@@ -454,13 +454,13 @@ export function CuratedGuidePage() {
           <div className="flex items-baseline justify-between gap-x-6">
             <TitleSearch value={guide?.city ?? ""} onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
             {guide && (
-              <span className="shrink-0 flex items-baseline gap-4 text-[13px] text-guide-ink/75">
+              <span className="shrink-0 flex items-center gap-4 text-[13px] text-guide-ink/75">
                 {total} curated places
                 {!mapOpen && (
                   <button
                     type="button"
                     onClick={() => setMapOpen(true)}
-                    className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border border-guide-ink/30 text-guide-ink text-[13px] hover:border-guide-ink/70 self-center"
+                    className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border border-guide-ink/30 text-guide-ink text-[13px] hover:border-guide-ink/70"
                   >
                     <MapTrifold className="size-4" /> Show map
                   </button>
