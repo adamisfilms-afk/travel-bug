@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { siteUrl } from "./site";
 import { useStore } from "./store";
 import type { ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "./types";
 
@@ -32,7 +33,7 @@ const token = (n: number) => {
   return Array.from(bytes, (b) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62]).join("");
 };
 
-export const shareUrl = (shareId: string) => `${window.location.origin}/share/${shareId}`;
+export const shareUrl = (shareId: string) => `${siteUrl()}/share/${shareId}`;
 
 const lastPushed = new Map<string, string>();
 

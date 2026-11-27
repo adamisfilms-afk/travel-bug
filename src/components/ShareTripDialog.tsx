@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { firstName, useAccountInfo } from "@/lib/auth";
 import { useStore } from "@/lib/store";
+import { inviteUrl } from "@/lib/site";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Trip } from "@/lib/types";
 import { Modal } from "./ui";
@@ -51,6 +52,7 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
   const router = useRouter();
   const forgetTrip = useStore((s) => s.forgetTrip);
   const owns = useOwnsTrip(trip);
+  const account = useAccountInfo();
   const [people, setPeople] = useState<Person[] | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -106,7 +108,7 @@ function ShareTripPanel({ trip, onClose }: { trip: Trip; onClose: () => void }) 
       }
       const { data, error } = await sb.rpc("create_trip_invite", { tid: trip.id });
       if (error) throw error;
-      const url = `${window.location.origin}/invite/${data}`;
+      const url = inviteUrl(String(data), { name: trip.name, from: account.name ? firstName(account.name, "") : null });
       setLink(url);
       await navigator.clipboard.writeText(url).catch(() => {});
       setCopied(true);
