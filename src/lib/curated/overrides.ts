@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { create } from "zustand";
+import { useAccountInfo } from "../auth";
 import type { CuratedPlace } from "./types";
 
 /**
@@ -31,8 +32,14 @@ export interface PlaceOverride {
   photos?: PhotoItem[];
 }
 
-/** Admin tools are on in local development, or with NEXT_PUBLIC_ADMIN=1. */
-export const IS_ADMIN = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ADMIN === "1";
+/** Without accounts (no Supabase): admin tools are on in local development, or with NEXT_PUBLIC_ADMIN=1. */
+const LOCAL_ADMIN = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ADMIN === "1";
+
+/** Whether to show admin tools: with accounts, users whose profile has is_admin; otherwise LOCAL_ADMIN. */
+export function useIsAdmin(): boolean {
+  const account = useAccountInfo();
+  return account.enabled ? account.isAdmin : LOCAL_ADMIN;
+}
 
 interface OverridesState {
   overrides: Record<string, PlaceOverride>;

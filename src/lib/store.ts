@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { getBackend, TABLE_FOR, type Backend } from "./backend";
+import { getBackend, localTripsToImport, markLocalImported, TABLE_FOR, type Backend } from "./backend";
 import { daysBetween, uid } from "./format";
 import { SEED } from "./seed";
 import type {
@@ -98,6 +98,16 @@ export const useStore = create<State>((set, get) => ({
       else if (backend.kind === "local") {
         set({ ...SEED });
         backend.snapshot?.(SEED);
+      }
+      // First sign-in on this browser: bring over trips saved here before accounts existed.
+      if (backend.kind === "supabase" && backend.userId && !get().trips.length) {
+        const local = localTripsToImport();
+        if (local) {
+          const order: Key[] = ["trips", "flights", "stays", "activities", "itinerary"];
+          for (const k of order) if (local[k].length) await backend.upsert!(TABLE_FOR[k], local[k] as object[]);
+          set({ ...EMPTY, ...local });
+        }
+        markLocalImported();
       }
     } catch (e) {
       set({ loadError: e instanceof Error ? e.message : String(e) });

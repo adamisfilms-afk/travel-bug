@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardPaid } from "@/lib/guard";
 import { DEFAULT_CURRENCY, isCurrency } from "@/lib/currency";
 import { searchHotels } from "@/lib/hotels";
 import { searchApiEnabled } from "@/lib/searchapi";
@@ -6,6 +7,8 @@ import { skyscannerHotelsPage } from "@/lib/searchapi-hotels";
 
 /** Hotel search: Skyscanner via SearchApi when SEARCHAPI_API_KEY is set (1 credit), else demo hotels. */
 export async function GET(req: Request) {
+  const blocked = await guardPaid();
+  if (blocked) return blocked;
   const params = new URL(req.url).searchParams;
   const q = (params.get("q") ?? "").trim();
   const c = params.get("currency");

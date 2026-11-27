@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardPaid } from "@/lib/guard";
 import { flightSource, refreshFlightPrice } from "@/lib/flights-server";
 import { findHotel } from "@/lib/hotels";
 import { PRICE_CHECK_MAX_AGE, searchApiEnabled, withMaxAge } from "@/lib/searchapi";
@@ -21,6 +22,8 @@ function demoStayPrice(s: SavedStay): number {
 }
 
 export async function POST(req: Request) {
+  const blocked = await guardPaid();
+  if (blocked) return blocked;
   const body = await req.json().catch(() => ({}));
   const flights: SavedFlight[] = Array.isArray(body.flights) ? body.flights.slice(0, 30) : [];
   const stays: SavedStay[] = Array.isArray(body.stays) ? body.stays.slice(0, 30) : [];

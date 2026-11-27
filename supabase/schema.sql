@@ -1,12 +1,55 @@
--- Travel Bug schema. Run in the Supabase SQL editor (or `supabase db push`).
--- There is no auth yet, so RLS policies below allow the anon key full access.
--- Replace them with per-user policies once authentication is added.
+-- where to next — database setup.
+-- Run this whole file once in Supabase: Dashboard → SQL Editor → New query → paste → Run.
+-- It's safe to re-run: everything is "create if not exists" / "create or replace".
+--
+-- Every trip row belongs to the user who created it (user_id, filled in automatically from
+-- the logged-in user), and row-level security only lets people see and change their own rows.
+
+-- ---------------------------------------------------------------------------
+-- Profiles (name, admin flag) — one per user, created automatically at sign-up
+-- ---------------------------------------------------------------------------
+
+create table if not exists profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  name text,
+  is_admin boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+drop policy if exists "read own profile" on profiles;
+create policy "read own profile" on profiles for select to authenticated using (id = auth.uid());
+drop policy if exists "update own profile" on profiles;
+create policy "update own profile" on profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+-- Users may change their name, never their admin flag (set that in the Table Editor).
+revoke update on profiles from authenticated, anon;
+grant update (name) on profiles to authenticated;
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, name)
+  values (new.id, coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1)))
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
+-- Trips and everything saved to them
+-- ---------------------------------------------------------------------------
 
 create table if not exists trips (
   id text primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
   destination text not null,
   locations text[],
+  share_id text,
+  share_key text,
   start_date date not null,
   end_date date not null,
   travellers int not null default 1,
@@ -15,7 +58,8 @@ create table if not exists trips (
 
 create table if not exists saved_flights (
   id text primary key,
-  trip_id text not null references trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  trip_id text not null references trips (id) on delete cascade,
   legs jsonb not null,
   cabin text not null default 'economy',
   passengers int not null default 1,
@@ -23,58 +67,59 @@ create table if not exists saved_flights (
   price_saved numeric not null,
   price_current numeric not null,
   price_checked_at timestamptz,
-  booking_url text not null,
+  booking_url text,
   booking_options jsonb,
   saved_at timestamptz not null default now()
 );
-alter table saved_flights add column if not exists booking_options jsonb;
 
 create table if not exists saved_stays (
   id text primary key,
-  trip_id text not null references trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  trip_id text not null references trips (id) on delete cascade,
   hotel_id text not null,
   name text not null,
-  area text not null default '',
-  city text not null default '',
-  lat double precision not null,
-  lng double precision not null,
+  area text,
+  city text,
+  lat double precision,
+  lng double precision,
+  image_url text,
+  images jsonb,
+  stars numeric,
+  rating numeric,
+  rating_word text,
+  reviews int,
+  room_type text,
+  provider text,
+  amenities jsonb,
+  guests int,
   check_in date not null,
   check_out date not null,
   currency text not null default 'USD',
   price_saved numeric not null,
   price_current numeric not null,
-  booking_url text not null,
+  price_checked_at timestamptz,
+  booking_url text,
+  booking_options jsonb,
   saved_at timestamptz not null default now()
 );
 
-alter table saved_stays add column if not exists booking_options jsonb;
-alter table saved_stays add column if not exists image_url text;
-alter table saved_stays add column if not exists guests int;
-alter table saved_stays add column if not exists price_checked_at timestamptz;
-alter table saved_stays add column if not exists images jsonb;
-alter table saved_stays add column if not exists stars int;
-alter table saved_stays add column if not exists rating numeric;
-alter table saved_stays add column if not exists rating_word text;
-alter table saved_stays add column if not exists reviews int;
-alter table saved_stays add column if not exists room_type text;
-alter table saved_stays add column if not exists provider text;
-alter table saved_stays add column if not exists amenities jsonb;
-
 create table if not exists saved_activities (
   id text primary key,
-  trip_id text not null references trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  trip_id text not null references trips (id) on delete cascade,
   name text not null,
   category text not null default 'other',
   lat double precision,
   lng double precision,
-  notes text not null default '',
+  place text,
+  notes text,
   saved_at timestamptz not null default now()
 );
-alter table saved_activities add column if not exists place text;
 
 create table if not exists itinerary_items (
   id text primary key,
-  trip_id text not null references trips(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  trip_id text not null references trips (id) on delete cascade,
   day date not null,
   position int not null default 0,
   time text,
@@ -82,30 +127,47 @@ create table if not exists itinerary_items (
   ref_id text not null
 );
 
-create index if not exists saved_flights_trip_idx on saved_flights(trip_id);
-create index if not exists saved_stays_trip_idx on saved_stays(trip_id);
-create index if not exists saved_activities_trip_idx on saved_activities(trip_id);
-create index if not exists itinerary_items_trip_day_idx on itinerary_items(trip_id, day, position);
+-- Columns added after the first version (no-ops on a fresh database)
+alter table trips add column if not exists locations text[];
+alter table trips add column if not exists share_id text;
+alter table trips add column if not exists share_key text;
 
-alter table trips enable row level security;
-alter table saved_flights enable row level security;
-alter table saved_stays enable row level security;
-alter table saved_activities enable row level security;
-alter table itinerary_items enable row level security;
+create index if not exists trips_user on trips (user_id);
+create index if not exists saved_flights_trip on saved_flights (trip_id);
+create index if not exists saved_stays_trip on saved_stays (trip_id);
+create index if not exists saved_activities_trip on saved_activities (trip_id);
+create index if not exists itinerary_items_trip on itinerary_items (trip_id);
 
+-- Each user sees and edits only their own rows
 do $$
 declare t text;
 begin
   foreach t in array array['trips','saved_flights','saved_stays','saved_activities','itinerary_items'] loop
+    execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "anon full access" on %I', t);
-    execute format('create policy "anon full access" on %I for all to anon, authenticated using (true) with check (true)', t);
+    execute format('drop policy if exists "own rows" on %I', t);
+    execute format('create policy "own rows" on %I for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid())', t);
   end loop;
 end $$;
 
--- Added later: several locations per trip (safe to re-run)
-alter table trips add column if not exists locations text[];
+-- ---------------------------------------------------------------------------
+-- Admin edits to curated places (written by the app's server after an admin check)
+-- ---------------------------------------------------------------------------
 
--- Shared itineraries (read-only links). Snapshots are written by the app's /api/share route.
+create table if not exists curated_overrides (
+  place_id text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table curated_overrides enable row level security;
+drop policy if exists "anyone can read" on curated_overrides;
+create policy "anyone can read" on curated_overrides for select to anon, authenticated using (true);
+-- No insert/update policies: only the server (service role key) writes.
+
+-- ---------------------------------------------------------------------------
+-- Shared itineraries (read-only links). Written and read by the server only.
+-- ---------------------------------------------------------------------------
+
 create table if not exists shared_itineraries (
   token text primary key,
   data jsonb not null,
@@ -113,9 +175,13 @@ create table if not exists shared_itineraries (
   updated_at timestamptz not null default now()
 );
 alter table shared_itineraries enable row level security;
--- The API route uses the anon key unless SUPABASE_SERVICE_ROLE_KEY is set; with only the anon key it needs:
 drop policy if exists "anon all" on shared_itineraries;
-create policy "anon all" on shared_itineraries for all using (true) with check (true);
+-- No policies: only the server (service role key) can read or write.
 
-alter table trips add column if not exists share_id text;
-alter table trips add column if not exists share_key text;
+-- ---------------------------------------------------------------------------
+-- Storage for curated photos uploaded by admins (public to read)
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public)
+values ('curated', 'curated', true)
+on conflict (id) do update set public = true;

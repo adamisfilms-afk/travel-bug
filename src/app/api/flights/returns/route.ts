@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardPaid } from "@/lib/guard";
 import { DEFAULT_CURRENCY, isCurrency } from "@/lib/currency";
 import { searchReturnFlights } from "@/lib/flights-server";
 import type { Cabin, FlightOffer } from "@/lib/types";
@@ -7,6 +8,8 @@ const CABINS: Cabin[] = ["economy", "premium_economy", "business", "first"];
 
 /** Return flights for a chosen round-trip outbound flight (costs one search credit, cached 30 min). */
 export async function POST(req: Request) {
+  const blocked = await guardPaid();
+  if (blocked) return blocked;
   const body = await req.json().catch(() => ({}));
   const outbound = body.outbound as FlightOffer | undefined;
   if (!outbound?.departureToken || !outbound.returnDate || !outbound.legs?.[0]) {

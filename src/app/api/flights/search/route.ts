@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardPaid } from "@/lib/guard";
 import { DEFAULT_CURRENCY, isCurrency } from "@/lib/currency";
 import { searchFlights } from "@/lib/flights-server";
 import type { Cabin } from "@/lib/types";
@@ -6,6 +7,8 @@ import type { Cabin } from "@/lib/types";
 const CABINS: Cabin[] = ["economy", "premium_economy", "business", "first"];
 
 export async function POST(req: Request) {
+  const blocked = await guardPaid();
+  if (blocked) return blocked;
   const body = await req.json().catch(() => ({}));
   const from = String(body.from ?? "").toUpperCase();
   const to = String(body.to ?? "").toUpperCase();

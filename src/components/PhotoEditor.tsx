@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useOverrides, type PhotoItem } from "@/lib/curated/overrides";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import { Slide } from "./PlaceModal";
 
 const keyOf = (p: PhotoItem) => (p.kind === "google" ? `g:${p.name}` : `u:${p.src}`);
@@ -91,10 +92,25 @@ export function PhotoEditor({
     setBusy("uploading");
     setError("");
     for (const file of Array.from(files)) {
-      const body = new FormData();
-      body.set("file", file);
-      body.set("place", placeId);
       try {
+        const sb = supabaseBrowser();
+        if (sb) {
+          // Ask the server for a one-time upload link, then send the photo straight to Supabase Storage
+          const res = await fetch("/api/curated/upload", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ place: placeId, type: file.type, size: file.size }),
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d?.error ?? "Upload failed.");
+          const { error } = await sb.storage.from("curated").uploadToSignedUrl(d.path, d.token, file, { contentType: file.type });
+          if (error) throw new Error(error.message);
+          add({ kind: "url", src: d.src });
+          continue;
+        }
+        const body = new FormData();
+        body.set("file", file);
+        body.set("place", placeId);
         const res = await fetch("/api/curated/upload", { method: "POST", body });
         const d = await res.json();
         if (!res.ok) throw new Error(d?.error ?? "Upload failed.");

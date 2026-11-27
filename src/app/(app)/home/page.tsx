@@ -13,6 +13,7 @@ import { useCuratedCover } from "@/lib/curated/cover";
 import { applyOverride, useOverrides } from "@/lib/curated/overrides";
 import type { CuratedPlace } from "@/lib/curated/types";
 import { addDays, daysBetween, eachDay, toDay } from "@/lib/format";
+import { firstName, useAccountInfo } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import type { Trip } from "@/lib/types";
 
@@ -303,6 +304,7 @@ function useDailyPicks(n: number) {
 
 export default function HomePage() {
   const router = useRouter();
+  const account = useAccountInfo();
   const trips = useStore((s) => s.trips);
   const ready = useStore((s) => s.ready);
   const loadOverrides = useOverrides((s) => s.load);
@@ -318,7 +320,7 @@ export default function HomePage() {
     <div className="space-y-12">
       <section className="space-y-6">
         <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.1] font-normal">
-          Hey Adam,
+          Hey {account.enabled ? firstName(account.name, "there") : "Adam"},
           <br />
           Where to next?
         </h1>

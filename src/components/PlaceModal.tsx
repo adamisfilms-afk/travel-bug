@@ -4,7 +4,7 @@ import { ArrowSquareOut, CaretLeft, CaretRight, Clock, Globe, Images, MapPin, Pe
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IS_ADMIN, useCuratedPlace, useOverrides, type PhotoItem } from "@/lib/curated/overrides";
+import { useCuratedPlace, useIsAdmin, useOverrides, type PhotoItem } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
 import { PhotoEditor } from "./PhotoEditor";
@@ -452,6 +452,7 @@ export function PlaceModal({
   onClose: () => void;
 }) {
   const place = useCuratedPlace(basePlace);
+  const isAdmin = useIsAdmin();
   const details = useDetails(place.mapsQuery);
   const d = typeof details === "object" ? details : null;
   const activities = useStore((s) => s.activities);
@@ -531,7 +532,7 @@ export function PlaceModal({
         className="relative w-full max-w-[800px] rounded-2xl bg-guide-ink border border-black/10 shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          {IS_ADMIN && !readOnly && !editing && (
+          {isAdmin && !readOnly && !editing && (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -557,7 +558,7 @@ export function PlaceModal({
         {editing ? (
           <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} onDeleted={onClose} />
         ) : (
-        <header className={IS_ADMIN && !readOnly ? "pr-40" : readOnly ? "pr-12" : "pr-24"}>
+        <header className={isAdmin && !readOnly ? "pr-40" : readOnly ? "pr-12" : "pr-24"}>
           <h2 className="font-serif text-[30px] md:text-[38px] leading-[1.05]">{place.name}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>

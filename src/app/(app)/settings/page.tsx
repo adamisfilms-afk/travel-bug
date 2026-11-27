@@ -2,7 +2,8 @@
 
 import { Check } from "@phosphor-icons/react";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { AccountSettings } from "@/components/AccountSettings";
 import { PageTitle, SectionTitle } from "@/components/ui";
 import { CURRENCIES, currencySymbol } from "@/lib/currency";
 import { useSettings } from "@/lib/settingsStore";
@@ -21,6 +22,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-4xl">
       <PageTitle>Settings</PageTitle>
+
+      <Suspense>
+        <AccountSettings />
+      </Suspense>
 
       <section className="space-y-4">
         <div className="flex items-baseline justify-between gap-4">

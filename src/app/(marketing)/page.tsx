@@ -20,7 +20,7 @@ export default function LandingPage() {
           Curated places to eat and explore, plus flights, stays and your itinerary, all in one place.
         </p>
         <Link
-          href="/home"
+          href={process.env.NEXT_PUBLIC_SUPABASE_URL ? "/login?mode=signup" : "/home"}
           className="mt-9 sm:mt-16 inline-flex items-center justify-center h-12 lg:h-[54px] px-8 lg:px-11 rounded-full bg-guide-active text-guide-bg text-[16px] lg:text-[18px] shadow-sm hover:bg-[#dcdd8f] transition-colors"
         >
           Join for free

@@ -32,7 +32,8 @@ Copy `.env.example` to `.env.local`. Everything is optional:
 | `NEXT_PUBLIC_MAPBOX_TOKEN` (places) | Event location search uses Mapbox geocoding | OpenStreetMap Nominatim (free, low volume — fine for development) |
 | `NEXT_PUBLIC_MAPBOX_STYLE` | A Mapbox Studio style, `username/style-id` (default `mapbox/light-v11`) | |
 | `GOOGLE_MAPS_API_KEY` | Food and Explore guide cards show each place's photo from its Google Maps listing (Places API, New), with the photographer credit | Coloured placeholders |
-| `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Trips are stored in Supabase | Trips are stored in the browser (`localStorage`) |
+| `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Accounts (sign up / log in) and trips stored per user in Supabase — run `supabase/schema.sql` first | Single local user, trips in the browser (`localStorage`) |
+| `SUPABASE_SERVICE_ROLE_KEY` (server only) | Admin edits, photo uploads and share links stored in Supabase | Admin edits/uploads/shares saved as local files (dev only) |
 
 ### Search credits (SearchApi)
 
