@@ -39,7 +39,7 @@ A fixed left sidebar with icon navigation:
 | Avatar | `/home` | Home / dashboard | Built (curated rows are coloured placeholders) |
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
-| Pin | `/guides` | City Guides: search a city, then its curated places to eat (Dinner, Quick bites, Coffee, Drinks…) and things to do (Sights, Museums, Shows…) in rows; the page title becomes the city name. `/food` and `/explore` redirect here | Built (New York and Vienna) |
+| Pin | `/guides` | City Guides: search a city, then its curated places to eat (Dinner, Quick bites, Coffee, Drinks…) and things to do (Sights, Museums, Shows…) in rows; the page title becomes the city name. `/food` and `/explore` redirect here | Built (New York, Vienna and Melbourne) |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |
 | Gear | `/settings` | Settings (currency) | Built |

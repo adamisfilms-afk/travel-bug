@@ -246,7 +246,78 @@ const VIENNA_DETAILS: Parameters<typeof withDetails>[1] = {
   "vie-wind-mills": { priceLevel: 2, social: [YT_VIENNA_1], description: "A rustic pub on Gumpendorfer Straße with a karaoke bar — a fun, unpretentious late night." },
 };
 
-export const FOOD_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS)];
+
+// ---------------------------------------------------------------------------
+// Melbourne
+// ---------------------------------------------------------------------------
+
+const IG_MEL_1 = "https://www.instagram.com/p/DYQn5h5mcFR/";
+const IG_MEL_2 = "https://www.instagram.com/p/DfWXrTjgVZs/";
+
+/** Melbourne places are looked up on Google by their street address, which is more precise than the area. */
+const mp = (id: string, name: string, tagline: string, neighbourhood: string, address: string, lat: number, lng: number) => ({
+  ...placeFactory("Melbourne, Australia", "food")(id, name, tagline, neighbourhood, lat, lng),
+  mapsQuery: `${name}, ${address}`,
+});
+
+const MELBOURNE: CuratedGuide = {
+  slug: "melbourne",
+  city: "Melbourne",
+  country: "Australia",
+  aliases: ["melbourne", "melb", "naarm", "fitzroy", "collingwood", "brunswick"],
+  intro: "Where we'd eat and drink in Melbourne — serious coffee, laneway bakeries and listening bars.",
+  sections: [
+    {
+      id: "coffee",
+      title: "Coffee",
+      places: [
+        mp("mel-disciple-roasters", "Disciple Roasters", "Specialty roaster", "Brunswick", "16 Black St, Brunswick VIC 3056", -37.7685, 144.96),
+        mp("mel-acoffee", "Acoffee (CBD)", "Specialty coffee", "CBD", "Melbourne Place, Russell St, Melbourne VIC 3000", -37.8129, 144.9686),
+        mp("mel-terror-twilight", "Terror Twilight", "Health-bowl café", "Collingwood", "11-13 Johnston St, Collingwood VIC 3066", -37.7982, 144.985),
+      ],
+    },
+    {
+      id: "bakeries",
+      title: "Bakeries",
+      places: [
+        mp("mel-maison-bake", "Maison Bake", "Laneway pâtisserie", "CBD", "28 Corrs Ln, Melbourne VIC 3000", -37.8116, 144.9685),
+        mp("mel-masses-bagels", "Masses Bagels", "Bagels", "Fitzroy", "5 Smith St, Fitzroy VIC 3065", -37.8073, 144.9837),
+      ],
+    },
+    {
+      id: "dinner",
+      title: "Dinner",
+      places: [
+        mp("mel-chae", "Chae", "Korean tasting", "Cockatoo", "33 Mountain Rd, Cockatoo VIC 3781", -37.9385, 145.4925),
+        mp("mel-disuko", "Disuko", "Japanese disco", "CBD", "Level 3/59-63 Bourke St, Melbourne VIC 3000", -37.8111, 144.9712),
+      ],
+    },
+    {
+      id: "drinks",
+      title: "Drinks",
+      places: [
+        mp("mel-waxflower", "Waxflower", "Wine & vinyl", "Brunswick", "153 Weston St, Brunswick VIC 3056", -37.7655, 144.97),
+        mp("mel-sabi-sounds", "Sabi Sounds", "Listening café", "Hawthorn", "717 Glenferrie Rd, Hawthorn VIC 3122", -37.8198, 145.036),
+        mp("mel-slowpoke", "Slowpoke Lounge & Lookout", "Rooftop lounge", "Collingwood", "Level 4/50 Gipps St, Collingwood VIC 3066", -37.8072, 144.9903),
+      ],
+    },
+  ],
+};
+
+const MELBOURNE_DETAILS: Parameters<typeof withDetails>[1] = {
+  "mel-disciple-roasters": { social: [IG_MEL_1], description: "A Brunswick roastery and café pouring its own beans — the place to go for a properly dialled-in filter or espresso." },
+  "mel-acoffee": { social: [IG_MEL_2], description: "The city outpost of one of Melbourne's most exacting specialty coffee bars, tucked into Melbourne Place on Russell Street." },
+  "mel-terror-twilight": { social: [IG_MEL_1], description: "From the Wide Open Road team: great coffee and build-your-own health bowls in a bright Collingwood room. Once named Time Out's best café." },
+  "mel-maison-bake": { social: [IG_MEL_2], description: "A tiny pâtisserie hidden down Corrs Lane from a Le Cordon Bleu-trained pastry chef. The pudding sells out daily — go early." },
+  "mel-masses-bagels": { social: [IG_MEL_2], description: "Chewy, properly boiled bagels at the bottom of Smith Street — grab one loaded up and eat it on the go." },
+  "mel-chae": { priceLevel: 4, social: [IG_MEL_1], description: "Chef Jung Eun Chae's celebrated Korean tasting menu, now served in the Dandenong Ranges. Ferments, seasonal produce and one of the hardest bookings in the country." },
+  "mel-disuko": { priceLevel: 3, social: [IG_MEL_2], description: "1980s Tokyo disco on a Bourke Street rooftop — Japanese plates, sake and cocktails under mirror balls, with vinyl DJs late into the night." },
+  "mel-waxflower": { priceLevel: 2, social: [IG_MEL_1], description: "A natural-wine and listening bar just off Lygon Street, inspired by Europe's casual wine bars and Japan's listening bars. Bring a record — the DJ booth is open to guests." },
+  "mel-sabi-sounds": { priceLevel: 2, social: [IG_MEL_1], description: "Melbourne's vinyl listening café and record lounge, Tokyo-to-Seoul inspired, from morning coffee to late listening sessions — with a 10-seat bar out the back." },
+  "mel-slowpoke": { priceLevel: 2, social: [IG_MEL_2], description: "A fourth-floor lounge and lookout in Collingwood — an easy, unhurried drink with the city skyline in view." },
+};
+
+export const FOOD_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS), withDetails(MELBOURNE, MELBOURNE_DETAILS)];
 
 export const guideBySlug = (slug: string | null | undefined) => findGuide(FOOD_GUIDES, slug);
 export const matchGuides = (q: string) => match(FOOD_GUIDES, q);

@@ -135,7 +135,43 @@ const VIENNA_DETAILS: Parameters<typeof withDetails>[1] = {
   },
 };
 
-export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS)];
+
+const MELBOURNE: CuratedGuide = {
+  slug: "melbourne",
+  city: "Melbourne",
+  country: "Australia",
+  aliases: ["melbourne", "melb", "naarm", "fitzroy", "collingwood", "brunswick"],
+  intro: "Melbourne beyond the coffee — laneways to get lost in and shops worth the detour.",
+  sections: [
+    {
+      id: "wander",
+      title: "Wander",
+      places: [
+        {
+          ...placeFactory("Melbourne, Australia", "outdoors")("melx-cbd-laneways", "Melbourne CBD laneways", "Laneway walk", "CBD", -37.8166, 144.9653),
+          mapsQuery: "Degraves Street, Melbourne VIC 3000",
+        },
+        {
+          ...placeFactory("Melbourne, Australia", "shopping")("melx-happy-valley", "Happy Valley", "Books & gifts", "Fitzroy", -37.7966, 144.9837),
+          mapsQuery: "Happy Valley, 347 Smith St, Fitzroy VIC 3065",
+        },
+      ],
+    },
+  ],
+};
+
+const MELBOURNE_DETAILS: Parameters<typeof withDetails>[1] = {
+  "melx-cbd-laneways": {
+    social: ["https://www.instagram.com/p/DfWXrTjgVZs/"],
+    description: "Start at Degraves Street and Centre Place, then weave through Hosier Lane's street art and the arcades. Coffee, tiny bars and something new around every corner.",
+  },
+  "melx-happy-valley": {
+    social: ["https://www.instagram.com/p/DfWXrTjgVZs/"],
+    description: "A much-loved shop of art books, design objects and thoughtful gifts, now on Smith Street in Fitzroy. Easy to lose an hour in.",
+  },
+};
+
+export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS), withDetails(MELBOURNE, MELBOURNE_DETAILS)];
 
 export const exploreGuideBySlug = (slug: string | null | undefined) => findGuide(EXPLORE_GUIDES, slug);
 export const matchExploreGuides = (q: string) => match(EXPLORE_GUIDES, q);
