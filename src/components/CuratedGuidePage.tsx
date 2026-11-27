@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight, Copy, MagnifyingGlass, type Icon } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, Copy, ForkKnife, MagnifyingGlass, MapPin, type Icon } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
 import { PageTitle, SectionTitle, useClickOutside } from "@/components/ui";
 import { useCuratedPlace } from "@/lib/curated/overrides";
+import { cityGuideBySlug, kindOfPlace, matchCityGuides, type CityGuide, type GuideKind } from "@/lib/curated/city-guides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
 
@@ -319,31 +320,20 @@ function CitySearch({
 
 // --- Page ---------------------------------------------------------------------------------------
 
-export function CuratedGuidePage({
-  kind,
-  title,
-  searchPlaceholder,
-  prompt,
-  findGuide,
-  match,
-  EmptyIcon,
-}: {
-  kind: "food" | "explore";
-  title: string;
-  searchPlaceholder: string;
-  prompt: string;
-  findGuide: (slug: string | null) => CuratedGuide | undefined;
-  match: (q: string) => CuratedGuide[];
-  EmptyIcon: Icon;
-}) {
+const ICONS: Record<GuideKind, Icon> = { food: ForkKnife, explore: MapPin };
+const KINDS: GuideKind[] = ["food", "explore"];
+const BASE = "/guides";
+
+/** City guides: search a city, then its curated places to eat and things to do in rows. */
+export function CuratedGuidePage() {
   const router = useRouter();
   const params = useSearchParams();
-  const guide = findGuide(params.get("city"));
+  const guide: CityGuide | undefined = cityGuideBySlug(params.get("city"));
   const curate = params.get("curate") === "1";
   const placeId = params.get("place");
   const openPlace = guide?.sections.flatMap((s) => s.places).find((p) => p.id === placeId);
   const openedHere = useRef(false);
-  const cityUrl = (slug: string) => `/${kind}?city=${slug}${curate ? "&curate=1" : ""}`;
+  const cityUrl = (slug: string) => `${BASE}?city=${slug}${curate ? "&curate=1" : ""}`;
   const open = (p: CuratedPlace) => {
     if (!guide) return;
     openedHere.current = true;
@@ -357,10 +347,9 @@ export function CuratedGuidePage({
     } else if (guide) router.replace(cityUrl(guide.slug), { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guide, router]);
-  const base = `/${kind}`;
 
   // Coming back via the sidebar (no ?city=): reopen the guide you were last looking at.
-  const lastKey = `travel-bug:guide-city:${kind}`;
+  const lastKey = "travel-bug:guide-city";
   const [restoring, setRestoring] = useState(!params.get("city"));
   useEffect(() => {
     if (params.get("city")) {
@@ -369,11 +358,11 @@ export function CuratedGuidePage({
     }
     let last: string | null = null;
     try {
-      last = sessionStorage.getItem(lastKey);
+      last = sessionStorage.getItem(lastKey) ?? sessionStorage.getItem("travel-bug:guide-city:food");
     } catch {
       /* ignore */
     }
-    if (last && findGuide(last)) router.replace(`${base}?city=${last}${curate ? "&curate=1" : ""}`, { scroll: false });
+    if (last && cityGuideBySlug(last)) router.replace(cityUrl(last), { scroll: false });
     else setRestoring(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
@@ -384,83 +373,81 @@ export function CuratedGuidePage({
     } catch {
       /* ignore */
     }
-  }, [guide, lastKey]);
+  }, [guide]);
 
-  // Curator photo picks for this guide (this browser), layered over picks saved in the guide data.
-  const [picks, setPicks] = useState<Record<string, number>>({});
-  useEffect(() => setPicks(guide ? readPicks(kind, guide.slug) : {}), [guide, kind]);
-  const pickFor = (p: CuratedPlace) => picks[p.id] ?? p.photo;
+  // Curator photo picks (this browser), kept per guide kind, layered over picks saved in the guide data.
+  const [picks, setPicks] = useState<Record<GuideKind, Record<string, number>>>({ food: {}, explore: {} });
+  useEffect(
+    () => setPicks(guide ? { food: readPicks("food", guide.slug), explore: readPicks("explore", guide.slug) } : { food: {}, explore: {} }),
+    [guide],
+  );
+  const pickFor = (p: CuratedPlace) => (guide ? picks[kindOfPlace(guide, p)][p.id] : undefined) ?? p.photo;
   const setPick = useCallback(
-    (id: string, i: number) => {
+    (p: CuratedPlace, i: number) => {
       if (!guide) return;
+      const kind = kindOfPlace(guide, p);
       setPicks((cur) => {
-        const next = { ...cur, [id]: i };
-        writePicks(kind, guide.slug, next);
+        const next = { ...cur, [kind]: { ...cur[kind], [p.id]: i } };
+        writePicks(kind, guide.slug, next[kind]);
         return next;
       });
     },
-    [guide, kind],
+    [guide],
   );
   const [copied, setCopied] = useState(false);
+  const pickCount = Object.keys(picks.food).length + Object.keys(picks.explore).length;
 
   return (
     <div className="space-y-6">
-      <PageTitle>{title}</PageTitle>
+      <PageTitle>{guide ? guide.city : "City Guides"}</PageTitle>
 
       <div className="pt-2 space-y-5">
-        <CitySearch
-          value={guide?.city ?? ""}
-          match={match}
-          placeholder={searchPlaceholder}
-          onPick={(g) => router.replace(`${base}?city=${g.slug}${curate ? "&curate=1" : ""}`, { scroll: false })}
-        />
+        <CitySearch value={guide?.city ?? ""} match={matchCityGuides} placeholder="Search a city" onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
         <hr className="border-line" />
       </div>
 
-      {!guide && !restoring && <p className="text-ink-muted">{prompt}</p>}
+      {!guide && !restoring && <p className="text-ink-muted">Search for a city to see our curated places to eat, drink and explore.</p>}
 
       {guide && (
         <div className="space-y-9">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-[26px] font-bold leading-tight">{guide.city}</h2>
-              <p className="text-ink-muted mt-1 max-w-2xl">{guide.intro}</p>
-            </div>
-            {curate && (
-              <div className="rounded-xl bg-surface px-4 py-3 text-[13px] max-w-md">
-                <p className="font-semibold">Curating photos</p>
-                <p className="text-ink-muted">
-                  Use the arrows on each image to choose its photo, and open a place to add social posts. {Object.keys(picks).length} photos picked in this browser.
-                </p>
-                <button
-                  type="button"
-                  onClick={async () => {
+          {curate && (
+            <div className="rounded-xl bg-surface px-4 py-3 text-[13px] max-w-md">
+              <p className="font-semibold">Curating photos</p>
+              <p className="text-ink-muted">
+                Use the arrows on each image to choose its photo, and open a place to add social posts. {pickCount} photos picked in this browser.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  const out: Record<string, unknown> = {};
+                  for (const kind of KINDS) {
                     let social: Record<string, string[]> = {};
                     try {
                       social = JSON.parse(localStorage.getItem(`travel-bug:social-picks:${kind}:${guide.slug}`) ?? "{}");
                     } catch {
                       /* ignore */
                     }
-                    await navigator.clipboard.writeText(JSON.stringify({ photos: picks, social }, null, 2)).catch(() => {});
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                  className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-line hover:bg-surface-strong"
-                >
-                  <Copy className="size-3.5" /> {copied ? "Copied" : "Copy picks"}
-                </button>
-              </div>
-            )}
-          </div>
+                    out[kind] = { photos: picks[kind], social };
+                  }
+                  await navigator.clipboard.writeText(JSON.stringify(out, null, 2)).catch(() => {});
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-line hover:bg-surface-strong"
+              >
+                <Copy className="size-3.5" /> {copied ? "Copied" : "Copy picks"}
+              </button>
+            </div>
+          )}
           {openPlace && (
             <PlaceModal
               key={openPlace.id}
               place={openPlace}
               guide={guide}
-              kind={kind}
+              kind={kindOfPlace(guide, openPlace)}
               curate={curate}
               photoPick={pickFor(openPlace)}
-              EmptyIcon={EmptyIcon}
+              EmptyIcon={ICONS[kindOfPlace(guide, openPlace)]}
               onClose={close}
             />
           )}
@@ -476,9 +463,9 @@ export function CuratedGuidePage({
                     guide={guide}
                     curate={curate}
                     pick={pickFor(p)}
-                    onPick={(n) => setPick(p.id, n)}
+                    onPick={(n) => setPick(p, n)}
                     onOpen={() => open(p)}
-                    EmptyIcon={EmptyIcon}
+                    EmptyIcon={ICONS[kindOfPlace(guide, p)]}
                   />
                 ))}
                 <span className="shrink-0 w-1" aria-hidden />

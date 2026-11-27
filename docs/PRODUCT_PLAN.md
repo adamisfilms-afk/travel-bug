@@ -39,8 +39,7 @@ A fixed left sidebar with icon navigation:
 | Avatar | `/home` | Home / dashboard | Built (curated rows are coloured placeholders) |
 | Plane | `/flights` | Flight search | Built |
 | Bed | `/stays` | Hotel search | Built |
-| Fork & knife | `/food` | Curated food guides (city search → Dinner, Brunch, Lunch, Sweet, Coffee, Drinks rows) | Built (New York and Vienna guides) |
-| Pin | `/explore` | Curated things to do (city search → Sights, Museums, Shows, Parks, Neighbourhoods, Experiences rows) | Built (sample New York guide) |
+| Pin | `/guides` | City Guides: search a city, then its curated places to eat (Dinner, Quick bites, Coffee, Drinks…) and things to do (Sights, Museums, Shows…) in rows; the page title becomes the city name. `/food` and `/explore` redirect here | Built (New York and Vienna) |
 | Checklist | `/trips` | Your trips (itinerary + map) | Built |
 | — | `/trips/[id]` | Trip planner | Built |
 | Gear | `/settings` | Settings (currency) | Built |
@@ -88,8 +87,8 @@ A fixed left sidebar with icon navigation:
   or sample hotels without a key. "Go to site" opens the cheapest partner; the
   "+N booking options" menu lists every partner's nightly price and room.
 
-### 3.4 Food (`/food`) and Explore (`/explore`)
-- Same layout: city search (suggests only cities with a curated guide; others
+### 3.4 City Guides (`/guides`)
+- One page for food and things to do: city search (suggests only cities with a curated guide; others
   show "coming soon"), then horizontally scrolling rows per section.
 - Cards: the place's Google Maps photo (curator-picked, or automatically the
   business's own uploads first), name, two-word tagline, neighbourhood, a small

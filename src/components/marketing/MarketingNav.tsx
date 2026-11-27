@@ -5,8 +5,7 @@ import { BRAND } from "@/lib/brand";
 const LINKS = [
   { href: "/flights", label: "Flights" },
   { href: "/stays", label: "Stays" },
-  { href: "/food", label: "Eats" },
-  { href: "/explore", label: "Experiences" },
+  { href: "/guides", label: "City Guides" },
 ];
 
 export function MarketingNav() {

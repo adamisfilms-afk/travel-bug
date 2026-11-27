@@ -786,13 +786,13 @@ export default function PlannerPage() {
                 </Link>
               )}
               {savedTab === "food" && (
-                <Link href={foodGuide ? `/food?city=${foodGuide.slug}` : "/food"} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  {foodGuide ? `${foodGuide.city} food guide` : "Food guides"}
+                <Link href={foodGuide ? `/guides?city=${foodGuide.slug}` : "/guides"} className="text-accent-ink underline underline-offset-4 text-[14px]">
+                  {foodGuide ? `${foodGuide.city} city guide` : "City guides"}
                 </Link>
               )}
               {savedTab === "explore" && (
-                <Link href={exploreGuide ? `/explore?city=${exploreGuide.slug}` : "/explore"} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  {exploreGuide ? `${exploreGuide.city} guide` : "Explore guides"}
+                <Link href={exploreGuide ? `/guides?city=${exploreGuide.slug}` : "/guides"} className="text-accent-ink underline underline-offset-4 text-[14px]">
+                  {exploreGuide ? `${exploreGuide.city} city guide` : "City guides"}
                 </Link>
               )}
             </div>

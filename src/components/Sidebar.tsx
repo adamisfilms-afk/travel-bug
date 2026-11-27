@@ -1,6 +1,6 @@
 "use client";
 
-import { AirplaneTilt, ForkKnife, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
+import { AirplaneTilt, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -53,8 +53,7 @@ function NavIcon({ Icon, viewBox, holes }: NavIconDef) {
 const TOP = [
   { href: "/flights", label: "Flights", icon: { Icon: AirplaneTilt, viewBox: 256 } },
   { href: "/stays", label: "Stays", icon: { Icon: BedIcon, viewBox: 32 } },
-  { href: "/food", label: "Food", icon: { Icon: ForkKnife, viewBox: 256 } },
-  { href: "/explore", label: "Explore", icon: { Icon: MapPin, viewBox: 256, holes: true } },
+  { href: "/guides", label: "City Guides", icon: { Icon: MapPin, viewBox: 256, holes: true } },
 ];
 const BOTTOM = [
   { href: "/trips", label: "Your trips", icon: { Icon: ListChecks, viewBox: 256, holes: true } },
