@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretLeft, CaretRight, Copy, ForkKnife, MagnifyingGlass, MapPin, X, type Icon } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, Copy, ForkKnife, MapPin, type Icon } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -218,7 +218,7 @@ function PlaceCard({
       >
         <AddToTripButton
           compact
-          tone="dark"
+          tone="guide"
           addedTo={addedTo}
           defaults={{ destination: guide.city }}
           onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
@@ -228,82 +228,88 @@ function PlaceCard({
   );
 }
 
-// --- City search --------------------------------------------------------------------------------
+// --- Title / city search -----------------------------------------------------------------------
 
-function CitySearch({
-  value,
-  match,
-  placeholder,
-  onPick,
-}: {
-  value: string;
-  match: (q: string) => CuratedGuide[];
-  placeholder: string;
-  onPick: (g: CuratedGuide) => void;
-}) {
+/**
+ * The page title doubles as the city search: it shows the open city (or a faded "City Guides"
+ * when none is open), and clicking it lets you type a new city.
+ */
+function TitleSearch({ value, onPick }: { value: string; onPick: (g: CuratedGuide) => void }) {
   const [text, setText] = useState(value);
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
+  const input = useRef<HTMLInputElement>(null);
+  const reset = () => {
+    setOpen(false);
+    setText(value);
+  };
+  useClickOutside(ref, () => open && reset());
   useEffect(() => setText(value), [value]);
 
   const term = text.trim();
-  const matches = match(term);
+  const matches = open && term && term !== value ? matchCityGuides(term) : [];
   const pick = (g: CuratedGuide) => {
     setText(g.city);
     setOpen(false);
+    input.current?.blur();
     onPick(g);
   };
 
   return (
-    <div ref={ref} className="relative w-full max-w-[520px]">
-      <label className="flex items-center gap-3 h-11 px-4 rounded-[10px] bg-surface border border-white/70">
-        <MagnifyingGlass className="size-4 text-ink-muted shrink-0" />
-        <input
-          aria-label="Search a city"
-          className="flex-1 min-w-0 bg-transparent outline-none text-[14px] placeholder:text-ink-muted"
-          placeholder={placeholder}
-          value={text}
-          onFocus={(e) => {
-            e.target.select();
-            setOpen(true);
-          }}
-          onChange={(e) => {
-            setText(e.target.value);
-            setOpen(true);
-            setHi(0);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") setHi((h) => Math.min(h + 1, matches.length - 1));
-            else if (e.key === "ArrowUp") setHi((h) => Math.max(h - 1, 0));
-            else if (e.key === "Enter" && matches[hi]) {
-              e.preventDefault();
-              pick(matches[hi]);
-            } else if (e.key === "Escape") setOpen(false);
-          }}
-        />
-      </label>
-      {open && term.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-2 z-30 rounded-xl bg-surface-strong shadow-lg border border-line py-2 text-[14px]">
+    <div ref={ref} className="relative flex-1 min-w-0">
+      <input
+        ref={input}
+        aria-label="Search a city"
+        value={text}
+        placeholder="City Guides"
+        spellCheck={false}
+        autoComplete="off"
+        onFocus={(e) => {
+          e.target.select();
+          setOpen(true);
+        }}
+        onChange={(e) => {
+          setText(e.target.value);
+          setOpen(true);
+          setHi(0);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") setHi((h) => Math.min(h + 1, matches.length - 1));
+          else if (e.key === "ArrowUp") setHi((h) => Math.max(h - 1, 0));
+          else if (e.key === "Enter" && matches[hi]) {
+            e.preventDefault();
+            pick(matches[hi]);
+          } else if (e.key === "Escape") {
+            reset();
+            input.current?.blur();
+          }
+        }}
+        className={clsx(
+          "w-full bg-transparent outline-none font-serif text-[40px] md:text-[54px] leading-[1.15] text-guide-ink caret-guide-active",
+          "placeholder:text-guide-ink/30 border-b border-transparent hover:border-guide-ink/20 focus:border-guide-ink/40 transition-colors cursor-text",
+        )}
+      />
+      {open && term.length > 0 && term !== value && (
+        <div className="absolute left-0 top-full mt-2 z-30 w-full max-w-[420px] rounded-xl bg-guide-card shadow-xl border border-white/10 py-2 text-[14px]">
           {matches.map((g, i) => (
             <button
               key={g.slug}
               type="button"
               onMouseEnter={() => setHi(i)}
               onClick={() => pick(g)}
-              className={clsx("w-full text-left px-4 py-2 flex items-center justify-between gap-3", i === hi && "bg-surface")}
+              className={clsx("w-full text-left px-4 py-2 flex items-center justify-between gap-3", i === hi && "bg-white/10")}
             >
               <span>
                 <span className="font-medium">{g.city}</span>
-                <span className="text-ink-muted"> · {g.country}</span>
+                <span className="text-guide-ink/60"> · {g.country}</span>
               </span>
-              <span className="text-[12px] text-ink-muted">{g.sections.reduce((n, s) => n + s.places.length, 0)} places</span>
+              <span className="text-[12px] text-guide-ink/60">{g.sections.reduce((n, sec) => n + sec.places.length, 0)} places</span>
             </button>
           ))}
           {matches.length === 0 && (
-            <p className="px-4 py-2 text-ink-muted">
-              Curated recommendations for <span className="text-ink font-medium">“{term}”</span> are coming soon.
+            <p className="px-4 py-2 text-guide-ink/60">
+              Curated recommendations for <span className="text-guide-ink font-medium">“{term}”</span> are coming soon.
             </p>
           )}
         </div>
@@ -408,7 +414,6 @@ export function CuratedGuidePage() {
   // Card ↔ map pin hover
   const [hovered, setHovered] = useState<string | null>(null);
   const points: MapPoint[] = visible.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, label: p.name, kind: "guide" }));
-  const [searching, setSearching] = useState(false);
 
   return (
     <div className="text-guide-ink">
@@ -416,42 +421,14 @@ export function CuratedGuidePage() {
       <div className="fixed inset-0 z-0 bg-guide-bg" aria-hidden />
 
       <div className={clsx("relative z-[1] space-y-6", guide && "lg:max-w-[calc(58vw-180px)]")}>
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.05]">{guide ? guide.city : "City Guides"}</h1>
-          {guide && (
-            <div className="flex items-center gap-3 pb-2 text-[13px] text-guide-ink/75">
-              <span>{total} curated places</span>
-              <button
-                type="button"
-                aria-label={searching ? "Close city search" : "Change city"}
-                onClick={() => setSearching((x) => !x)}
-                className="grid place-items-center size-8 rounded-full border border-guide-ink/25 text-guide-ink hover:border-guide-ink/60"
-              >
-                {searching ? <X className="size-3.5" /> : <MagnifyingGlass className="size-3.5" />}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {(!guide || searching) && (
-          <div className="text-ink">
-            <CitySearch
-              value={guide?.city ?? ""}
-              match={matchCityGuides}
-              placeholder="Search a city"
-              onPick={(g) => {
-                setSearching(false);
-                router.replace(cityUrl(g.slug), { scroll: false });
-              }}
-            />
+        {/* Title (city search) and filter chips stay pinned while the places scroll */}
+        <div className="sticky top-0 z-20 bg-guide-bg -mx-5 px-5 md:-mx-12 md:px-12 -mt-8 md:-mt-10 pt-8 md:pt-10 pb-4 space-y-4">
+          <div className="flex items-end justify-between gap-x-6">
+            <TitleSearch value={guide?.city ?? ""} onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
+            {guide && <span className="shrink-0 pb-3 text-[13px] text-guide-ink/75">{total} curated places</span>}
           </div>
-        )}
-
-        {!guide && !restoring && <p className="text-guide-ink/70">Search for a city to see our curated places to eat, drink and explore.</p>}
-
-        {guide && (
-          <>
-            <div className="flex flex-wrap gap-2.5">
+          {guide && (
+            <div className="flex flex-wrap gap-2">
               {chips.map((c) => (
                 <button
                   key={c.id}
@@ -459,7 +436,7 @@ export function CuratedGuidePage() {
                   aria-pressed={filter === c.id}
                   onClick={() => setFilter((f) => (f === c.id ? null : c.id))}
                   className={clsx(
-                    "h-8 px-4 rounded-full text-[13px] text-guide-bg transition-colors",
+                    "h-8 px-3.5 rounded-full text-[14px] text-guide-bg transition-colors",
                     filter === c.id ? "bg-guide-active" : "bg-guide-chip hover:bg-white",
                   )}
                 >
@@ -467,7 +444,13 @@ export function CuratedGuidePage() {
                 </button>
               ))}
             </div>
+          )}
+        </div>
 
+        {!guide && !restoring && <p className="text-guide-ink/70">Type a city in the title to see our curated places to eat, drink and explore.</p>}
+
+        {guide && (
+          <>
             {curate && (
               <div className="rounded-xl bg-guide-card px-4 py-3 text-[13px] max-w-md">
                 <p className="font-semibold">Curating photos</p>

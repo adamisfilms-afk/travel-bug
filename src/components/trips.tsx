@@ -146,7 +146,8 @@ export function AddToTripButton({
   /** Round icon-only button. */
   compact?: boolean;
   /** Compact style: "light" (white, green outline) or "dark" (black, for use over photos). */
-  tone?: "light" | "dark";
+  /** "guide": cream with a yellow-green hover, for the dark City Guides cards. */
+  tone?: "light" | "dark" | "guide";
   addedTo?: string[];
   defaults?: Partial<Trip>;
 }) {
@@ -167,7 +168,9 @@ export function AddToTripButton({
           onClick={() => setOpen((o) => !o)}
           className={clsx(
             "grid place-items-center size-8 rounded-full border transition-colors cursor-pointer",
-            added
+            tone === "guide"
+              ? "bg-guide-ink border-guide-ink text-guide-bg hover:bg-guide-active hover:border-guide-active"
+              : added
               ? "bg-accent-soft/40 border-accent-soft text-accent-ink"
               : tone === "dark"
                 ? "bg-ink border-ink text-white hover:bg-accent hover:border-accent"
