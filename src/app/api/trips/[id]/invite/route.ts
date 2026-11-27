@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { tripInviteEmail } from "@/lib/email/templates";
 import { emailEnabled, sendEmail } from "@/lib/email/send";
 import { rangeLabel } from "@/lib/format";
+import { inviteUrl, siteUrl } from "@/lib/site";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -39,14 +40,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (inviteError || !token) return NextResponse.json({ error: inviteError?.message ?? "Couldn't create the invite." }, { status: 500 });
   const { data: profile } = await sb.from("profiles").select("name").eq("id", user.id).maybeSingle();
 
-  const origin = new URL(req.url).origin;
+  const origin = siteUrl(new URL(req.url).origin);
   const inviter = profile?.name?.trim().split(/\s+/)[0] || user.email?.split("@")[0] || "A friend";
   const email = tripInviteEmail({
     inviter,
     tripName: trip.name,
     dates: rangeLabel(trip.start_date, trip.end_date),
     places: trip.locations?.length ? trip.locations : [trip.destination],
-    url: `${origin}/invite/${token}`,
+    url: inviteUrl(token, { name: trip.name, from: inviter }, origin),
     siteUrl: origin,
   });
 

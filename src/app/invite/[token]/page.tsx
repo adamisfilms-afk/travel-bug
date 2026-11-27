@@ -31,7 +31,11 @@ export default function InvitePage() {
       if (error) return setError(error.message);
       const row = (data as Preview[] | null)?.[0];
       setPreview(row ?? "missing");
+      // Straight into the trip: already on it → open it; otherwise join now (you've just logged in for this)
+      if (row?.valid && row.already_in) window.location.href = `/trips/${row.trip_id}`;
+      else if (row?.valid) void join();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sb, token]);
 
   const join = async () => {
@@ -66,16 +70,19 @@ export default function InvitePage() {
               <p className="text-[14px] text-ink-muted">{p.invited_by} invited you to plan</p>
               <h1 className="font-serif text-[34px] leading-tight">{p.trip_name}</h1>
               <p className="text-[14px] text-ink-muted">{rangeLabel(p.start_date, p.end_date)}</p>
-              {p.already_in ? (
-                <Link href={`/trips/${p.trip_id}`} className="block text-center h-11 leading-[44px] rounded-full bg-accent text-white text-[15px] hover:bg-accent-hover">
-                  You&apos;re already on this trip — open it
-                </Link>
-              ) : (
+              {error ? (
                 <button type="button" onClick={join} disabled={busy} className="w-full h-11 rounded-full bg-accent text-white text-[15px] hover:bg-accent-hover disabled:opacity-60">
-                  {busy ? "Joining…" : "Join trip"}
+                  {busy ? "Joining…" : "Try again"}
                 </button>
+              ) : (
+                <p className="flex items-center gap-2 text-[14px]">
+                  <span className="size-4 rounded-full border-2 border-ink/20 border-t-ink animate-spin" />
+                  {p.already_in ? "Opening the trip…" : "Joining the trip…"}
+                </p>
               )}
-              <p className="text-[12px] text-ink-muted">You&apos;ll be able to see and edit everything in this trip.</p>
+              <Link href="/trips" className="block text-[12px] text-ink-muted underline underline-offset-2">
+                Go to your trips
+              </Link>
             </>
           )}
           {error && <p className="text-[13px] text-price-up">{error}</p>}

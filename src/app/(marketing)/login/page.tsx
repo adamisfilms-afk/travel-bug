@@ -19,7 +19,13 @@ function LoginCard() {
     const n = params.get("next");
     return n?.startsWith("/") && !n.startsWith("//") ? n : "/home";
   })();
-  const [mode, setMode] = useState<Mode>(params.get("mode") === "signup" ? "signup" : "login");
+  // Arriving from an invite link: say who invited you, and start on sign-up (most invitees are new)
+  const invite = (() => {
+    if (!next.startsWith("/invite/")) return null;
+    const q = new URLSearchParams(next.split("?")[1] ?? "");
+    return { trip: q.get("trip"), from: q.get("from") };
+  })();
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "signup" || (invite && params.get("mode") !== "login") ? "signup" : "login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -99,6 +105,12 @@ function LoginCard() {
             </button>
           ))}
         </div>
+      )}
+      {invite && (
+        <p className="mb-4 rounded-xl bg-guide-active/45 px-4 py-3 text-[14px] leading-snug">
+          {invite.from ? <b className="font-semibold">{invite.from}</b> : "You've been"} {invite.from ? "invited you to plan" : "invited to plan"}{" "}
+          {invite.trip ? <b className="font-semibold">{invite.trip}</b> : "a trip"}. {mode === "signup" ? "Create a free account to join — already have one? Log in." : "Log in to join."}
+        </p>
       )}
       <h1 className="font-serif text-[30px] leading-tight">{title}</h1>
       <p className="mt-1 text-[14px] text-ink-muted">
