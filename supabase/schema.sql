@@ -179,6 +179,18 @@ drop policy if exists "anon all" on shared_itineraries;
 -- No policies: only the server (service role key) can read or write.
 
 -- ---------------------------------------------------------------------------
+-- Table access for the app (newer Supabase projects don't grant this automatically).
+-- Row-level security above still decides WHICH rows each user can see.
+-- ---------------------------------------------------------------------------
+
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on trips, saved_flights, saved_stays, saved_activities, itinerary_items to authenticated;
+grant select on profiles to authenticated;
+grant update (name) on profiles to authenticated;
+grant select on curated_overrides to anon, authenticated;
+grant all on trips, saved_flights, saved_stays, saved_activities, itinerary_items, profiles, curated_overrides, shared_itineraries to service_role;
+
+-- ---------------------------------------------------------------------------
 -- Storage for curated photos uploaded by admins (public to read)
 -- ---------------------------------------------------------------------------
 
