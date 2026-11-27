@@ -20,6 +20,7 @@ interface Details {
   priceLevel: number | null;
   mapsUrl: string | null;
   website: string | null;
+  address?: string | null;
   hours: string[] | null;
   summary: { text: string; disclosure: string; reviewsUrl: string | null; flagUrl: string | null } | null;
   reviews: { rating: number | null; when: string; text: string; author: string; authorUrl: string | null; authorPhoto: string | null; url: string | null }[];
@@ -239,8 +240,7 @@ function SocialRow({
   const [error, setError] = useState("");
   const embeds = posts.map((u) => ({ url: u, e: socialEmbed(u) })).filter((x) => x.e);
   return (
-    <section className="space-y-3">
-      <h3 className="font-serif text-[21px] leading-tight">On social</h3>
+    <section role="tabpanel" className="space-y-3">
       {curate && (
         <form
           className="flex flex-wrap gap-2"
@@ -322,6 +322,7 @@ function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; 
     priceLevel: place.priceLevel ?? null,
     description: place.description ?? "",
     social: (place.social ?? []).join("\n"),
+    bookingUrl: place.bookingUrl ?? "",
   });
   const [status, setStatus] = useState<"idle" | "saving" | string>("idle");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -339,6 +340,7 @@ function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; 
         priceLevel: f.priceLevel,
         description: f.description.trim(),
         social: f.social.split(/\s+/).filter(Boolean),
+        bookingUrl: f.bookingUrl.trim(),
       });
       onDone();
     } catch (err) {
@@ -378,6 +380,10 @@ function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; 
         <textarea value={f.description} onChange={set("description")} rows={4} className={clsx(field, "py-2 leading-relaxed")} />
       </label>
       <label className="block">
+        <span className="text-[12px] text-ink-muted">Booking link (shown under Info)</span>
+        <input type="url" value={f.bookingUrl} onChange={set("bookingUrl")} placeholder="https://…" className={clsx(field, "h-10")} />
+      </label>
+      <label className="block">
         <span className="text-[12px] text-ink-muted">Social posts — Instagram, TikTok or YouTube links, one per line</span>
         <textarea value={f.social} onChange={set("social")} rows={3} className={clsx(field, "py-2 font-mono text-[12px]")} />
       </label>
@@ -397,6 +403,13 @@ function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; 
 // ---------------------------------------------------------------------------
 // Modal
 // ---------------------------------------------------------------------------
+
+type InfoTab = "reviews" | "social" | "info";
+const INFO_TABS: { id: InfoTab; label: string }[] = [
+  { id: "reviews", label: "Reviews" },
+  { id: "social", label: "On social" },
+  { id: "info", label: "Info" },
+];
 
 const socialKey = (kind: string, slug: string) => `travel-bug:social-picks:${kind}:${slug}`;
 
@@ -447,6 +460,8 @@ export function PlaceModal({
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const [infoTab, setInfoTab] = useState<InfoTab>("reviews");
 
   // Admin editing
   const [editing, setEditing] = useState(false);
@@ -552,26 +567,26 @@ export function PlaceModal({
 
         {!editing && place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
 
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h3 className="font-serif text-[21px] leading-tight">Reviews</h3>
-            <div className="flex flex-wrap gap-4 text-[13px]">
-              {d?.website && (
-                <a href={d.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink underline underline-offset-2">
-                  <Globe className="size-3.5" /> Website
-                </a>
+        <div role="tablist" aria-label="About this place" className="flex gap-6 md:gap-8 pt-1">
+          {INFO_TABS.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              type="button"
+              aria-selected={infoTab === t.id}
+              onClick={() => setInfoTab(t.id)}
+              className={clsx(
+                "font-serif text-[19px] md:text-[21px] leading-tight transition-colors whitespace-nowrap",
+                infoTab === t.id ? "text-ink underline decoration-guide-bg decoration-[1.5px] underline-offset-[7px]" : "text-ink/45 hover:text-ink",
               )}
-              <a
-                href={d?.mapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapsQuery)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-accent-ink underline underline-offset-2"
-              >
-                <MapPin className="size-3.5" /> Open in Google Maps
-              </a>
-            </div>
-          </div>
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
+        {infoTab === "reviews" && (
+        <section role="tabpanel" className="space-y-3">
           {details === "loading" && <div className="h-20 rounded-xl bg-line/30 animate-pulse" />}
           {details === "unavailable" && (
             <p className="text-[14px] text-ink-muted">Google ratings and reviews will appear here once the Google Maps key is set up.</p>
@@ -633,22 +648,12 @@ export function PlaceModal({
                   ))}
                 </div>
               )}
-              {d.hours && (
-                <details className="text-[13px] text-ink-muted">
-                  <summary className="inline-flex items-center gap-1.5">
-                    <Clock className="size-3.5" /> Opening hours
-                  </summary>
-                  <ul className="mt-2 space-y-0.5 pl-5">
-                    {d.hours.map((h) => (
-                      <li key={h}>{h}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
             </>
           )}
         </section>
+        )}
 
+        {infoTab === "social" && (
         <SocialRow
           posts={posts}
           removable={extra[place.id] ?? []}
@@ -657,6 +662,58 @@ export function PlaceModal({
           onAdd={(url) => saveExtra({ ...extra, [place.id]: [...(extra[place.id] ?? []), url] })}
           onRemove={(url) => saveExtra({ ...extra, [place.id]: (extra[place.id] ?? []).filter((u) => u !== url) })}
         />
+        )}
+
+        {infoTab === "info" && (
+          <section role="tabpanel" className="space-y-4 text-[13px]">
+            {place.bookingUrl && (
+              <a
+                href={place.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-guide-bg text-guide-ink text-[14px] hover:bg-accent"
+              >
+                {kind === "food" ? "Book a table" : "Book tickets"} <ArrowSquareOut className="size-3.5" />
+              </a>
+            )}
+            {d?.address && (
+              <p className="flex items-start gap-2">
+                <MapPin className="size-4 shrink-0 mt-px" /> {d.address}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {d?.website && (
+                <a href={d.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 underline underline-offset-2">
+                  <Globe className="size-4" /> Website
+                </a>
+              )}
+              <a
+                href={d?.mapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapsQuery)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 underline underline-offset-2"
+              >
+                <ArrowSquareOut className="size-4" /> Open in Google Maps
+              </a>
+            </div>
+            {d?.hours ? (
+              <div>
+                <p className="flex items-center gap-2 font-medium">
+                  <Clock className="size-4" /> Opening hours
+                </p>
+                <ul className="mt-1.5 space-y-0.5 pl-6 text-ink/70">
+                  {d.hours.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : details === "loading" ? (
+              <div className="h-16 rounded-xl bg-line/30 animate-pulse" />
+            ) : (
+              <p className="text-ink-muted">{details === "unavailable" ? "Opening hours will appear here once the Google Maps key is set up." : "No opening hours listed on Google."}</p>
+            )}
+          </section>
+        )}
       </div>
     </div>,
     document.body,

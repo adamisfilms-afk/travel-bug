@@ -34,6 +34,8 @@ export interface CuratedPlace {
   description?: string;
   /** 1–4 ($–$$$$). Google's price level is used when this isn't set. */
   priceLevel?: number;
+  /** Where to book a table / tickets (shown in the place view's Info tab). */
+  bookingUrl?: string;
   /** Curated social posts (Instagram post/Reel, TikTok, YouTube Short URLs). */
   social?: string[];
   /** Your own / licensed photos — shown first (card + carousel), before Google's. */
@@ -72,7 +74,7 @@ export function placeFactory(city: string, category: ActivityCategory) {
 }
 
 /** Add curated write-ups / price levels to a guide's places by id. */
-export function withDetails(guide: CuratedGuide, details: Record<string, Partial<Pick<CuratedPlace, "description" | "priceLevel" | "social" | "photo" | "images">>>): CuratedGuide {
+export function withDetails(guide: CuratedGuide, details: Record<string, Partial<Pick<CuratedPlace, "description" | "priceLevel" | "social" | "photo" | "images" | "bookingUrl">>>): CuratedGuide {
   return {
     ...guide,
     sections: guide.sections.map((s) => ({ ...s, places: s.places.map((p) => ({ ...p, ...details[p.id] })) })),

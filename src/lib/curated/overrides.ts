@@ -23,6 +23,8 @@ export interface PlaceOverride {
   /** 1–4; null = use Google's. */
   priceLevel?: number | null;
   social?: string[];
+  /** Booking link; "" removes it. */
+  bookingUrl?: string;
   /** Replaces the automatic photos (own images + Google's) when set. */
   photos?: PhotoItem[];
 }
@@ -73,6 +75,7 @@ export function applyOverride(place: CuratedPlace, o: PlaceOverride | undefined)
     ...(o.description != null ? { description: o.description } : {}),
     ...(o.priceLevel !== undefined ? { priceLevel: o.priceLevel ?? undefined } : {}),
     ...(o.social ? { social: o.social } : {}),
+    ...(o.bookingUrl !== undefined ? { bookingUrl: o.bookingUrl || undefined } : {}),
     ...(o.photos ? { photos: o.photos } : {}),
   };
 }

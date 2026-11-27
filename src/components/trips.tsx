@@ -190,7 +190,7 @@ export function AddToTripButton({
         </button>
       )}
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl bg-surface-strong shadow-lg border border-line py-2">
+        <div className={clsx("absolute right-0 z-30 mt-2 w-64 rounded-xl bg-surface-strong shadow-lg border border-line py-2", tone === "guide" ? "text-guide-bg" : "text-ink")}>
           <p className="px-4 py-1 text-xs uppercase tracking-wider text-ink-muted">Add to…</p>
           {trips.map((t) => {
             const done = addedTo?.includes(t.id);

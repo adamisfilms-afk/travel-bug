@@ -286,7 +286,7 @@ function TitleSearch({ value, onPick }: { value: string; onPick: (g: CuratedGuid
           }
         }}
         className={clsx(
-          "w-full bg-transparent outline-none font-serif text-[40px] md:text-[54px] leading-[1.15] text-guide-ink caret-guide-active",
+          "w-full bg-transparent outline-none font-serif text-[40px] md:text-[54px] leading-[1.15] text-guide-ink caret-guide-ink",
           "placeholder:text-guide-ink/30 border-b border-transparent hover:border-guide-ink/20 focus:border-guide-ink/40 transition-colors cursor-text",
         )}
       />
@@ -422,13 +422,13 @@ export function CuratedGuidePage() {
 
       <div className={clsx("relative z-[1] space-y-6", guide && "lg:max-w-[calc(58vw-180px)]")}>
         {/* Title (city search) and filter chips stay pinned while the places scroll */}
-        <div className="sticky top-0 z-20 bg-guide-bg -mx-5 px-5 md:-mx-12 md:px-12 -mt-8 md:-mt-10 pt-8 md:pt-10 pb-4 space-y-4">
-          <div className="flex items-end justify-between gap-x-6">
+        <div className="sticky top-0 z-20 bg-guide-bg -mx-5 px-5 md:-mx-12 md:px-12 -mt-8 md:-mt-10 pt-8 md:pt-10 pb-4 space-y-6">
+          <div className="flex items-baseline justify-between gap-x-6">
             <TitleSearch value={guide?.city ?? ""} onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
-            {guide && <span className="shrink-0 pb-3 text-[13px] text-guide-ink/75">{total} curated places</span>}
+            {guide && <span className="shrink-0 text-[13px] text-guide-ink/75">{total} curated places</span>}
           </div>
           {guide && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {chips.map((c) => (
                 <button
                   key={c.id}
@@ -436,7 +436,7 @@ export function CuratedGuidePage() {
                   aria-pressed={filter === c.id}
                   onClick={() => setFilter((f) => (f === c.id ? null : c.id))}
                   className={clsx(
-                    "h-8 px-3.5 rounded-full text-[14px] text-guide-bg transition-colors",
+                    "h-7 px-3 rounded-full text-[13px] text-guide-bg transition-colors",
                     filter === c.id ? "bg-guide-active" : "bg-guide-chip hover:bg-white",
                   )}
                 >

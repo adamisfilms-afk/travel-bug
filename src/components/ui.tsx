@@ -198,7 +198,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-md rounded-2xl bg-canvas shadow-2xl p-6"
+        className="w-full max-w-md rounded-2xl bg-canvas text-ink shadow-2xl p-6"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-6">
