@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     );
   } catch (e) {
     console.error("[curated/photo]", e);
-    return NextResponse.json({ error: "Photo lookup failed." }, { status: 502 });
+    return NextResponse.json({ error: "Photo lookup failed.", detail: e instanceof Error ? e.message.replace(/key=[^&\s]+/g, "key=…") : String(e) }, { status: 502 });
   }
 }
 

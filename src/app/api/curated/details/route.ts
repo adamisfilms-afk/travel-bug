@@ -94,6 +94,6 @@ export async function GET(req: Request) {
     );
   } catch (e) {
     console.error("[curated/details]", e);
-    return NextResponse.json({ error: "Couldn't load Google details." }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't load Google details.", detail: e instanceof Error ? e.message.replace(/key=[^&\s]+/g, "key=…") : String(e) }, { status: 502 });
   }
 }
