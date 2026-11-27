@@ -15,16 +15,16 @@ export function MarketingNav() {
         <Link href="/" className="font-serif text-[20px] lg:text-[26px] font-semibold tracking-tight leading-none">
           {BRAND}
         </Link>
-        <ul className="hidden md:flex items-center justify-center gap-8 lg:gap-[clamp(2rem,3.8vw,4.25rem)] text-[14px] lg:text-[16px]">
+        <ul className="hidden md:flex items-center justify-center gap-3 lg:gap-[clamp(0.75rem,2.2vw,2.5rem)] text-[14px] lg:text-[16px]">
           {LINKS.map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className="hover:underline underline-offset-4 decoration-1">
+              <Link href={l.href} className="inline-flex items-center h-8 lg:h-9 px-3.5 lg:px-4 rounded-full transition-colors hover:bg-white/70">
                 {l.label}
               </Link>
             </li>
           ))}
         </ul>
-        <Link href="/login" className="col-start-3 text-[14px] lg:text-[16px] hover:underline underline-offset-4 decoration-1">
+        <Link href="/login" className="col-start-3 inline-flex items-center h-8 lg:h-9 px-3.5 lg:px-4 -mr-3.5 lg:-mr-4 rounded-full text-[14px] lg:text-[16px] transition-colors hover:bg-white/70">
           Log in
         </Link>
       </nav>
