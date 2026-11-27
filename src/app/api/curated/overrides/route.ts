@@ -45,6 +45,7 @@ export async function PUT(req: Request) {
       social: Array.isArray(o.social) ? o.social.map((u: unknown) => str(u, 500)).filter((u: string | undefined) => u && isUrl(u)).slice(0, 30) : undefined,
       bookingUrl: typeof o.bookingUrl === "string" ? (isUrl(o.bookingUrl.trim()) ? o.bookingUrl.trim().slice(0, 1000) : "") : undefined,
       photos,
+      hidden: o.hidden === true ? true : undefined,
     };
     all[id] = Object.fromEntries(Object.entries(clean).filter(([, v]) => v !== undefined));
   }

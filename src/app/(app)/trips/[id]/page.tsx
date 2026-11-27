@@ -31,6 +31,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { shareTrip } from "@/lib/share";
+import { useOverrides } from "@/lib/curated/overrides";
 import { LocationsInput, tripLocations } from "@/components/trips";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
@@ -215,7 +216,18 @@ function StayRowBody({ s }: { s: SavedStay }) {
   );
 }
 
-function ActivityRowBody({ a, near, onOpen }: { a: SavedActivity; near: { lat: number; lng: number } | null; onOpen?: () => void }) {
+function ActivityRowBody({
+  a,
+  near,
+  onOpen,
+  tagline,
+}: {
+  a: SavedActivity;
+  near: { lat: number; lng: number } | null;
+  onOpen?: () => void;
+  /** The curated place's tagline (e.g. "Grand café"), shown instead of the generic category. */
+  tagline?: string;
+}) {
   const Icon = CATEGORY_ICON[a.category] ?? CATEGORY_ICON.other;
   const setActivityLocation = useStore((s) => s.setActivityLocation);
   return (
@@ -232,7 +244,7 @@ function ActivityRowBody({ a, near, onOpen }: { a: SavedActivity; near: { lat: n
         )}
         {a.place && a.place !== a.name && <span className="text-ink-muted text-[13px]"> · {a.place}</span>}
       </span>
-      <span className="text-ink-muted text-[13px]">{CATEGORY_LABEL[a.category] ?? "Other"}</span>
+      <span className="text-ink-muted text-[13px] whitespace-nowrap">{tagline || (CATEGORY_LABEL[a.category] ?? "Other")}</span>
       <LocationPicker activity={a} near={near} onPick={(loc) => setActivityLocation(a.id, loc)} />
     </div>
   );
@@ -564,6 +576,11 @@ export default function PlannerPage() {
     return dest ? { lat: dest.lat, lng: dest.lng } : null;
   }, [stays, activities, id, trip]);
 
+  // Admin edits to curated places (for their taglines)
+  const overrides = useOverrides((s) => s.overrides);
+  const loadOverrides = useOverrides((s) => s.load);
+  useEffect(loadOverrides, [loadOverrides]);
+
   // Hovering a saved item highlights its place on the map
   const [hovered, setHovered] = useState<string | null>(null);
   const [copied, setCopied] = useState<"" | "copied" | "error">("");
@@ -765,6 +782,7 @@ export default function PlannerPage() {
                         a={a}
                         near={tripCentre}
                         onOpen={curatedFor.get(a.id) ? () => setOpenCurated(curatedFor.get(a.id)!) : undefined}
+                        tagline={curatedFor.get(a.id) ? (overrides[curatedFor.get(a.id)!.place.id]?.tagline ?? curatedFor.get(a.id)!.place.tagline) : undefined}
                       />
                     </RowShell>
                   ))}

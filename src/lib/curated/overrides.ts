@@ -25,6 +25,8 @@ export interface PlaceOverride {
   social?: string[];
   /** Booking link; "" removes it. */
   bookingUrl?: string;
+  /** Deleted by an admin: left out of guides (the guide data is untouched, so it can be restored). */
+  hidden?: boolean;
   /** Replaces the automatic photos (own images + Google's) when set. */
   photos?: PhotoItem[];
 }

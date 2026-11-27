@@ -312,7 +312,7 @@ function SocialRow({
 
 const field = "w-full rounded-lg bg-white px-3 border border-line outline-none focus:border-accent-soft text-[14px]";
 
-function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; place: CuratedPlace; onDone: () => void }) {
+function ContentEditor({ basePlace, place, onDone, onDeleted }: { basePlace: CuratedPlace; place: CuratedPlace; onDone: () => void; onDeleted: () => void }) {
   const current = useOverrides((s) => s.overrides[place.id]);
   const save = useOverrides((s) => s.save);
   const [f, setF] = useState({
@@ -395,6 +395,23 @@ function ContentEditor({ basePlace, place, onDone }: { basePlace: CuratedPlace; 
           Cancel
         </button>
         {status !== "idle" && status !== "saving" && <span className="text-[13px] text-price-up">{status}</span>}
+        <button
+          type="button"
+          disabled={status === "saving"}
+          onClick={async () => {
+            if (!confirm(`Delete "${place.name}" from the guide?`)) return;
+            setStatus("saving");
+            try {
+              await save(place.id, { ...current, hidden: true });
+              onDeleted();
+            } catch (err) {
+              setStatus(err instanceof Error ? err.message : "Couldn't delete.");
+            }
+          }}
+          className="ml-auto inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-[14px] text-price-up hover:bg-price-up/10 disabled:opacity-60"
+        >
+          <Trash className="size-4" /> Delete place
+        </button>
       </div>
     </form>
   );
@@ -538,7 +555,7 @@ export function PlaceModal({
         </div>
 
         {editing ? (
-          <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} />
+          <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} onDeleted={onClose} />
         ) : (
         <header className={IS_ADMIN && !readOnly ? "pr-40" : readOnly ? "pr-12" : "pr-24"}>
           <h2 className="font-serif text-[30px] md:text-[38px] leading-[1.05]">{place.name}</h2>

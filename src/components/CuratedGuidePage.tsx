@@ -8,7 +8,7 @@ import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
 import { Map as GuideMap, type MapPoint } from "@/components/Map";
 import { useClickOutside } from "@/components/ui";
-import { useCuratedPlace } from "@/lib/curated/overrides";
+import { useCuratedPlace, useOverrides } from "@/lib/curated/overrides";
 import { cityGuideBySlug, kindOfPlace, matchCityGuides, type CityGuide, type GuideKind } from "@/lib/curated/city-guides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
@@ -402,6 +402,10 @@ export function CuratedGuidePage() {
   const pickCount = Object.keys(picks.food).length + Object.keys(picks.explore).length;
 
   // Filter chips: one per food section, plus one for all of Explore. None selected = everything.
+  // Places an admin deleted are left out
+  const overrides = useOverrides((s) => s.overrides);
+  const loadOverrides = useOverrides((s) => s.load);
+  useEffect(loadOverrides, [loadOverrides]);
   const [filter, setFilter] = useState<string | null>(null);
   useEffect(() => setFilter(null), [guide?.slug]);
   const chips = guide
@@ -413,8 +417,9 @@ export function CuratedGuidePage() {
     : [];
   const visible = (guide?.sections ?? [])
     .filter((sec) => !filter || sec.id === filter || (filter === "explore" && sec.id.startsWith("explore-") && sec.id !== STAYS))
-    .flatMap((sec) => sec.places);
-  const total = guide?.sections.reduce((n, sec) => n + sec.places.length, 0) ?? 0;
+    .flatMap((sec) => sec.places)
+    .filter((p) => !overrides[p.id]?.hidden);
+  const total = (guide?.sections ?? []).flatMap((sec) => sec.places).filter((p) => !overrides[p.id]?.hidden).length;
 
   // Card ↔ map pin hover
   const [hovered, setHovered] = useState<string | null>(null);
