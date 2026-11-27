@@ -163,24 +163,39 @@ function NextTrip({ trip }: { trip: Trip }) {
   const flights = useStore((s) => s.flights);
   const stays = useStore((s) => s.stays);
   const itinerary = useStore((s) => s.itinerary);
+  const activities = useStore((s) => s.activities);
   const today = toDay(new Date());
 
-  const hasFlight = flights.some((f) => f.tripId === trip.id);
-  const hasStay = stays.some((s) => s.tripId === trip.id);
+  const tripItems = itinerary.filter((i) => i.tripId === trip.id);
+  const savedFlight = flights.some((f) => f.tripId === trip.id);
+  const savedStay = stays.some((s) => s.tripId === trip.id);
+  // Only ticked once they're actually on the itinerary
+  const flightPlaced = tripItems.some((i) => i.kind === "flight");
+  const stayPlaced = tripItems.some((i) => i.kind === "stay");
+  const saves = activities.filter((a) => a.tripId === trip.id).length;
   const days = eachDay(trip.startDate, trip.endDate);
-  const planned = new Set(itinerary.filter((i) => i.tripId === trip.id).map((i) => i.day));
-  const plannedDays = days.filter((d) => planned.has(d)).length;
+  const planned = new Set(tripItems.map((i) => i.day));
   const firstEmpty = days.find((d) => !planned.has(d) && d >= today);
+  const openDays = days.filter((d) => !planned.has(d) && d >= today).length;
   const inDays = daysBetween(today, trip.startDate);
   const when = trip.startDate <= today ? "Happening now" : inDays === 1 ? "Tomorrow" : `In ${inDays} days`;
+  const place = tripLocations(trip)[0];
+  const guide = matchCityGuides(place)[0];
+  const dayLabel = (d: string) => new Date(`${d}T12:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
 
-  const next = !hasFlight
-    ? { label: "Find flights", href: `/flights?trip=${trip.id}` }
-    : !hasStay
-      ? { label: `Find a stay in ${tripLocations(trip)[0]}`, href: `/stays?trip=${trip.id}&q=${encodeURIComponent(tripLocations(trip)[0])}` }
-      : firstEmpty
-        ? { label: `Plan ${new Date(`${firstEmpty}T12:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}`, href: `/trips/${trip.id}` }
-        : { label: "Open the trip planner", href: `/trips/${trip.id}` };
+  const next: { label: string; href: string; why: string } = !savedFlight
+    ? { label: "Find flights", href: `/flights?trip=${trip.id}`, why: "You haven't saved a flight yet." }
+    : !flightPlaced
+      ? { label: "Add your flight to the itinerary", href: `/trips/${trip.id}`, why: "Your flight is saved — drag it onto its day in the planner." }
+      : !savedStay
+        ? { label: `Find a stay in ${place}`, href: `/stays?trip=${trip.id}&q=${encodeURIComponent(place)}`, why: "You've got flights — now somewhere to stay." }
+        : !stayPlaced
+          ? { label: "Add your stay to the itinerary", href: `/trips/${trip.id}`, why: "Your stay is saved — drag it onto your check-in day." }
+          : saves === 0
+            ? { label: guide ? `Browse the ${guide.city} guide` : "Browse the city guides", href: guide ? `/guides?city=${guide.slug}` : "/guides", why: "Save some places to eat and things to do." }
+            : firstEmpty
+              ? { label: `Plan ${dayLabel(firstEmpty)}`, href: `/trips/${trip.id}`, why: `${openDays} day${openDays === 1 ? "" : "s"} still open on the itinerary.` }
+              : { label: "Open the trip planner", href: `/trips/${trip.id}`, why: "Everything's planned. Check prices before you book." };
 
   const Step = ({ done, children }: { done: boolean; children: React.ReactNode }) => (
     <span className={clsx("inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px]", done ? "bg-guide-active text-guide-bg" : "bg-white/15 text-guide-ink")}>
@@ -195,10 +210,10 @@ function NextTrip({ trip }: { trip: Trip }) {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch max-w-[1100px]">
         <TripCard trip={trip} className="aspect-[16/9] lg:aspect-auto lg:min-h-[300px]">
           <div className="mt-4 flex flex-wrap gap-2">
-            <Step done={hasFlight}>Flights</Step>
-            <Step done={hasStay}>Stay</Step>
-            <Step done={plannedDays === days.length}>
-              {plannedDays} of {days.length} days planned
+            <Step done={flightPlaced}>Flights</Step>
+            <Step done={stayPlaced}>Stay</Step>
+            <Step done={saves > 0}>
+              {saves} {saves === 1 ? "save" : "saves"}
             </Step>
           </div>
         </TripCard>
@@ -206,15 +221,7 @@ function NextTrip({ trip }: { trip: Trip }) {
           <div>
             <p className="text-[13px] text-ink-muted">{when}</p>
             <p className="font-serif text-[26px] leading-tight mt-1">Next step</p>
-            <p className="text-[14px] text-ink-muted mt-2">
-              {!hasFlight
-                ? "You haven't saved a flight yet."
-                : !hasStay
-                  ? "You've got flights — now somewhere to stay."
-                  : firstEmpty
-                    ? `${days.length - plannedDays} day${days.length - plannedDays === 1 ? "" : "s"} still open on the itinerary.`
-                    : "Everything's planned. Check prices before you book."}
-            </p>
+            <p className="text-[14px] text-ink-muted mt-2">{next.why}            </p>
           </div>
           <Link href={next.href} className="inline-flex items-center justify-between gap-3 h-11 px-5 rounded-full bg-accent text-white text-[15px] hover:bg-accent-hover">
             {next.label} <ArrowRight weight="bold" className="size-4" />
@@ -313,7 +320,7 @@ export default function HomePage() {
         <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.1] font-normal">
           Hey Adam,
           <br />
-          where to next?
+          Where to next?
         </h1>
         <PromptBar trips={trips} onPlan={setPlanning} />
       </section>
