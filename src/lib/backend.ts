@@ -79,12 +79,12 @@ function supabaseBackend(client: SupabaseClient): Backend {
       if (!rows.length) return;
       const clean = rows.map((r) => mapKeys(Object.fromEntries(Object.entries(r).filter(([k]) => !LOCAL_ONLY.has(k))), snake));
       const { error } = await client.from(table).upsert(clean);
-      if (error) console.error(`Supabase upsert ${table}:`, error.message);
+      if (error) throw new Error(`${table}: ${error.message}`);
     },
     async remove(table, ids) {
       if (!ids.length) return;
       const { error } = await client.from(table).delete().in("id", ids);
-      if (error) console.error(`Supabase delete ${table}:`, error.message);
+      if (error) throw new Error(`${table}: ${error.message}`);
     },
   };
 }

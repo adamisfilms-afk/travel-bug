@@ -23,6 +23,8 @@ interface State extends TripData {
   ready: boolean;
   backendKind: Backend["kind"];
   loadError: string | null;
+  /** The last save to Supabase that failed (shown as a banner until dismissed). */
+  saveError: string | null;
   init(): Promise<void>;
 
   createTrip(input: Omit<Trip, "id" | "createdAt">): Trip;
@@ -70,8 +72,14 @@ function persist(get: () => State, upserts: Partial<Record<Key, object[]>>, dele
   // Deletes of children first, then parents; upserts parents first.
   const order: Key[] = ["trips", "flights", "stays", "activities", "itinerary"];
   void (async () => {
-    for (const k of [...order].reverse()) if (deletes[k]?.length) await backend!.remove!(TABLE_FOR[k], deletes[k]!);
-    for (const k of order) if (upserts[k]?.length) await backend!.upsert!(TABLE_FOR[k], upserts[k]!);
+    try {
+      for (const k of [...order].reverse()) if (deletes[k]?.length) await backend!.remove!(TABLE_FOR[k], deletes[k]!);
+      for (const k of order) if (upserts[k]?.length) await backend!.upsert!(TABLE_FOR[k], upserts[k]!);
+    } catch (e) {
+      // Never fail silently: the change is on screen but not saved to the account
+      console.error("[save]", e);
+      useStore.setState({ saveError: e instanceof Error ? e.message : String(e) });
+    }
   })();
 }
 
@@ -87,6 +95,7 @@ export const useStore = create<State>((set, get) => ({
   ready: false,
   backendKind: "local",
   loadError: null,
+  saveError: null,
 
   async init() {
     if (backend) return;

@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 
 export interface MapPoint {
@@ -85,6 +85,11 @@ function pinIcon(p: MapPoint) {
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 const MAPBOX_STYLE = process.env.NEXT_PUBLIC_MAPBOX_STYLE || "mapbox/light-v11";
 
+const FALLBACK_TILES = {
+  url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+};
+
 const TILES = MAPBOX_TOKEN
   ? {
       url: `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE}/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
@@ -153,6 +158,8 @@ export default function MapView({
     [iconKey],
   );
   const markers = useRef(new Map<string, L.Marker>());
+  const [tiles, setTiles] = useState<typeof TILES | typeof FALLBACK_TILES>(TILES);
+  const tileErrors = useRef(0);
   // Route through the itinerary in visit order (points with `order`), or through all points if none have one.
   const ordered = points.filter((p) => p.order != null).sort((a, b) => a.order! - b.order!);
   const routeLine = (ordered.length ? ordered : points).map((p) => [p.lat, p.lng] as [number, number]);
@@ -182,7 +189,19 @@ export default function MapView({
       </div>
     )}
     <MapContainer center={[40.73, -73.98]} zoom={12} scrollWheelZoom className="h-full w-full" zoomControl>
-      <TileLayer key={TILES.url} {...TILES} />
+      <TileLayer
+        key={tiles.url}
+        {...tiles}
+        eventHandlers={{
+          // If Mapbox refuses the tiles (token missing on this deploy, or restricted to other URLs), fall back to free tiles
+          tileerror: () => {
+            if (tiles !== FALLBACK_TILES && ++tileErrors.current >= 4) {
+              console.warn("[map] Mapbox tiles failed — using CARTO tiles instead. Check NEXT_PUBLIC_MAPBOX_TOKEN and its URL restrictions.");
+              setTiles(FALLBACK_TILES);
+            }
+          },
+        }}
+      />
       <FitBounds points={points} />
       <HoverReset onLeave={onPointHover ? () => onPointHover(null) : undefined} />
       {route && routeLine.length > 1 && <Polyline positions={routeLine} pathOptions={{ color: GREEN, weight: 2, dashArray: "4 6" }} />}
