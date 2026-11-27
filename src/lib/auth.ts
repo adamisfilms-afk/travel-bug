@@ -9,6 +9,8 @@ interface Account {
   /** Supabase is set up (accounts exist). Without it the app is a single local user. */
   enabled: boolean;
   loaded: boolean;
+  /** The signed-in user's id. */
+  id: string | null;
   email: string | null;
   name: string | null;
   isAdmin: boolean;
@@ -22,6 +24,7 @@ let listening = false;
 export const useAccount = create<Account>((set, get) => ({
   enabled: supabaseEnabled,
   loaded: !supabaseEnabled,
+  id: null,
   email: null,
   name: null,
   isAdmin: false,
@@ -36,10 +39,11 @@ export const useAccount = create<Account>((set, get) => ({
     }
     const { data } = await sb.auth.getUser();
     const user = data.user;
-    if (!user) return set({ loaded: true, email: null, name: null, isAdmin: false });
+    if (!user) return set({ loaded: true, id: null, email: null, name: null, isAdmin: false });
     const { data: profile } = await sb.from("profiles").select("name, is_admin").eq("id", user.id).maybeSingle();
     set({
       loaded: true,
+      id: user.id,
       email: user.email ?? null,
       name: profile?.name ?? (user.user_metadata?.name as string | undefined) ?? null,
       isAdmin: Boolean(profile?.is_admin),

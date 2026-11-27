@@ -4,6 +4,7 @@ import clsx from "clsx";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { tripLocations } from "@/components/trips";
+import { useAccountInfo } from "@/lib/auth";
 import { cityGuideBySlug, matchCityGuides } from "@/lib/curated/city-guides";
 import { useCuratedCover } from "@/lib/curated/cover";
 import { applyOverride, useOverrides } from "@/lib/curated/overrides";
@@ -52,6 +53,8 @@ export function useTripCover(trip: Trip): string | null {
 
 export function TripCard({ trip, children, className }: { trip: Trip; children?: React.ReactNode; className?: string }) {
   const cover = useTripCover(trip);
+  const account = useAccountInfo();
+  const shared = Boolean(account.id && trip.userId && trip.userId !== account.id);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [cover]);
   return (
@@ -71,6 +74,7 @@ export function TripCard({ trip, children, className }: { trip: Trip; children?:
       )}
       <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden />
       <div className="absolute inset-x-0 bottom-0 p-5 md:p-6 text-guide-ink">
+        {shared && <span className="inline-block mb-2 rounded-full bg-guide-active text-guide-bg text-[11px] px-2 py-0.5">Shared with you</span>}
         <p className="font-serif text-[24px] md:text-[28px] leading-[1.1]">{trip.name}</p>
         <p className="mt-1.5 text-[13px] text-guide-ink/85">{rangeLabel(trip.startDate, trip.endDate)}</p>
         {children}

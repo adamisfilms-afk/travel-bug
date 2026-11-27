@@ -30,6 +30,10 @@ interface State extends TripData {
   createTrip(input: Omit<Trip, "id" | "createdAt">): Trip;
   updateTrip(id: string, patch: Partial<Omit<Trip, "id">>): void;
   deleteTrip(id: string): void;
+  /** Re-load from Supabase to pick up changes made by people you share trips with (throttled). */
+  refresh(): Promise<void>;
+  /** Drop a trip from this device without deleting it (after leaving a shared trip). */
+  forgetTrip(id: string): void;
 
   saveFlight(tripId: string, offer: FlightOffer): SavedFlight;
   removeFlight(id: string): void;
@@ -60,6 +64,9 @@ interface State extends TripData {
 const EMPTY: TripData = { trips: [], flights: [], stays: [], activities: [], itinerary: [] };
 
 let backend: Backend | null = null;
+/** Saves still on their way to Supabase (a refresh waits for them, so it can't undo a change). */
+let pendingSaves = 0;
+let lastRefresh = 0;
 
 /** Persist a change: rows to upsert and ids to delete, per collection. */
 function persist(get: () => State, upserts: Partial<Record<Key, object[]>>, deletes: Partial<Record<Key, string[]>> = {}) {
@@ -71,6 +78,7 @@ function persist(get: () => State, upserts: Partial<Record<Key, object[]>>, dele
   }
   // Deletes of children first, then parents; upserts parents first.
   const order: Key[] = ["trips", "flights", "stays", "activities", "itinerary"];
+  pendingSaves++;
   void (async () => {
     try {
       for (const k of [...order].reverse()) if (deletes[k]?.length) await backend!.remove!(TABLE_FOR[k], deletes[k]!);
@@ -79,6 +87,8 @@ function persist(get: () => State, upserts: Partial<Record<Key, object[]>>, dele
       // Never fail silently: the change is on screen but not saved to the account
       console.error("[save]", e);
       useStore.setState({ saveError: e instanceof Error ? e.message : String(e) });
+    } finally {
+      pendingSaves--;
     }
   })();
 }
@@ -135,6 +145,28 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({ trips: s.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
     const t = get().trips.find((x) => x.id === id);
     if (t) persist(get, { trips: [t] });
+  },
+
+  async refresh() {
+    if (!backend || backend.kind !== "supabase" || pendingSaves > 0 || !get().ready) return;
+    if (Date.now() - lastRefresh < 20_000) return;
+    lastRefresh = Date.now();
+    try {
+      const data = await backend.load();
+      if (data && pendingSaves === 0) set({ ...EMPTY, ...data });
+    } catch {
+      /* keep what's on screen */
+    }
+  },
+
+  forgetTrip(id) {
+    set((s) => ({
+      trips: s.trips.filter((t) => t.id !== id),
+      flights: s.flights.filter((x) => x.tripId !== id),
+      stays: s.stays.filter((x) => x.tripId !== id),
+      activities: s.activities.filter((x) => x.tripId !== id),
+      itinerary: s.itinerary.filter((x) => x.tripId !== id),
+    }));
   },
 
   deleteTrip(id) {

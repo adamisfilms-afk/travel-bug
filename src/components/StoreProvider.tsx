@@ -11,6 +11,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const loadError = useStore((s) => s.loadError);
   const saveError = useStore((s) => s.saveError);
   useShareSync();
+  // Coming back to the tab picks up changes from people you share trips with
+  useEffect(() => {
+    const onFocus = () => document.visibilityState === "visible" && void useStore.getState().refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
   useEffect(() => {
     void init();
     void useSearchStore.persist.rehydrate();
