@@ -521,7 +521,7 @@ export function PlaceModal({
   // Portal to <body> so the overlay isn't affected by the page's layout (margins, stacking)
   return createPortal(
     <div
-      className={clsx(readOnly ? "left-0" : "left-[64px] md:left-[84px]", "fixed inset-y-0 right-0 z-[60] flex items-start justify-center overflow-y-auto bg-ink/35 backdrop-blur-md p-3 sm:p-6 md:p-10")}
+      className={clsx(readOnly ? "left-0" : "left-0 md:left-[84px]", "fixed inset-y-0 right-0 z-[60] flex items-start justify-center overflow-y-auto overscroll-contain bg-ink/35 backdrop-blur-md p-0 sm:p-6 md:p-10")}
       onMouseDown={() => !editing && onClose()}
     >
       <div
@@ -529,9 +529,10 @@ export function PlaceModal({
         aria-modal="true"
         aria-label={place.name}
         onMouseDown={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[800px] rounded-2xl bg-guide-ink border border-black/10 shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
+        className="relative w-full min-h-full sm:min-h-0 max-w-[800px] sm:rounded-2xl bg-guide-ink sm:border border-black/10 shadow-2xl px-5 md:px-10 pt-4 pb-[calc(24px+env(safe-area-inset-bottom))] sm:py-6 md:py-9 space-y-5"
       >
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+        {/* Phones: the buttons sit in their own row above the title; larger screens: top-right corner */}
+        <div className="sticky top-0 z-10 -mx-5 px-5 py-2 bg-guide-ink flex items-center justify-end gap-2 sm:m-0 sm:p-0 sm:bg-transparent sm:absolute sm:top-4 sm:right-4">
           {isAdmin && !readOnly && !editing && (
             <button
               type="button"
@@ -558,7 +559,7 @@ export function PlaceModal({
         {editing ? (
           <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} onDeleted={onClose} />
         ) : (
-        <header className={isAdmin && !readOnly ? "pr-40" : readOnly ? "pr-12" : "pr-24"}>
+        <header className={isAdmin && !readOnly ? "sm:pr-40" : readOnly ? "sm:pr-12" : "sm:pr-24"}>
           <h2 className="font-serif text-[30px] md:text-[38px] leading-[1.05]">{place.name}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>

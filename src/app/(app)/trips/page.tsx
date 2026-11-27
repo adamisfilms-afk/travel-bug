@@ -38,14 +38,14 @@ function TripsInner() {
         <div className={GRID}>
           {!ready && <div className="aspect-[5/6] rounded-2xl bg-surface animate-pulse" />}
           {upcoming.map((t) => (
-            <TripCard key={t.id} trip={t} />
+            <TripCard key={t.id} trip={t} className="aspect-[4/3] sm:aspect-[5/6]" />
           ))}
           {ready && (
             <button
               type="button"
               onClick={() => setCreating(true)}
               className={clsx(
-                "aspect-[5/6] rounded-2xl border-2 border-dashed border-line text-ink-muted",
+                "aspect-[4/3] sm:aspect-[5/6] rounded-2xl border-2 border-dashed border-line text-ink-muted",
                 "flex flex-col items-center justify-center gap-3 hover:border-ink/40 hover:text-ink transition-colors",
               )}
             >
@@ -63,7 +63,7 @@ function TripsInner() {
           <SectionTitle>Past</SectionTitle>
           <div className={GRID}>
             {past.map((t) => (
-              <TripCard key={t.id} trip={t} />
+              <TripCard key={t.id} trip={t} className="aspect-[4/3] sm:aspect-[5/6]" />
             ))}
           </div>
         </section>

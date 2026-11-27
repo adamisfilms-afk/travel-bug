@@ -469,7 +469,7 @@ export function CuratedGuidePage() {
             )}
           </div>
           {guide && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="-mx-5 px-5 md:mx-0 md:px-0 flex md:flex-wrap gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar">
               {chips.map((c) => (
                 <button
                   key={c.id}
@@ -477,7 +477,7 @@ export function CuratedGuidePage() {
                   aria-pressed={filter === c.id}
                   onClick={() => setFilter((f) => (f === c.id ? null : c.id))}
                   className={clsx(
-                    "h-7 px-3 rounded-full text-[13px] text-guide-bg transition-colors",
+                    "shrink-0 whitespace-nowrap h-7 px-3 rounded-full text-[13px] text-guide-bg transition-colors",
                     filter === c.id ? "bg-guide-active" : "bg-guide-chip hover:bg-white",
                   )}
                 >

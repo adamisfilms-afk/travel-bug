@@ -440,7 +440,7 @@ function FlightsInner() {
       <PageTitle>Flights</PageTitle>
 
       {/* Search bar, notices, filter chips and divider stay pinned while results scroll */}
-      <div className="sticky top-0 z-20 bg-canvas -mx-5 px-5 md:-mx-12 md:px-12 pt-4 space-y-5">
+      <div className="md:sticky md:top-0 z-20 bg-canvas -mx-5 px-5 md:-mx-12 md:px-12 pt-4 space-y-5">
       <form
         className="flex flex-wrap items-start gap-3"
         onSubmit={(e) => {
@@ -448,7 +448,7 @@ function FlightsInner() {
           if (!loading) void search();
         }}
       >
-        <div className="flex flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-x divide-line/70 min-w-0">
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:flex-wrap items-stretch rounded-[10px] bg-surface border border-white/70 divide-y sm:divide-y-0 sm:divide-x divide-line/70 min-w-0">
           <div className="flex items-center gap-3 h-11 px-4 w-full sm:w-[380px]">
             <AirportInput value={from} onChange={(p) => set({ from: p })} placeholder="From?" ariaLabel="From" />
             <button
@@ -461,20 +461,21 @@ function FlightsInner() {
             </button>
             <AirportInput value={to} onChange={(p) => set({ to: p })} placeholder="Destination" ariaLabel="Destination" />
           </div>
-          <label className={segCls}>
+          <label className={clsx(segCls, "w-full sm:w-auto")}>
             <CalendarBlank weight="fill" className="size-4 shrink-0" />
-            <input aria-label="Departure date" type="date" className={selectCls} value={depart} min={today} onChange={(e) => set({ depart: e.target.value })} />
+            <input aria-label="Departure date" type="date" className={clsx(selectCls, "flex-1 min-w-0 sm:flex-none")} value={depart} min={today} onChange={(e) => set({ depart: e.target.value })} />
             <span className="text-ink-muted">–</span>
             <input
               aria-label="Return date (optional)"
               type="date"
-              className={clsx(selectCls, !ret && "text-ink-muted")}
+              className={clsx(selectCls, "flex-1 min-w-0 sm:flex-none", !ret && "text-ink-muted")}
               value={ret}
               min={depart}
               onChange={(e) => set({ ret: e.target.value })}
             />
           </label>
-          <label className={segCls}>
+          <div className="flex divide-x divide-line/70">
+          <label className={clsx(segCls, "flex-1 sm:flex-none")}>
             <span className="text-ink-muted text-[13px]">Travellers</span>
             <select aria-label="Travellers" className={selectCls} value={adults} onChange={(e) => set({ adults: Number(e.target.value) })}>
               {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
@@ -484,7 +485,7 @@ function FlightsInner() {
               ))}
             </select>
           </label>
-          <label className={segCls}>
+          <label className={clsx(segCls, "flex-1 sm:flex-none")}>
             <span className="text-ink-muted text-[13px]">Cabin</span>
             <select aria-label="Cabin class" className={selectCls} value={cabin} onChange={(e) => set({ cabin: e.target.value as Cabin })}>
               {CABINS.map((c) => (
@@ -494,9 +495,10 @@ function FlightsInner() {
               ))}
             </select>
           </label>
+          </div>
         </div>
-        <div className="ml-auto">
-          <PrimaryButton type="submit" aria-busy={loading} className="relative overflow-hidden !h-11">
+        <div className="w-full sm:w-auto sm:ml-auto">
+          <PrimaryButton type="submit" aria-busy={loading} className="relative overflow-hidden !h-11 w-full sm:w-auto">
             {loading ? "Searching…" : "Search"}
             <ButtonLoadingBar progress={progress} />
           </PrimaryButton>
@@ -657,7 +659,7 @@ function FlightsInner() {
         ))}
       </div>
 
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white text-[14px] px-5 py-2 shadow-lg">{toast}</div>}
+      {toast && <div className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-ink text-white text-[14px] px-5 py-2 shadow-lg">{toast}</div>}
     </div>
   );
 }

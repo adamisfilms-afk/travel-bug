@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   rectIntersection,
   useDraggable,
@@ -98,7 +99,7 @@ function RowShell({
         setOpen((o) => !o);
       }}
       className={clsx(
-        "group relative rounded-[10px] bg-surface dashed-accent pl-7 pr-3 py-2.5 cursor-grab active:cursor-grabbing touch-none transition-shadow hover:shadow-sm",
+        "group relative rounded-[10px] bg-surface dashed-accent pl-7 pr-3 py-2.5 cursor-grab active:cursor-grabbing touch-manipulation select-none transition-shadow hover:shadow-sm",
         isDragging && "opacity-50",
       )}
     >
@@ -153,13 +154,24 @@ const ROW_TEXT = "text-[14px] leading-6";
 function FlightRowBody({ f }: { f: SavedFlight }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex-1 min-w-0 space-y-1.5 md:space-y-1">
+        {f.legs.map((leg, i) => (
+          <div key={`m${i}`} className="md:hidden min-w-0">
+            <p className="flex items-center gap-2 text-[14px] font-medium leading-6">
+              {leg.from.code} - {leg.to.code}
+              <span className="font-normal text-ink-muted">{leg.flightNumber}</span>
+            </p>
+            <p className="text-[12px] text-ink-muted leading-snug">
+              {hhmm(leg.depart)} - {hhmm(leg.arrive)} · {shortDate(leg.depart)} · {leg.stops ? `${leg.stops} stop${leg.stops > 1 ? "s" : ""}` : "Direct"}
+            </p>
+          </div>
+        ))}
         {f.legs.map((leg, i) => (
           <div
             key={i}
             className={clsx(
               ROW_TEXT,
-              "flex flex-wrap items-center gap-x-4 md:grid md:grid-cols-[76px_36px_52px_100px_84px_minmax(0,1fr)] md:gap-x-3",
+              "hidden md:grid md:items-center md:grid-cols-[76px_36px_52px_100px_84px_minmax(0,1fr)] md:gap-x-3",
             )}
           >
             <span className="font-medium whitespace-nowrap">
@@ -179,6 +191,7 @@ function FlightRowBody({ f }: { f: SavedFlight }) {
           </div>
         ))}
       </div>
+      <div className="self-start flex flex-col items-end gap-1 md:flex-row md:items-start md:gap-3">
       <PriceAndBook
         kind="flight"
         saved={f.priceSaved}
@@ -187,6 +200,7 @@ function FlightRowBody({ f }: { f: SavedFlight }) {
         href={f.bookingUrl}
         options={f.bookingOptions}
       />
+      </div>
     </div>
   );
 }
@@ -333,7 +347,7 @@ function SortableEntry({ item, lookup }: { item: ItineraryItem; lookup: Lookup }
       {...attributes}
       {...listeners}
       className={clsx(
-        "group relative rounded-lg -mx-2 px-2 py-1 cursor-grab active:cursor-grabbing touch-none hover:bg-surface/70",
+        "group relative rounded-lg -mx-2 px-2 py-1 cursor-grab active:cursor-grabbing touch-manipulation select-none hover:bg-surface/70",
         isDragging && "opacity-40",
       )}
     >
@@ -615,7 +629,9 @@ export default function PlannerPage() {
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Touch: press and hold to pick an item up, so swiping still scrolls the page
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -688,17 +704,17 @@ export default function PlannerPage() {
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
       <div className="space-y-8">
         <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-start md:items-center gap-3 min-w-0">
             <Link href="/trips" aria-label="Back to your trips" className="p-1.5 -ml-1.5 rounded-full hover:bg-surface">
               <ArrowLeft className="size-5" />
             </Link>
             {/* Title and dates share a text baseline */}
-            <div className="flex items-baseline gap-3 min-w-0">
-              <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.1] truncate">{trip.name}</h1>
+            <div className="flex flex-wrap md:flex-nowrap items-baseline gap-x-3 min-w-0">
+              <h1 className="font-serif text-[34px] md:text-[54px] leading-[1.1] md:truncate break-words">{trip.name}</h1>
               <span className="text-[14px] md:text-[15px] text-ink-muted whitespace-nowrap">{rangeLabel(trip.startDate, trip.endDate)}</span>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-4 text-[13px] text-ink-muted">
+          <div className="w-full md:w-auto md:ml-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-muted">
             {priceStatus === "checking" && <span>Checking latest prices…</span>}
             {priceStatus === "done" && <span>Prices up to date</span>}
             {priceStatus === "error" && <span className="text-price-up">Couldn&apos;t refresh prices</span>}
