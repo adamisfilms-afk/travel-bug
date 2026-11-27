@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowClockwise, ArrowLeft, Check, ForkKnife, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, Check, ForkKnife, FunnelSimple, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -794,7 +794,8 @@ export default function PlannerPage() {
                   return (
                     <div className="flex">
                       <FilterChip
-                        label={chosen.length === 1 ? chosen[0] : chosen.length ? `${chosen.length} types` : "Type"}
+                        label={chosen.length === 1 ? chosen[0] : chosen.length ? `${chosen.length} types` : "Filter"}
+                        icon={<FunnelSimple weight="bold" className="size-3.5" />}
                         active={chosen.length > 0}
                         onClear={() => setTypeFilter((f) => ({ ...f, [savedTab]: [] }))}
                       >
