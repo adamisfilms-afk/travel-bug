@@ -1,18 +1,17 @@
 "use client";
 
-import { CaretLeft, CaretRight, Copy, ForkKnife, MagnifyingGlass, MapPin, type Icon } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, Copy, ForkKnife, MagnifyingGlass, MapPin, X, type Icon } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
-import { PageTitle, SectionTitle, useClickOutside } from "@/components/ui";
+import { Map as GuideMap, type MapPoint } from "@/components/Map";
+import { useClickOutside } from "@/components/ui";
 import { useCuratedPlace } from "@/lib/curated/overrides";
 import { cityGuideBySlug, kindOfPlace, matchCityGuides, type CityGuide, type GuideKind } from "@/lib/curated/city-guides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
-
-const PLACEHOLDERS = ["bg-ph-mustard", "bg-ph-sky", "bg-ph-sage", "bg-ph-lime"];
 
 interface Photo {
   url: string;
@@ -51,16 +50,16 @@ function writePicks(kind: string, slug: string, picks: Record<string, number>) {
 
 function PlaceCard({
   place: basePlace,
-  index,
   guide,
   curate,
   pick,
   onPick,
   EmptyIcon,
   onOpen,
+  active,
+  onHover,
 }: {
   place: CuratedPlace;
-  index: number;
   guide: CuratedGuide;
   curate: boolean;
   /** Photo index chosen by a curator (data or this browser's picks); undefined = automatic. */
@@ -69,6 +68,9 @@ function PlaceCard({
   EmptyIcon: Icon;
   /** Open the place view. */
   onOpen: () => void;
+  /** Its pin is hovered on the map. */
+  active?: boolean;
+  onHover?: (on: boolean) => void;
 }) {
   const place = useCuratedPlace(basePlace);
   const ref = useRef<HTMLDivElement>(null);
@@ -140,96 +142,88 @@ function PlaceCard({
     onPick((photo.index + d + photo.count) % photo.count);
   };
 
+  const img = "absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]";
+  const price = place.priceLevel ? "$".repeat(place.priceLevel) : null;
+
   return (
-    <div ref={ref} className="group shrink-0 w-[230px] md:w-[270px] snap-start">
-      {/* Image (clipped) with the add-to-trip button outside the clip so its menu can open */}
-      <div className="relative">
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={`Open ${place.name}`}
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest("button")) return; // curation arrows
-            onOpen();
-          }}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onOpen())}
-          className={clsx(
-            "relative h-[170px] md:h-[190px] rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            PLACEHOLDERS[index % PLACEHOLDERS.length],
-          )}
-        >
-          {own ? (
+    <div ref={ref} className="group relative" onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${place.name}`}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return; // curation arrows, add-to-trip
+          onOpen();
+        }}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onOpen())}
+        className={clsx(
+          "film-grain relative aspect-[5/6] rounded-2xl overflow-hidden cursor-pointer outline-none bg-guide-card transition-shadow",
+          "focus-visible:ring-2 focus-visible:ring-guide-active",
+          active && "ring-2 ring-guide-active",
+        )}
+      >
+        {own ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={own.src} alt={own.alt ?? place.name} loading="lazy" className={img} />
+        ) : googleCover ? (
+          coverUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={own.src}
-              alt={own.alt ?? place.name}
-              loading="lazy"
-              className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          ) : googleCover ? (
-            coverUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={coverUrl}
-                alt={place.name}
-                loading="lazy"
-                className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-            )
-          ) : photo && !failed ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photo.url}
-              alt={place.name}
-              // Photographer credit kept only as a hover tooltip (not shown on screen)
-              title={photo.attribution ? `Photo: ${photo.attribution.name} · Google` : undefined}
-              loading="lazy"
-              onError={() => setFailed(true)}
-              className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <span className="absolute inset-0 grid place-items-center text-ink/25">
-              <EmptyIcon weight="fill" className="size-10" />
-            </span>
-          )}
-          {curate && !own && !googleCover && photo && photo.count > 1 && (
-            <>
-              <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
-                <CaretLeft weight="bold" className="size-4" />
-              </button>
-              <button type="button" aria-label="Next photo" onClick={() => step(1)} className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
-                <CaretRight weight="bold" className="size-4" />
-              </button>
-              <span className="absolute bottom-2 left-2 rounded-full bg-ink/70 text-white text-[11px] px-2 py-0.5 tabular-nums">
-                Photo {photo.index + 1}/{photo.count}
-                {pick != null ? " · picked" : " · auto"}
-              </span>
-            </>
-          )}
-        </div>
-        <div
-          className={clsx(
-            "absolute top-2 right-2 transition-opacity",
-            addedTo.length ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100",
-          )}
-        >
-          <AddToTripButton
-            compact
-            tone="dark"
-            addedTo={addedTo}
-            defaults={{ destination: guide.city }}
-            onAdd={(tripId) =>
-              addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })
-            }
+            <img src={coverUrl} alt={place.name} loading="lazy" className={img} />
+          )
+        ) : photo && !failed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo.url}
+            alt={place.name}
+            // Photographer credit kept only as a hover tooltip (not shown on screen)
+            title={photo.attribution ? `Photo: ${photo.attribution.name} · Google` : undefined}
+            loading="lazy"
+            onError={() => setFailed(true)}
+            className={img}
           />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
+            <EmptyIcon weight="fill" className="size-12" />
+          </span>
+        )}
+        {/* Darken towards the bottom so the title reads */}
+        <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
+        <div className="absolute inset-x-0 bottom-0 p-4 md:p-5 text-guide-ink">
+          <p className="font-serif text-[22px] md:text-[26px] leading-[1.1]">{place.name}</p>
+          <p className="mt-1 text-[12px] text-guide-ink/85">
+            {place.tagline}
+            {price && ` · ${price}`}
+          </p>
         </div>
+        {curate && !own && !googleCover && photo && photo.count > 1 && (
+          <>
+            <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
+              <CaretLeft weight="bold" className="size-4" />
+            </button>
+            <button type="button" aria-label="Next photo" onClick={() => step(1)} className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full bg-white/90 shadow">
+              <CaretRight weight="bold" className="size-4" />
+            </button>
+            <span className="absolute top-2 left-2 rounded-full bg-ink/70 text-white text-[11px] px-2 py-0.5 tabular-nums">
+              Photo {photo.index + 1}/{photo.count}
+              {pick != null ? " · picked" : " · auto"}
+            </span>
+          </>
+        )}
       </div>
-      <button type="button" onClick={onOpen} className="block w-full text-left mt-2.5 px-0.5">
-        <p className="text-[15px] font-semibold leading-tight truncate hover:underline underline-offset-2">{place.name}</p>
-        <p className="text-[13px] text-ink-muted truncate">
-          {place.tagline} · {place.neighbourhood}
-        </p>
-      </button>
+      <div
+        className={clsx(
+          "absolute top-3 right-3 transition-opacity",
+          addedTo.length ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100",
+        )}
+      >
+        <AddToTripButton
+          compact
+          tone="dark"
+          addedTo={addedTo}
+          defaults={{ destination: guide.city }}
+          onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
+        />
+      </div>
     </div>
   );
 }
@@ -397,82 +391,160 @@ export function CuratedGuidePage() {
   const [copied, setCopied] = useState(false);
   const pickCount = Object.keys(picks.food).length + Object.keys(picks.explore).length;
 
+  // Filter chips: one per food section, plus one for all of Explore. None selected = everything.
+  const [filter, setFilter] = useState<string | null>(null);
+  useEffect(() => setFilter(null), [guide?.slug]);
+  const chips = guide
+    ? [
+        ...guide.sections.filter((sec) => sec.id.startsWith("food-")).map((sec) => ({ id: sec.id, label: sec.title })),
+        ...(guide.sections.some((sec) => sec.id.startsWith("explore-")) ? [{ id: "explore", label: "Explore" }] : []),
+      ]
+    : [];
+  const visible = (guide?.sections ?? [])
+    .filter((sec) => !filter || sec.id === filter || (filter === "explore" && sec.id.startsWith("explore-")))
+    .flatMap((sec) => sec.places);
+  const total = guide?.sections.reduce((n, sec) => n + sec.places.length, 0) ?? 0;
+
+  // Card ↔ map pin hover
+  const [hovered, setHovered] = useState<string | null>(null);
+  const points: MapPoint[] = visible.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, label: p.name, kind: "guide" }));
+  const [searching, setSearching] = useState(false);
+
   return (
-    <div className="space-y-6">
-      <PageTitle>{guide ? guide.city : "City Guides"}</PageTitle>
+    <div className="text-guide-ink">
+      {/* Dark page background (behind the content, under the fixed sidebar) */}
+      <div className="fixed inset-0 z-0 bg-guide-bg" aria-hidden />
 
-      <div className="pt-2 space-y-5">
-        <CitySearch value={guide?.city ?? ""} match={matchCityGuides} placeholder="Search a city" onPick={(g) => router.replace(cityUrl(g.slug), { scroll: false })} />
-        <hr className="border-line" />
-      </div>
-
-      {!guide && !restoring && <p className="text-ink-muted">Search for a city to see our curated places to eat, drink and explore.</p>}
-
-      {guide && (
-        <div className="space-y-9">
-          {curate && (
-            <div className="rounded-xl bg-surface px-4 py-3 text-[13px] max-w-md">
-              <p className="font-semibold">Curating photos</p>
-              <p className="text-ink-muted">
-                Use the arrows on each image to choose its photo, and open a place to add social posts. {pickCount} photos picked in this browser.
-              </p>
+      <div className={clsx("relative z-[1] space-y-6", guide && "lg:max-w-[calc(58vw-180px)]")}>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.05]">{guide ? guide.city : "City Guides"}</h1>
+          {guide && (
+            <div className="flex items-center gap-3 pb-2 text-[13px] text-guide-ink/75">
+              <span>{total} curated places</span>
               <button
                 type="button"
-                onClick={async () => {
-                  const out: Record<string, unknown> = {};
-                  for (const kind of KINDS) {
-                    let social: Record<string, string[]> = {};
-                    try {
-                      social = JSON.parse(localStorage.getItem(`travel-bug:social-picks:${kind}:${guide.slug}`) ?? "{}");
-                    } catch {
-                      /* ignore */
-                    }
-                    out[kind] = { photos: picks[kind], social };
-                  }
-                  await navigator.clipboard.writeText(JSON.stringify(out, null, 2)).catch(() => {});
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-                className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-white border border-line hover:bg-surface-strong"
+                aria-label={searching ? "Close city search" : "Change city"}
+                onClick={() => setSearching((x) => !x)}
+                className="grid place-items-center size-8 rounded-full border border-guide-ink/25 text-guide-ink hover:border-guide-ink/60"
               >
-                <Copy className="size-3.5" /> {copied ? "Copied" : "Copy picks"}
+                {searching ? <X className="size-3.5" /> : <MagnifyingGlass className="size-3.5" />}
               </button>
             </div>
           )}
-          {openPlace && (
-            <PlaceModal
-              key={openPlace.id}
-              place={openPlace}
-              guide={guide}
-              kind={kindOfPlace(guide, openPlace)}
-              curate={curate}
-              photoPick={pickFor(openPlace)}
-              EmptyIcon={ICONS[kindOfPlace(guide, openPlace)]}
-              onClose={close}
-            />
-          )}
-          {guide.sections.map((section) => (
-            <section key={section.id} className="space-y-4">
-              <SectionTitle>{section.title}</SectionTitle>
-              <div className="-mr-5 md:-mr-12 flex gap-5 md:gap-6 overflow-x-auto no-scrollbar pb-2 snap-x">
-                {section.places.map((p, i) => (
-                  <PlaceCard
-                    key={p.id}
-                    place={p}
-                    index={i}
-                    guide={guide}
-                    curate={curate}
-                    pick={pickFor(p)}
-                    onPick={(n) => setPick(p, n)}
-                    onOpen={() => open(p)}
-                    EmptyIcon={ICONS[kindOfPlace(guide, p)]}
-                  />
-                ))}
-                <span className="shrink-0 w-1" aria-hidden />
-              </div>
-            </section>
-          ))}
         </div>
+
+        {(!guide || searching) && (
+          <div className="text-ink">
+            <CitySearch
+              value={guide?.city ?? ""}
+              match={matchCityGuides}
+              placeholder="Search a city"
+              onPick={(g) => {
+                setSearching(false);
+                router.replace(cityUrl(g.slug), { scroll: false });
+              }}
+            />
+          </div>
+        )}
+
+        {!guide && !restoring && <p className="text-guide-ink/70">Search for a city to see our curated places to eat, drink and explore.</p>}
+
+        {guide && (
+          <>
+            <div className="flex flex-wrap gap-2.5">
+              {chips.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={filter === c.id}
+                  onClick={() => setFilter((f) => (f === c.id ? null : c.id))}
+                  className={clsx(
+                    "h-8 px-4 rounded-full text-[13px] text-guide-bg transition-colors",
+                    filter === c.id ? "bg-guide-active" : "bg-guide-chip hover:bg-white",
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {curate && (
+              <div className="rounded-xl bg-guide-card px-4 py-3 text-[13px] max-w-md">
+                <p className="font-semibold">Curating photos</p>
+                <p className="text-guide-ink/70">
+                  Use the arrows on each image to choose its photo, and open a place to add social posts. {pickCount} photos picked in this browser.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const out: Record<string, unknown> = {};
+                    for (const kind of KINDS) {
+                      let social: Record<string, string[]> = {};
+                      try {
+                        social = JSON.parse(localStorage.getItem(`travel-bug:social-picks:${kind}:${guide.slug}`) ?? "{}");
+                      } catch {
+                        /* ignore */
+                      }
+                      out[kind] = { photos: picks[kind], social };
+                    }
+                    await navigator.clipboard.writeText(JSON.stringify(out, null, 2)).catch(() => {});
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-guide-chip text-guide-bg hover:bg-white"
+                >
+                  <Copy className="size-3.5" /> {copied ? "Copied" : "Copy picks"}
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6 pt-1">
+              {visible.map((p) => (
+                <PlaceCard
+                  key={p.id}
+                  place={p}
+                  guide={guide}
+                  curate={curate}
+                  pick={pickFor(p)}
+                  onPick={(n) => setPick(p, n)}
+                  onOpen={() => open(p)}
+                  EmptyIcon={ICONS[kindOfPlace(guide, p)]}
+                  active={hovered === p.id}
+                  onHover={(on) => setHovered(on ? p.id : null)}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Map of the city's places (large screens) */}
+      {guide && (
+        <div className="hidden lg:block fixed inset-y-0 right-0 w-[42vw] z-[2] border-l border-white/10">
+          <GuideMap
+            points={points}
+            greyscale
+            highlightedId={hovered}
+            onPointHover={setHovered}
+            onPointClick={(id) => {
+              const p = visible.find((x) => x.id === id);
+              if (p) open(p);
+            }}
+          />
+        </div>
+      )}
+
+      {openPlace && guide && (
+        <PlaceModal
+          key={openPlace.id}
+          place={openPlace}
+          guide={guide}
+          kind={kindOfPlace(guide, openPlace)}
+          curate={curate}
+          photoPick={pickFor(openPlace)}
+          EmptyIcon={ICONS[kindOfPlace(guide, openPlace)]}
+          onClose={close}
+        />
       )}
     </div>
   );

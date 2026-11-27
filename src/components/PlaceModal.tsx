@@ -240,7 +240,7 @@ function SocialRow({
   const embeds = posts.map((u) => ({ url: u, e: socialEmbed(u) })).filter((x) => x.e);
   return (
     <section className="space-y-3">
-      <h3 className="text-[19px] leading-tight">On social</h3>
+      <h3 className="font-serif text-[21px] leading-tight">On social</h3>
       {curate && (
         <form
           className="flex flex-wrap gap-2"
@@ -492,7 +492,7 @@ export function PlaceModal({
         aria-modal="true"
         aria-label={place.name}
         onMouseDown={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[800px] rounded-2xl bg-surface border border-line shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
+        className="relative w-full max-w-[800px] rounded-2xl bg-guide-ink border border-black/10 shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
           {IS_ADMIN && !editing && (
@@ -521,7 +521,7 @@ export function PlaceModal({
           <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} />
         ) : (
         <header className={IS_ADMIN ? "pr-40" : "pr-24"}>
-          <h2 className="text-[27px] md:text-[34px] leading-[1.05] font-extrabold tracking-tight">{place.name}</h2>
+          <h2 className="font-serif text-[30px] md:text-[38px] leading-[1.05]">{place.name}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>
               {place.neighbourhood}, {guide.city}, {guide.country}
@@ -554,7 +554,7 @@ export function PlaceModal({
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h3 className="text-[19px] leading-tight">Reviews</h3>
+            <h3 className="font-serif text-[21px] leading-tight">Reviews</h3>
             <div className="flex flex-wrap gap-4 text-[13px]">
               {d?.website && (
                 <a href={d.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink underline underline-offset-2">

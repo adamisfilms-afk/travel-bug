@@ -9,7 +9,7 @@ export interface MapPoint {
   lat: number;
   lng: number;
   label: string;
-  kind: "flight" | "stay" | "activity" | "hotel";
+  kind: "flight" | "stay" | "activity" | "hotel" | "guide";
   highlighted?: boolean;
   /** Short text shown instead of a pin, e.g. a nightly price ("£75"). */
   badge?: string;
@@ -28,6 +28,7 @@ const KIND_COLOR: Record<MapPoint["kind"], string> = {
   stay: "#111111",
   hotel: "#111111",
   activity: "#274321",
+  guide: "#151f15",
 };
 
 const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -67,7 +68,7 @@ function pinIcon(p: MapPoint) {
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
     html: `<div style="position:relative;width:${size}px;height:${size}px">
-      <svg viewBox="0 0 24 24" width="${size}" height="${size}" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">
+      <svg viewBox="0 0 24 24" width="${size}" height="${size}" ${p.kind === "guide" ? 'class="tb-gpin"' : ""} style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">
         <path fill="${color}" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"/>
         ${p.n == null ? '<circle cx="12" cy="9" r="2.6" fill="#fff"/>' : ""}
       </svg>${inner}</div>`,
@@ -128,6 +129,7 @@ export default function MapView({
   onPointClick,
   highlightedId,
   legend,
+  greyscale,
 }: {
   points: MapPoint[];
   /** Draw a dashed line through the points in order. */
@@ -138,6 +140,8 @@ export default function MapView({
   highlightedId?: string | null;
   /** Show a key explaining pins/circles and green/grey. */
   legend?: boolean;
+  /** Greyscale tiles (City Guides). */
+  greyscale?: boolean;
 }) {
   // Icons are only rebuilt when what they show changes, never on hover.
   const iconKey = points.map((p) => `${p.id}|${p.badge ?? ""}|${p.n ?? ""}|${p.kind}|${p.shape ?? ""}|${p.scheduled ?? ""}|${p.highlighted ? 1 : 0}`).join(",");
@@ -160,7 +164,7 @@ export default function MapView({
   }, [highlightedId, icons]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className={`relative h-full w-full${greyscale ? " tb-grey" : ""}`}>
     {legend && (
       <div className="absolute left-2 bottom-6 z-[500] rounded-lg bg-white/95 shadow px-2.5 py-2 text-[11px] leading-tight space-y-1 pointer-events-none">
         <div className="flex items-center gap-1.5">

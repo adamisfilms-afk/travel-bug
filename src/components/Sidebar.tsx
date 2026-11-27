@@ -78,15 +78,23 @@ function NavItem({ href, label, icon }: (typeof TOP)[number]) {
 
 export function Sidebar() {
   const path = usePathname();
+  // City Guides has its own dark theme
+  const dark = path === "/guides" || path.startsWith("/guides/");
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 w-[64px] md:w-[84px] border-r border-line bg-canvas flex flex-col items-center py-8">
+    <aside
+      className={clsx(
+        "fixed inset-y-0 left-0 z-40 w-[64px] md:w-[84px] border-r flex flex-col items-center py-8",
+        dark ? "sidebar-dark bg-guide-bg border-white/10" : "border-line bg-canvas",
+      )}
+    >
       <Link
         href="/home"
         aria-label="Home"
         title="Home"
         aria-current={path === "/home" ? "page" : undefined}
         className={clsx(
-          "size-9 md:size-10 rounded-full shadow-sm ring-offset-2 ring-offset-canvas transition",
+          "size-9 md:size-10 rounded-full shadow-sm ring-offset-2 transition",
+          dark ? "ring-offset-guide-bg" : "ring-offset-canvas",
           path === "/home" ? "ring-[1.5px] ring-accent-soft" : "hover:ring-[1.5px] hover:ring-[#c3c6bf]",
         )}
         style={{ background: "radial-gradient(circle at 30% 25%, #f7e98b 0%, #c9e3a3 35%, #9fcde0 70%, #e9d6a5 100%)" }}

@@ -186,6 +186,9 @@ deep forest-green accent (#274321) and heavy black headlines.
 | `price-down` | `#4F8A42` | Price decreased |
 | Placeholders | `#DFC174` mustard · `#A3CBD9` sky · `#C5D9AC` sage · `#DADC8C` lime | Curated card placeholders |
 
+### City Guides theme
+City Guides has its own dark, moody look: background `#151f15`, text and icons `#e7e3d2`, filter chips `#e7e3d2` with `#151f15` text (active `#d1d27b`). Titles in Playfair Display (`font-serif`), everything else in Inter. Preview images are 5:6 cards, darkened with a film-photo filter and grain. A greyscale map of the city's places sits on the right on large screens; hovering a card lights up its pin (and vice versa). The place view uses a `#e7e3d2` background with serif headings.
+
 ### Typography
 - **Inter** throughout.
 - Page title: 42px / 800 weight / tight tracking (“Your trips”, “Flights”). Planner trip title: 30px.
