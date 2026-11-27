@@ -81,6 +81,21 @@ export function withDetails(guide: CuratedGuide, details: Record<string, Partial
   };
 }
 
+type Details = Parameters<typeof withDetails>[1];
+
+/** Combine detail tables: later tables win field by field; social links are concatenated (no duplicates). */
+export function mergeDetails(...tables: (Details | Record<string, string[]>)[]): Details {
+  const out: Details = {};
+  for (const t of tables)
+    for (const [id, d] of Object.entries(t)) {
+      const add = Array.isArray(d) ? { social: d } : d;
+      const cur = out[id] ?? {};
+      const social = [...new Set([...(cur.social ?? []), ...(add.social ?? [])])];
+      out[id] = { ...cur, ...add, ...(social.length ? { social } : {}) };
+    }
+  return out;
+}
+
 export function findGuide<T extends CuratedGuide>(guides: T[], slug: string | null | undefined) {
   return guides.find((g) => g.slug === slug);
 }

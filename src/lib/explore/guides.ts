@@ -2,7 +2,7 @@
  * Curated things-to-do guides for Explore (sample content until guides move into the database).
  * Photo picks (`photo`) come from the ?curate=1 mode on the Explore page.
  */
-import { findGuide, matchGuides as match, placeFactory, withDetails, type CuratedGuide } from "../curated/types";
+import { findGuide, matchGuides as match, mergeDetails, placeFactory, withDetails, type CuratedGuide } from "../curated/types";
 
 const p = placeFactory("New York, NY", "sight");
 
@@ -113,6 +113,11 @@ const NEW_YORK_DETAILS: Parameters<typeof withDetails>[1] = {
 
 const vx = placeFactory("Vienna, Austria", "sight");
 
+const vxa = (id: string, name: string, tagline: string, neighbourhood: string, address: string, lat: number, lng: number, cat?: Parameters<typeof vx>[6]) => ({
+  ...vx(id, name, tagline, neighbourhood, lat, lng, cat),
+  mapsQuery: `${name}, ${address}`,
+});
+
 const VIENNA: CuratedGuide = {
   slug: "vienna",
   city: "Vienna",
@@ -122,8 +127,47 @@ const VIENNA: CuratedGuide = {
   sections: [
     {
       id: "sights",
-      title: "Iconic sights",
-      places: [vx("vix-hofburg", "The Hofburg", "Imperial palace", "Innere Stadt", 48.2066, 16.3655)],
+      title: "Sights & parks",
+      places: [
+        vx("vix-hofburg", "The Hofburg", "Imperial palace", "Innere Stadt", 48.2066, 16.3655, "sight"),
+        vxa("vix-belvedere", "Belvedere", "Baroque palace & Klimt", "Landstraße", "Prinz-Eugen-Straße 27, 1030 Wien", 48.1915, 16.381, "sight"),
+        vxa("vix-secession", "Secession", "Art Nouveau landmark", "Karlsplatz", "Friedrichstraße 12, 1010 Wien", 48.2004, 16.3655, "sight"),
+        vxa("vix-wu-library", "WU Library & Learning Center", "Zaha Hadid building", "Prater", "Welthandelsplatz 1, 1020 Wien", 48.2135, 16.4085, "sight"),
+        vxa("vix-turkenschanzpark", "Türkenschanzpark", "Park", "Währing", "Türkenschanzpark, 1180 Wien", 48.2365, 16.3335, "outdoors"),
+      ],
+    },
+    {
+      id: "museums",
+      title: "Museums",
+      places: [
+        vxa("vix-albertina", "Albertina", "Art museum", "Innere Stadt", "Albertinaplatz 1, 1010 Wien", 48.2045, 16.368, "sight"),
+        vxa("vix-albertina-modern", "Albertina Modern", "Modern art", "Karlsplatz", "Karlsplatz 5, 1010 Wien", 48.2005, 16.37, "sight"),
+        vxa("vix-leopold", "Leopold Museum", "Schiele & Klimt", "MuseumsQuartier", "Museumsplatz 1, 1070 Wien", 48.2027, 16.3594, "sight"),
+        vxa("vix-heidi-horten", "Heidi Horten Collection", "Private collection", "Innere Stadt", "Hanuschgasse 3, 1010 Wien", 48.205, 16.3675, "sight"),
+        vxa("vix-khm", "Kunsthistorisches Museum", "Old masters", "Maria-Theresien-Platz", "Burgring 5, 1010 Wien", 48.2038, 16.3617, "sight"),
+      ],
+    },
+    {
+      id: "shops",
+      title: "Shops",
+      places: [
+        vxa("vix-hafi-books", "Hafi Books", "Bookshop", "Naschmarkt", "Rechte Wienzeile 45, 1050 Wien", 48.1955, 16.358, "shopping"),
+        vxa("vix-paper-republic", "Paper Republic", "Stationery", "Innere Stadt", "Sonnenfelsgasse 3, 1010 Wien", 48.2095, 16.377, "shopping"),
+        vxa("vix-osmotheca", "Osmotheca", "Perfumery", "Mariahilf", "Gumpendorfer Straße 33, 1060 Wien", 48.1985, 16.3555, "shopping"),
+        vxa("vix-belle-george", "Belle & George", "Design café & showroom", "Alsergrund", "Porzellangasse 9, 1090 Wien", 48.2185, 16.3615, "shopping"),
+      ],
+    },
+    {
+      id: "stays",
+      title: "Stays",
+      places: [
+        vxa("vix-the-companion", "The Companion", "Design hotel", "Westbahnhof", "Mariahilfer Straße 127A, 1150 Wien", 48.1958, 16.3388, "other"),
+        vxa("vix-hotel-motto", "Hotel Motto", "Boutique hotel", "Mariahilf", "Mariahilfer Straße 71a, 1060 Wien", 48.1982, 16.3487, "other"),
+        vxa("vix-max-brown", "Max Brown 7th District", "Design hotel", "Neubau", "Schottenfeldgasse 74, 1070 Wien", 48.2022, 16.3412, "other"),
+        vxa("vix-wilde", "Wilde Aparthotels Fleischmarkt", "Aparthotel", "Innere Stadt", "Dominikanerbastei 15, 1010 Wien", 48.2105, 16.38, "other"),
+        vxa("vix-house-of-ble", "House of Ble", "Boutique hotel", "Naschmarkt", "Getreidemarkt 16, 1010 Wien", 48.2005, 16.3625, "other"),
+        vxa("vix-25hours", "25hours Hotel", "Design hotel", "MuseumsQuartier", "Lerchenfelder Straße 1-3, 1070 Wien", 48.2055, 16.3555, "other"),
+      ],
     },
   ],
 };
@@ -171,7 +215,29 @@ const MELBOURNE_DETAILS: Parameters<typeof withDetails>[1] = {
   },
 };
 
-export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, VIENNA_DETAILS), withDetails(MELBOURNE, MELBOURNE_DETAILS)];
+const VIENNA_ADDED: Parameters<typeof withDetails>[1] = {
+  "vix-belvedere": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "Two baroque palaces and gardens — the Upper Belvedere holds Klimt's The Kiss. Book a timed ticket and walk down through the gardens."},
+  "vix-secession": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "The golden-domed home of the Vienna Secession, with Klimt's Beethoven Frieze in the basement and contemporary shows upstairs."},
+  "vix-wu-library": {"social": ["https://www.instagram.com/p/De4zHiHPUKj/"], "description": "Zaha Hadid's dramatic library on the WU campus by the Prater — a must for architecture fans."},
+  "vix-turkenschanzpark": {"social": ["https://www.instagram.com/p/Dd65Y_FDT74/"], "description": "A romantic landscaped park in Währing with ponds, winding paths and a lookout tower — a calm escape from the centre."},
+  "vix-albertina": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "A Habsburg palace with a superb collection from Monet to Picasso, plus the restored state rooms."},
+  "vix-albertina-modern": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "The Albertina's modern and contemporary art outpost in the Künstlerhaus on Karlsplatz."},
+  "vix-leopold": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "The world's largest Egon Schiele collection, plus Klimt and Viennese Modernism, in the MuseumsQuartier."},
+  "vix-heidi-horten": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "A jewel-box museum behind the Opera showing a private collection of modern and contemporary art."},
+  "vix-khm": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "One of the world's great art museums — Bruegel, Vermeer, Raphael — under a spectacular dome. Finish with cake in the café."},
+  "vix-hafi-books": {"social": ["https://www.instagram.com/p/DUL0jKMiLc5/", "https://www.instagram.com/p/DYSTxU7jVi6/"]},
+  "vix-paper-republic": {"social": ["https://www.instagram.com/p/DUL0jKMiLc5/"]},
+  "vix-osmotheca": {"social": ["https://www.instagram.com/p/De4zHiHPUKj/"]},
+  "vix-belle-george": {"social": ["https://www.instagram.com/p/De4zHiHPUKj/"], "description": "A café, furniture showroom and workshop in one — locally made pieces by the founders, with good coffee while you browse."},
+  "vix-the-companion": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "A new design hotel by Westbahnhof, home to Boca restaurant and the Calypso speakeasy."},
+  "vix-hotel-motto": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"], "description": "A stylish boutique hotel on Mariahilfer Straße with its own bakery and the Chez Bernard rooftop."},
+  "vix-max-brown": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"]},
+  "vix-wilde": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"]},
+  "vix-house-of-ble": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"]},
+  "vix-25hours": {"social": ["https://www.instagram.com/p/DeZSEpqjcHV/"]},
+};
+
+export const EXPLORE_GUIDES: CuratedGuide[] = [withDetails(NEW_YORK, NEW_YORK_DETAILS), withDetails(VIENNA, mergeDetails(VIENNA_DETAILS, VIENNA_ADDED)), withDetails(MELBOURNE, MELBOURNE_DETAILS)];
 
 export const exploreGuideBySlug = (slug: string | null | undefined) => findGuide(EXPLORE_GUIDES, slug);
 export const matchExploreGuides = (q: string) => match(EXPLORE_GUIDES, q);

@@ -323,6 +323,8 @@ function TitleSearch({ value, onPick }: { value: string; onPick: (g: CuratedGuid
 const ICONS: Record<GuideKind, Icon> = { food: ForkKnife, explore: MapPin };
 const KINDS: GuideKind[] = ["food", "explore"];
 const BASE = "/guides";
+/** Hotels live in the explore guide's "stays" section but get their own chip. */
+const STAYS = "explore-stays";
 
 /** City guides: search a city, then its curated places to eat and things to do in rows. */
 export function CuratedGuidePage() {
@@ -403,11 +405,12 @@ export function CuratedGuidePage() {
   const chips = guide
     ? [
         ...guide.sections.filter((sec) => sec.id.startsWith("food-")).map((sec) => ({ id: sec.id, label: sec.title })),
-        ...(guide.sections.some((sec) => sec.id.startsWith("explore-")) ? [{ id: "explore", label: "Explore" }] : []),
+        ...(guide.sections.some((sec) => sec.id.startsWith("explore-") && sec.id !== STAYS) ? [{ id: "explore", label: "Explore" }] : []),
+        ...(guide.sections.some((sec) => sec.id === STAYS) ? [{ id: STAYS, label: "Stays" }] : []),
       ]
     : [];
   const visible = (guide?.sections ?? [])
-    .filter((sec) => !filter || sec.id === filter || (filter === "explore" && sec.id.startsWith("explore-")))
+    .filter((sec) => !filter || sec.id === filter || (filter === "explore" && sec.id.startsWith("explore-") && sec.id !== STAYS))
     .flatMap((sec) => sec.places);
   const total = guide?.sections.reduce((n, sec) => n + sec.places.length, 0) ?? 0;
 
