@@ -112,6 +112,8 @@ A fixed left sidebar with icon navigation:
 - Card photo, in order: a curated place saved to the trip → a saved stay's photo → a highlight from the city guide for its first location → plain dark green (#151f15). Photos get the film treatment (darkened, grain).
 
 ### 3.6 Trip planner (`/trips/[id]`)
+- Hovering a saved flight, stay or event highlights its place on the Map tab (pins/circles grow and turn #d1d27b).
+- **Sharing**: with the Itinerary tab open, the link icon beside it copies a read-only link (`/share/<token>`). The shared page (outside the app, no sidebar) shows the itinerary on the left and the map on the right; flights and stays expand for details, curated places open their place view, and hovering an entry highlights it on the map. Every change to a shared trip is re-published automatically (~1.5s later) from the owner's browser, and the shared page refreshes every minute and on focus. Snapshots live in Supabase (`shared_itineraries`) when configured, otherwise in `data/shares/` (local only).
 - Header: trip name + date range.
 - **Flights**: every saved flight with legs, flight numbers, times, dates, and
   price. **Stays**: saved hotels with nights, dates, price. **Things to do**:

@@ -421,7 +421,10 @@ export function PlaceModal({
   photoPick,
   EmptyIcon,
   onClose,
+  readOnly,
 }: {
+  /** Shared itinerary pages: no sidebar offset, no add-to-trip or admin editing. */
+  readOnly?: boolean;
   place: CuratedPlace;
   guide: CuratedGuide;
   kind: "food" | "explore";
@@ -499,7 +502,7 @@ export function PlaceModal({
   // Portal to <body> so the overlay isn't affected by the page's layout (margins, stacking)
   return createPortal(
     <div
-      className="fixed inset-y-0 right-0 left-[64px] md:left-[84px] z-[60] flex items-start justify-center overflow-y-auto bg-ink/35 backdrop-blur-md p-3 sm:p-6 md:p-10"
+      className={clsx(readOnly ? "left-0" : "left-[64px] md:left-[84px]", "fixed inset-y-0 right-0 z-[60] flex items-start justify-center overflow-y-auto bg-ink/35 backdrop-blur-md p-3 sm:p-6 md:p-10")}
       onMouseDown={() => !editing && onClose()}
     >
       <div
@@ -510,7 +513,7 @@ export function PlaceModal({
         className="relative w-full max-w-[800px] rounded-2xl bg-guide-ink border border-black/10 shadow-2xl px-5 md:px-10 py-6 md:py-9 space-y-5"
       >
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          {IS_ADMIN && !editing && (
+          {IS_ADMIN && !readOnly && !editing && (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -520,13 +523,13 @@ export function PlaceModal({
               <PencilSimple className="size-3.5" /> Edit
             </button>
           )}
-          <AddToTripButton
+          {!readOnly && <AddToTripButton
             compact
             tone="dark"
             addedTo={addedTo}
             defaults={{ destination: guide.city }}
             onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
-          />
+          />}
           <button ref={closeRef} type="button" aria-label="Close" onClick={onClose} className="grid place-items-center size-8 rounded-full hover:bg-line/50">
             <X weight="bold" className="size-4" />
           </button>
@@ -535,7 +538,7 @@ export function PlaceModal({
         {editing ? (
           <ContentEditor basePlace={basePlace} place={place} onDone={() => setEditing(false)} />
         ) : (
-        <header className={IS_ADMIN ? "pr-40" : "pr-24"}>
+        <header className={IS_ADMIN && !readOnly ? "pr-40" : readOnly ? "pr-12" : "pr-24"}>
           <h2 className="font-serif text-[30px] md:text-[38px] leading-[1.05]">{place.name}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
             <span>

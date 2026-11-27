@@ -32,7 +32,7 @@ export function tripMapPoints(
       // Flying back home isn't a place on the trip: leave the home airport off the map.
       if (home && (leg.to.code === home.code || (home.city && leg.to.city === home.city))) continue;
       if (!leg.to.lat && !leg.to.lng) continue; // airport without known coordinates
-      pts.push({ id: `flight:${it.id}`, lat: leg.to.lat, lng: leg.to.lng, label: `Arrive ${leg.to.name} (${leg.to.code})`, kind: "flight", scheduled: true, order: order++ });
+      pts.push({ id: `flight:${it.id}`, ref: `flight:${f.id}`, lat: leg.to.lat, lng: leg.to.lng, label: `Arrive ${leg.to.name} (${leg.to.code})`, kind: "flight", scheduled: true, order: order++ });
     } else {
       const key = `${it.kind}:${it.refId}`;
       if (!firstVisit.has(key)) firstVisit.set(key, order++);

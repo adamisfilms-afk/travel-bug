@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowClockwise, ArrowLeft, Bed, ForkKnife, MapPin as MapPinIcon, CaretDown, CaretLeft, CaretRight, Star, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, Check, ForkKnife, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -27,9 +27,10 @@ import { Map, type MapPoint } from "@/components/Map";
 import { tripMapPoints } from "@/components/tripPoints";
 import { AirlineStack, carrierLabel, carriersOf } from "@/components/AirlineLogo";
 import { BookButton } from "@/components/BookButton";
-import { FlightPath } from "@/components/FlightPath";
 import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
+import { FlightDetails, StayDetails } from "@/components/tripDetails";
+import { shareTrip } from "@/lib/share";
 import { LocationsInput, tripLocations } from "@/components/trips";
 import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
@@ -37,7 +38,7 @@ import { AIRPORTS } from "@/lib/airports";
 import { findCuratedPlace } from "@/lib/curated/types";
 import { EXPLORE_GUIDES } from "@/lib/explore/guides";
 import { FOOD_GUIDES } from "@/lib/food/guides";
-import { dayMonth, daysBetween, durationLabel, money, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
+import { dayMonth, daysBetween, durationLabel, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
 import { itineraryByDay, useStore } from "@/lib/store";
 import type { ActivityCategory, BookingOption, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
 
@@ -64,9 +65,12 @@ function RowShell({
   onRemove,
   scheduled,
   details,
+  onHover,
 }: {
   kind: ItemKind;
   refId: string;
+  /** Pointer entered (key) / left (null): highlights the item on the map. */
+  onHover?: (key: string | null) => void;
   children: React.ReactNode;
   onRemove: () => void;
   scheduled: boolean;
@@ -82,6 +86,8 @@ function RowShell({
       {...listeners}
       {...attributes}
       aria-expanded={details ? open : undefined}
+      onMouseEnter={() => onHover?.(`${kind}:${refId}`)}
+      onMouseLeave={() => onHover?.(null)}
       title={details ? "Click for details · drag onto a day" : undefined}
       onClick={(e) => {
         if (!details) return;
@@ -205,92 +211,6 @@ function StayRowBody({ s }: { s: SavedStay }) {
         // Partner prices are per night; show each partner's whole-stay price to match the row.
         options={s.bookingOptions?.map((o) => ({ ...o, price: o.total ?? (o.price != null ? Math.round(o.price * Math.max(1, nights)) : null) }))}
       />
-    </div>
-  );
-}
-
-/** Expanded flight row: each leg's route with stopovers, plus booking facts. */
-function FlightDetails({ f }: { f: SavedFlight }) {
-  const cabin = { economy: "Economy", premium_economy: "Premium economy", business: "Business", first: "First" }[f.cabin];
-  return (
-    <div className="space-y-3">
-      <div className="grid gap-6 md:grid-cols-2">
-        {f.legs.map((leg, i) => (
-          <FlightPath key={i} leg={leg} label={i === 0 ? "Outbound" : "Return"} />
-        ))}
-      </div>
-      <p className="text-[12px] text-ink-muted">
-        {f.passengers} passenger{f.passengers === 1 ? "" : "s"} · {cabin} · saved at {money(f.priceSaved, f.currency)} on {shortDate(f.savedAt.slice(0, 10))}
-      </p>
-    </div>
-  );
-}
-
-/** Expanded stay row: photos, stars, rating, room, dates — like a card on the Stays page. */
-function StayDetails({ s }: { s: SavedStay }) {
-  const photos = (s.images?.length ? s.images : s.imageUrl ? [s.imageUrl] : []).slice(0, 10);
-  const [photo, setPhoto] = useState(0);
-  const [imgFailed, setImgFailed] = useState(false);
-  const nights = Math.max(1, daysBetween(s.checkIn, s.checkOut));
-  return (
-    <div className="flex flex-col sm:flex-row gap-4">
-      <div className="group/photo relative w-full sm:w-[220px] h-36 shrink-0 overflow-hidden rounded-lg bg-[#d3c2b0]">
-        {photos.length > 0 && !imgFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photos[photo]} alt={s.name} onError={() => setImgFailed(true)} className="absolute inset-0 size-full object-cover" />
-        ) : (
-          <span className="absolute inset-0 grid place-items-center text-ink/25">
-            <Bed className="size-10" />
-          </span>
-        )}
-        {photos.length > 1 && !imgFailed && (
-          <>
-            {(["prev", "next"] as const).map((dir) => (
-              <button
-                key={dir}
-                type="button"
-                aria-label={dir === "prev" ? "Previous photo" : "Next photo"}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setPhoto((i) => (dir === "next" ? (i + 1) % photos.length : (i - 1 + photos.length) % photos.length))}
-                className={`absolute top-1/2 -translate-y-1/2 ${dir === "prev" ? "left-1.5" : "right-1.5"} grid place-items-center size-7 rounded-full bg-white/90 shadow opacity-0 group-hover/photo:opacity-100 transition-opacity`}
-              >
-                {dir === "prev" ? <CaretLeft weight="bold" className="size-3.5" /> : <CaretRight weight="bold" className="size-3.5" />}
-              </button>
-            ))}
-            <span className="absolute top-1.5 right-1.5 rounded-full bg-ink/60 text-white text-[10px] px-1.5 py-0.5 tabular-nums">
-              {photo + 1}/{photos.length}
-            </span>
-          </>
-        )}
-      </div>
-      <div className="min-w-0 flex-1 space-y-1 text-[13px]">
-        {!!s.stars && (
-          <div className="flex gap-0.5 text-[#e8604c]" aria-label={`${s.stars} stars`}>
-            {Array.from({ length: s.stars }, (_, i) => (
-              <Star key={i} weight="fill" className="size-3" />
-            ))}
-          </div>
-        )}
-        <p>{s.area}</p>
-        {!!s.rating && (
-          <p>
-            <span className="font-semibold">{s.rating.toFixed(1)}</span>
-            <span className="text-ink-muted">/5</span>
-            {s.ratingWord && <span className="font-medium"> {s.ratingWord}</span>}
-            {!!s.reviews && <span className="text-ink-muted"> · {s.reviews.toLocaleString()} reviews</span>}
-          </p>
-        )}
-        <p className="text-ink-muted">
-          Check-in {shortDate(s.checkIn)} · Check-out {shortDate(s.checkOut)} · {nights} night{nights === 1 ? "" : "s"}
-          {s.guests ? ` · ${s.guests} guest${s.guests === 1 ? "" : "s"}` : ""}
-        </p>
-        {(s.roomType || s.provider) && <p className="text-ink-muted">{[s.roomType, s.provider && `via ${s.provider}`].filter(Boolean).join(" · ")}</p>}
-        {!!s.amenities?.length && <p className="text-[12px] text-ink/70">{s.amenities.slice(0, 8).join(" • ")}</p>}
-        {!s.images && !s.stars && !s.rating && (
-          <p className="text-[12px] text-ink-muted">Saved before hotel details were kept — save it again from Stays to see photos and ratings.</p>
-        )}
-        <p className="text-[12px] text-ink-muted pt-1">Saved at {money(s.priceSaved, s.currency)} for the stay</p>
-      </div>
     </div>
   );
 }
@@ -644,6 +564,10 @@ export default function PlannerPage() {
     return dest ? { lat: dest.lat, lng: dest.lng } : null;
   }, [stays, activities, id, trip]);
 
+  // Hovering a saved item highlights its place on the map
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"" | "copied" | "error">("");
+
   const mapPoints = useMemo<MapPoint[]>(
     () => tripMapPoints(id, { itinerary, stays, activities }, lookup),
     [itinerary, id, lookup, stays, activities],
@@ -755,8 +679,8 @@ export default function PlannerPage() {
         <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_minmax(400px,0.65fr)]">
           <div className="min-w-0">
             {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
-            <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-              <div role="tablist" aria-label="Saved items" className="flex items-baseline gap-5">
+            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+              <div role="tablist" aria-label="Saved items" className="flex items-baseline gap-4 md:gap-5">
                 {SAVED_TABS.map((t) => {
                   return (
                     <button
@@ -766,8 +690,8 @@ export default function PlannerPage() {
                       aria-selected={savedTab === t.id}
                       onClick={() => setSavedTab(t.id)}
                       className={clsx(
-                        "text-xl md:text-[26px] leading-tight transition-colors whitespace-nowrap",
-                        savedTab === t.id ? "text-ink underline decoration-accent decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
+                        "text-[17px] md:text-[20px] leading-tight transition-colors whitespace-nowrap",
+                        savedTab === t.id ? "text-ink underline decoration-accent decoration-[1.5px] underline-offset-[6px]" : "text-ink-muted hover:text-ink",
                       )}
                     >
                       {t.label}
@@ -792,6 +716,7 @@ export default function PlannerPage() {
                 {tripFlights.length === 0 && <Empty>No flights saved yet.</Empty>}
                 {tripFlights.map((f) => (
                   <RowShell
+                    onHover={setHovered}
                     key={f.id}
                     kind="flight"
                     refId={f.id}
@@ -810,6 +735,7 @@ export default function PlannerPage() {
                 {tripStays.length === 0 && <Empty>No stays saved yet.</Empty>}
                 {tripStays.map((s) => (
                   <RowShell
+                    onHover={setHovered}
                     key={s.id}
                     kind="stay"
                     refId={s.id}
@@ -834,7 +760,7 @@ export default function PlannerPage() {
                     </Empty>
                   )}
                   {(savedTab === "food" ? tripFood : tripExplore).map((a) => (
-                    <RowShell key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
+                    <RowShell onHover={setHovered} key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
                       <ActivityRowBody
                         a={a}
                         near={tripCentre}
@@ -849,22 +775,51 @@ export default function PlannerPage() {
           </div>
 
           <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-            <div role="tablist" aria-label="Itinerary or map" className="mb-6 flex items-baseline gap-5">
-              {(["itinerary", "map"] as const).map((t) => (
+            <div className="mb-5 flex items-center gap-4 md:gap-5">
+              <div role="tablist" aria-label="Itinerary or map" className="flex items-baseline gap-4 md:gap-5">
+                {(["itinerary", "map"] as const).map((t) => (
+                  <button
+                    key={t}
+                    role="tab"
+                    type="button"
+                    aria-selected={tab === t}
+                    onClick={() => setTab(t)}
+                    className={clsx(
+                      "text-[17px] md:text-[20px] leading-tight transition-colors",
+                      tab === t ? "text-ink underline decoration-accent decoration-[1.5px] underline-offset-[6px]" : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {t === "itinerary" ? "Itinerary" : "Map"}
+                  </button>
+                ))}
+              </div>
+              {tab === "itinerary" && (
                 <button
-                  key={t}
-                  role="tab"
                   type="button"
-                  aria-selected={tab === t}
-                  onClick={() => setTab(t)}
+                  onClick={async () => {
+                    try {
+                      const url = await shareTrip(trip.id);
+                      await navigator.clipboard.writeText(url);
+                      setCopied("copied");
+                    } catch (e) {
+                      console.error(e);
+                      setCopied("error");
+                    }
+                    setTimeout(() => setCopied(""), 2200);
+                  }}
+                  aria-label="Copy a link to share this itinerary"
+                  title="Copy a link to share this itinerary"
                   className={clsx(
-                    "text-xl md:text-[26px] leading-tight transition-colors",
-                    tab === t ? "text-ink underline decoration-accent decoration-2 underline-offset-8" : "text-ink-muted hover:text-ink",
+                    "ml-auto inline-flex items-center gap-1.5 h-8 rounded-full text-[13px] transition-colors",
+                    copied ? "px-3 bg-guide-active text-ink" : "w-8 justify-center text-ink/60 hover:text-ink hover:bg-surface",
+                    copied === "error" && "!bg-price-up/15 !text-price-up",
                   )}
                 >
-                  {t === "itinerary" ? "Itinerary" : "Map"}
+                  {copied === "copied" ? <Check weight="bold" className="size-4" /> : <LinkSimple weight="bold" className="size-4" />}
+                  {copied === "copied" && "Link copied"}
+                  {copied === "error" && "Couldn't share"}
                 </button>
-              ))}
+              )}
             </div>
             {tab === "itinerary" ? (
               <div className="rounded-[10px] dashed-accent px-5 py-5 lg:max-h-[calc(100vh-110px)] overflow-y-auto divide-y divide-line/70">
@@ -874,7 +829,7 @@ export default function PlannerPage() {
               </div>
             ) : (
               <div className="rounded-[10px] overflow-hidden dashed-accent h-[460px] lg:h-[calc(100vh-110px)]">
-                <Map points={mapPoints} legend />
+                <Map points={mapPoints} legend highlightedId={mapPoints.find((p) => (p.ref ?? p.id) === hovered)?.id ?? null} />
               </div>
             )}
           </aside>

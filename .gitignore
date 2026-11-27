@@ -8,3 +8,6 @@ out
 next-env.d.ts
 .DS_Store
 .debug
+
+# Shared itinerary snapshots (local storage for share links)
+data/shares/

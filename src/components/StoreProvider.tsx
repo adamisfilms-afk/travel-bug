@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { useSearchStore } from "@/lib/searchStore";
+import { useShareSync } from "@/lib/share";
 import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const init = useStore((s) => s.init);
   const loadError = useStore((s) => s.loadError);
+  useShareSync();
   useEffect(() => {
     void init();
     void useSearchStore.persist.rehydrate();

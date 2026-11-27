@@ -288,3 +288,29 @@ body {
 .sidebar-dark .nav-link[aria-current="page"] .nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
   stroke: var(--color-guide-active);
 }
+
+/* Trip maps: the pin/circle of the hovered item grows and turns yellow-green */
+.tb-pinbody,
+.tb-circle {
+  transition: transform 150ms ease-out;
+}
+.tb-pinbody {
+  transform-origin: 50% 100%;
+}
+.tb-pin.is-active .tb-pinbody {
+  transform: scale(1.3);
+}
+.tb-pin.is-active .tb-pinbody path {
+  fill: var(--color-guide-active);
+  stroke: var(--color-guide-bg);
+  stroke-width: 1.2;
+}
+.tb-pin.is-active .tb-pinbody span {
+  color: var(--color-guide-bg) !important;
+}
+.tb-pin.is-active .tb-circle {
+  transform: scale(1.35);
+  background: var(--color-guide-active) !important;
+  border-color: var(--color-guide-bg) !important;
+  color: var(--color-guide-bg) !important;
+}

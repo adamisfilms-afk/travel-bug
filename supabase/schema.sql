@@ -104,3 +104,18 @@ end $$;
 
 -- Added later: several locations per trip (safe to re-run)
 alter table trips add column if not exists locations text[];
+
+-- Shared itineraries (read-only links). Snapshots are written by the app's /api/share route.
+create table if not exists shared_itineraries (
+  token text primary key,
+  data jsonb not null,
+  key_hash text not null,
+  updated_at timestamptz not null default now()
+);
+alter table shared_itineraries enable row level security;
+-- The API route uses the anon key unless SUPABASE_SERVICE_ROLE_KEY is set; with only the anon key it needs:
+drop policy if exists "anon all" on shared_itineraries;
+create policy "anon all" on shared_itineraries for all using (true) with check (true);
+
+alter table trips add column if not exists share_id text;
+alter table trips add column if not exists share_key text;

@@ -21,6 +21,8 @@ export interface MapPoint {
   order?: number;
   /** Optional sequence number shown inside the pin. */
   n?: number;
+  /** The saved item this point belongs to ("flight:<id>", "stay:<id>", "activity:<id>"), for hover highlighting. */
+  ref?: string;
 }
 
 const KIND_COLOR: Record<MapPoint["kind"], string> = {
@@ -53,7 +55,7 @@ function circleIcon(p: MapPoint) {
     className: "tb-pin",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-    html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;display:grid;place-items:center;box-sizing:border-box;
+    html: `<div class="tb-circle" style="width:${size}px;height:${size}px;border-radius:9999px;display:grid;place-items:center;box-sizing:border-box;
       background:${on ? GREEN : "#fff"};border:2px solid ${on ? "#fff" : GREY};box-shadow:0 1px 3px rgba(0,0,0,.35);
       color:#fff;font:600 11px/1 Inter,sans-serif">${p.n ?? ""}</div>`,
   });
@@ -67,7 +69,7 @@ function pinIcon(p: MapPoint) {
     className: "tb-pin",
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
-    html: `<div style="position:relative;width:${size}px;height:${size}px">
+    html: `<div class="${p.kind === "guide" ? "" : "tb-pinbody"}" style="position:relative;width:${size}px;height:${size}px">
       <svg viewBox="0 0 24 24" width="${size}" height="${size}" ${p.kind === "guide" ? 'class="tb-gpin"' : ""} style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">
         <path fill="${color}" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"/>
         ${p.n == null ? '<circle cx="12" cy="9" r="2.6" fill="#fff"/>' : ""}
