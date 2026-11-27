@@ -33,7 +33,7 @@ import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { shareTrip } from "@/lib/share";
 import { useOverrides } from "@/lib/curated/overrides";
 import { LocationsInput, tripLocations } from "@/components/trips";
-import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
+import { Field, FilterChip, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui";
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
 import { AIRPORTS } from "@/lib/airports";
 import { findCuratedPlace } from "@/lib/curated/types";
@@ -581,26 +581,23 @@ export default function PlannerPage() {
   const loadOverrides = useOverrides((s) => s.load);
   useEffect(loadOverrides, [loadOverrides]);
 
-  // Food tab filter chips: each saved place's City Guide section (Dinner, Coffee, Drinks…);
-  // places that aren't in a guide go under "Other". Only chips with something in them are shown.
-  const foodSectionOf = (a: SavedActivity) => {
+  // Food/Explore "Type" filter: each saved place's City Guide section (Dinner, Coffee, Museums…);
+  // places that aren't in a guide go under "Other". Only types with something saved are offered.
+  const sectionOf = (a: SavedActivity) => {
     const hit = curatedFor.get(a.id);
     return hit?.guide.sections.find((sec) => sec.places.some((p) => p.id === hit.place.id))?.title ?? "Other";
   };
-  const foodChips = useMemo(() => {
-    const order = new globalThis.Map<string, number>();
-    for (const a of tripFood) {
+  const typesFor = (list: SavedActivity[]) => {
+    const order = new globalThis.Map<string, [number, number]>(); // type → [position in guide, count]
+    for (const a of list) {
       const hit = curatedFor.get(a.id);
-      const t = foodSectionOf(a);
-      if (!order.has(t)) order.set(t, t === "Other" ? 999 : (hit?.guide.sections.findIndex((sec) => sec.title === t) ?? 998));
+      const t = sectionOf(a);
+      const cur = order.get(t);
+      order.set(t, [cur?.[0] ?? (t === "Other" ? 999 : (hit?.guide.sections.findIndex((sec) => sec.title === t) ?? 998)), (cur?.[1] ?? 0) + 1]);
     }
-    return [...order.entries()].sort((x, y) => x[1] - y[1]).map(([t]) => t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripFood.map((a) => a.id).join(), curatedFor]);
-  const [foodFilter, setFoodFilter] = useState<string | null>(null);
-  useEffect(() => {
-    if (foodFilter && !foodChips.includes(foodFilter)) setFoodFilter(null);
-  }, [foodChips, foodFilter]);
+    return [...order.entries()].sort((x, y) => x[1][0] - y[1][0]).map(([t, [, n]]) => ({ type: t, count: n }));
+  };
+  const [typeFilter, setTypeFilter] = useState<{ food: string[]; explore: string[] }>({ food: [], explore: [] });
 
   // Hovering a saved item highlights its place on the map
   const [hovered, setHovered] = useState<string | null>(null);
@@ -789,25 +786,38 @@ export default function PlannerPage() {
 
             {(savedTab === "food" || savedTab === "explore") && (
               <section role="tabpanel" aria-label={savedTab === "food" ? "Food" : "Explore"} className="space-y-4">
-                {savedTab === "food" && foodChips.length > 1 && (
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter food">
-                    {foodChips.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        aria-pressed={foodFilter === t}
-                        onClick={() => setFoodFilter((f) => (f === t ? null : t))}
-                        className={clsx(
-                          "h-7 px-3 rounded-full text-[13px] transition-colors",
-                          foodFilter === t ? "bg-guide-active text-ink" : "bg-surface hover:bg-surface-strong",
-                        )}
+                {(() => {
+                  const list = savedTab === "food" ? tripFood : tripExplore;
+                  const types = typesFor(list);
+                  const chosen = typeFilter[savedTab].filter((t) => types.some((x) => x.type === t));
+                  if (types.length < 2) return null;
+                  return (
+                    <div className="flex">
+                      <FilterChip
+                        label={chosen.length === 1 ? chosen[0] : chosen.length ? `${chosen.length} types` : "Type"}
+                        active={chosen.length > 0}
+                        onClear={() => setTypeFilter((f) => ({ ...f, [savedTab]: [] }))}
                       >
-                        {t}
-                        <span className="ml-1.5 text-ink/45">{tripFood.filter((a) => foodSectionOf(a) === t).length}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                        <div className="space-y-2 min-w-52">
+                          {types.map(({ type, count }) => (
+                            <label key={type} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="accent-accent"
+                                checked={chosen.includes(type)}
+                                onChange={(e) =>
+                                  setTypeFilter((f) => ({ ...f, [savedTab]: e.target.checked ? [...chosen, type] : chosen.filter((x) => x !== type) }))
+                                }
+                              />
+                              <span className="flex-1">{type}</span>
+                              <span className="text-ink-muted text-[13px]">{count}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </FilterChip>
+                    </div>
+                  );
+                })()}
                 <div className="space-y-2.5">
                   {(savedTab === "food" ? tripFood : tripExplore).length === 0 && (
                     <Empty>
@@ -816,7 +826,12 @@ export default function PlannerPage() {
                         : "Nothing saved yet — add something below or from the Explore guides."}
                     </Empty>
                   )}
-                  {(savedTab === "food" ? tripFood.filter((a) => !foodFilter || foodSectionOf(a) === foodFilter) : tripExplore).map((a) => (
+                  {(savedTab === "food" ? tripFood : tripExplore)
+                    .filter((a) => {
+                      const chosen = typeFilter[savedTab].filter((t) => typesFor(savedTab === "food" ? tripFood : tripExplore).some((x) => x.type === t));
+                      return !chosen.length || chosen.includes(sectionOf(a));
+                    })
+                    .map((a) => (
                     <RowShell onHover={setHovered} key={a.id} kind="activity" refId={a.id} onRemove={() => removeActivity(a.id)} scheduled={scheduled.has(`activity:${a.id}`)}>
                       <ActivityRowBody
                         a={a}
