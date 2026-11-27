@@ -35,8 +35,8 @@ import { Field, inputCls, Modal, PriceTag, PrimaryButton } from "@/components/ui
 import { CATEGORY_LABEL, suggestionsFor } from "@/lib/activities";
 import { AIRPORTS } from "@/lib/airports";
 import { findCuratedPlace } from "@/lib/curated/types";
-import { EXPLORE_GUIDES, matchExploreGuides } from "@/lib/explore/guides";
-import { FOOD_GUIDES, matchGuides } from "@/lib/food/guides";
+import { EXPLORE_GUIDES } from "@/lib/explore/guides";
+import { FOOD_GUIDES } from "@/lib/food/guides";
 import { dayMonth, daysBetween, durationLabel, money, eachDay, hhmm, longDay, rangeLabel, shortDate } from "@/lib/format";
 import { itineraryByDay, useStore } from "@/lib/store";
 import type { ActivityCategory, BookingOption, ItemKind, ItineraryItem, SavedActivity, SavedFlight, SavedStay, Trip } from "@/lib/types";
@@ -622,8 +622,6 @@ export default function PlannerPage() {
   }, [activities, id, trip?.destination]);
   const [openCurated, setOpenCurated] = useState<NonNullable<ReturnType<typeof findCuratedPlace>> | null>(null);
   const tripExplore = tripActivities.filter((a) => a.category !== "food");
-  const foodGuide = trip ? matchGuides(trip.destination)[0] : undefined;
-  const exploreGuide = trip ? matchExploreGuides(trip.destination)[0] : undefined;
   const lookup = useMemo(() => makeLookup(flights, stays, activities), [flights, stays, activities]);
   const byDay = useMemo(() => itineraryByDay(itinerary, id), [itinerary, id]);
   const scheduled = useMemo(() => new Set(itinerary.filter((i) => i.tripId === id).map((i) => `${i.kind}:${i.refId}`)), [itinerary, id]);
@@ -754,7 +752,7 @@ export default function PlannerPage() {
           </div>
         </header>
 
-        <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
@@ -785,16 +783,6 @@ export default function PlannerPage() {
               {savedTab === "stays" && (
                 <Link href={`/stays?trip=${trip.id}&q=${encodeURIComponent(trip.destination)}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
                   Find stays
-                </Link>
-              )}
-              {savedTab === "food" && (
-                <Link href={foodGuide ? `/guides?city=${foodGuide.slug}` : "/guides"} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  {foodGuide ? `${foodGuide.city} city guide` : "City guides"}
-                </Link>
-              )}
-              {savedTab === "explore" && (
-                <Link href={exploreGuide ? `/guides?city=${exploreGuide.slug}` : "/guides"} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  {exploreGuide ? `${exploreGuide.city} city guide` : "City guides"}
                 </Link>
               )}
             </div>
