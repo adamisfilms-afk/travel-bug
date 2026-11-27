@@ -195,7 +195,7 @@ function HotelCard({
             href={h.bookingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 min-w-0 h-8 rounded-md bg-[#05203c] text-white text-[13px] font-semibold grid place-items-center hover:bg-[#0b2f56] whitespace-nowrap"
+            className="flex-1 min-w-0 h-8 rounded-md bg-accent text-white text-[13px] font-semibold grid place-items-center hover:bg-accent-hover whitespace-nowrap"
           >
             Go to site
           </a>

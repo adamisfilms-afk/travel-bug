@@ -256,7 +256,7 @@ function FlightRow({
               type="button"
               onClick={toggleReturns}
               aria-expanded={open}
-              className="h-8 pl-3 pr-2.5 rounded-full border border-accent-soft bg-white text-accent-ink text-[13px] inline-flex items-center gap-1 hover:bg-accent-soft/20 whitespace-nowrap"
+              className="h-7 pl-3 pr-2.5 rounded-full border border-accent-soft bg-white text-accent-ink text-[13px] inline-flex items-center gap-1 hover:bg-accent-soft/20 whitespace-nowrap"
             >
               Choose return
               <CaretDown weight="bold" className={clsx("size-3 transition-transform", open && "rotate-180")} />

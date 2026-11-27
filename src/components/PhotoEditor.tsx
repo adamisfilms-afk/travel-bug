@@ -137,7 +137,7 @@ export function PhotoEditor({
           <X weight="bold" className="size-4" />
         </button>
         <div className="pr-10">
-          <h2 className="text-[22px] font-bold leading-tight">Edit photos</h2>
+          <h2 className="font-serif text-[26px] leading-tight">Edit photos</h2>
           <p className="text-[13px] text-ink-muted">
             {placeName} · Drag to reorder — the first photo is the cover on cards. {!custom && "Currently showing automatic photos."}
           </p>

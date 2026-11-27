@@ -24,7 +24,7 @@ export default function HomePage() {
   const router = useRouter();
   return (
     <div className="space-y-10">
-      <h1 className="text-3xl md:text-[44px] leading-[1.25] font-extrabold tracking-tight">
+      <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.12] font-normal">
         Hey Adam,
         <br />
         Let&rsquo;s plan your next adventure.

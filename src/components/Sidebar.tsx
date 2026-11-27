@@ -95,7 +95,7 @@ export function Sidebar() {
         className={clsx(
           "size-9 md:size-10 rounded-full shadow-sm ring-offset-2 transition",
           dark ? "ring-offset-guide-bg" : "ring-offset-canvas",
-          path === "/home" ? "ring-[1.5px] ring-accent-soft" : "hover:ring-[1.5px] hover:ring-[#c3c6bf]",
+          path === "/home" ? "ring-[1.5px] ring-accent-soft" : "hover:ring-[1.5px] hover:ring-[#bdb8a3]",
         )}
         style={{ background: "radial-gradient(circle at 30% 25%, #f7e98b 0%, #c9e3a3 35%, #9fcde0 70%, #e9d6a5 100%)" }}
       />

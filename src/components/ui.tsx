@@ -9,14 +9,14 @@ import { money, priceTooltip, priceTrend } from "@/lib/format";
 export function PageTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-      <h1 className="text-3xl md:text-[42px] leading-[1.1] font-extrabold tracking-tight">{children}</h1>
+      <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.05] font-normal">{children}</h1>
       {aside && <span className="text-lg md:text-[22px] text-ink-muted">{aside}</span>}
     </div>
   );
 }
 
 export function SectionTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <h2 className={clsx("text-xl md:text-[26px] leading-tight font-normal", className)}>{children}</h2>;
+  return <h2 className={clsx("font-serif text-xl md:text-[26px] leading-tight font-normal", className)}>{children}</h2>;
 }
 
 /** Large rectangular chip used for trip tabs ("New York City", "Add new trip"). */
@@ -74,8 +74,8 @@ export function FilterChip({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          "h-8 px-3.5 rounded-full text-[14px] transition-colors inline-flex items-center gap-2",
-          active ? "bg-accent text-white" : "bg-surface hover:bg-white",
+          "h-7 px-3 rounded-full text-[13px] transition-colors inline-flex items-center gap-1.5",
+          active ? "bg-guide-active text-ink" : "bg-surface hover:bg-surface-strong",
         )}
       >
         {icon}
@@ -88,7 +88,7 @@ export function FilterChip({
               e.stopPropagation();
               onClear();
             }}
-            className="-mr-1 rounded-full hover:bg-white/20 p-0.5"
+            className="-mr-1 rounded-full hover:bg-black/10 p-0.5"
           >
             <X className="size-3.5" weight="bold" />
           </span>
@@ -202,7 +202,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-6">
-          <h2 className="text-xl font-bold">{title}</h2>
+          <h2 className="font-serif text-[24px] leading-tight">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 rounded hover:bg-surface">
             <X className="size-5" />
           </button>
@@ -230,7 +230,7 @@ export function PrimaryButton({ children, className, ...rest }: React.ButtonHTML
     <button
       {...rest}
       className={clsx(
-        "h-12 px-8 rounded-[10px] bg-accent text-white text-[17px] hover:bg-accent-hover transition-colors disabled:opacity-60 border border-accent-soft",
+        "h-12 px-8 rounded-[10px] bg-accent text-white text-[17px] hover:bg-accent-hover transition-colors disabled:opacity-60 border border-accent",
         className,
       )}
     >

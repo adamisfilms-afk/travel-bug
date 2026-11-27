@@ -658,7 +658,7 @@ export default function PlannerPage() {
   if (!trip)
     return (
       <div className="space-y-4">
-        <h1 className="text-[30px] font-extrabold">Trip not found</h1>
+        <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.05]">Trip not found</h1>
         <Link href="/trips" className="text-accent-ink underline">
           Back to your trips
         </Link>
@@ -729,7 +729,7 @@ export default function PlannerPage() {
             </Link>
             {/* Title and dates share a text baseline */}
             <div className="flex items-baseline gap-3 min-w-0">
-              <h1 className="text-[28px] md:text-[30px] leading-tight font-extrabold tracking-tight truncate">{trip.name}</h1>
+              <h1 className="font-serif text-[40px] md:text-[54px] leading-[1.1] truncate">{trip.name}</h1>
               <span className="text-[14px] md:text-[15px] text-ink-muted whitespace-nowrap">{rangeLabel(trip.startDate, trip.endDate)}</span>
             </div>
           </div>

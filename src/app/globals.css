@@ -10,16 +10,17 @@
   --color-guide-chip: #e7e3d2;
   --color-guide-active: #d1d27b;
   --color-guide-card: #222d22;
-  --color-canvas: #eceee9;
-  --color-surface: #f4f4f2;
-  --color-surface-strong: #ffffff;
-  --color-line: #d6d8d2;
-  --color-ink: #111111;
-  --color-ink-muted: #8c8c8c;
-  --color-accent: #274321;
-  --color-accent-hover: #1d3319;
-  --color-accent-soft: #93ad8c;
-  --color-accent-ink: #274321;
+  /* Cream page, deep green-black ink; buttons use ink, active chips use the yellow-green accent */
+  --color-canvas: #e7e3d2;
+  --color-surface: #f1eee2;
+  --color-surface-strong: #fbfaf5;
+  --color-line: #d2cdb9;
+  --color-ink: #151f15;
+  --color-ink-muted: #7b7969;
+  --color-accent: #151f15;
+  --color-accent-hover: #2c3a2c;
+  --color-accent-soft: #b3b45a;
+  --color-accent-ink: #151f15;
   --color-price-up: #a35f5f;
   --color-price-down: #4f8a42;
   --color-ph-mustard: #dfc174;
@@ -171,7 +172,7 @@ body {
   fill: var(--color-canvas);
 }
 .nav-link:hover .nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
-  stroke: #c3c6bf;
+  stroke: #bdb8a3;
 }
 .nav-link[aria-current="page"] .nav-icon .nv-ring :is(path, rect:not([fill="none"])) {
   stroke: var(--color-accent-soft);
