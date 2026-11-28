@@ -2,7 +2,7 @@
 
 import { ArrowUp, Check, ForkKnife, MapPin, Plus, Star, Trash } from "@phosphor-icons/react";
 import clsx from "clsx";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AiLogo } from "@/components/AiLogo";
 import { PlaceModal } from "@/components/PlaceModal";
 import type { AssistantCard, AssistantReply, ChatMessage } from "@/lib/assistant/types";
@@ -90,6 +90,18 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const asked = useRef(false);
+  // The chat fills the screen below where it starts, so the input is always visible without scrolling
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = boxRef.current;
+      if (el) setTop(Math.round(el.getBoundingClientRect().top + window.scrollY));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  });
   // Replies that arrive while you're here type themselves out (older ones show in full)
   const [typing, setTyping] = useState<Set<string>>(() => new Set());
 
@@ -178,7 +190,12 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
   const outOfMessages = remaining === 0;
 
   return (
-    <div className="flex flex-col rounded-[10px] dashed-accent h-[min(640px,calc(100svh-220px))] lg:h-[calc(100vh-110px)] min-h-[420px]">
+    <div
+      ref={boxRef}
+      // Below its top edge: 24px of breathing room on desktop; on phones, also the bottom tab bar
+      style={top != null ? { height: `max(380px, calc(100svh - ${top}px - var(--chat-gap)))` } : undefined}
+      className="flex flex-col rounded-[10px] dashed-accent h-[min(640px,calc(100svh-220px))] [--chat-gap:calc(76px+env(safe-area-inset-bottom))] md:[--chat-gap:24px]"
+    >
       <div ref={listRef} className="flex-1 overflow-y-auto no-scrollbar px-4 md:px-5 py-4 space-y-4">
         {messages === null && <div className="h-10 w-2/3 rounded-xl bg-surface animate-pulse" />}
         {messages?.length === 0 && !busy && <Welcome trip={trip} onPick={(q) => void send(q)} disabled={!enabled || outOfMessages} />}

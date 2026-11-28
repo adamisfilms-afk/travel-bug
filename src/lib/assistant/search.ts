@@ -86,9 +86,13 @@ function kindOf(g: CityGuide, p: CuratedPlace, section: string): PlaceKind {
 const STOP = new Set(["best", "good", "great", "nice", "place", "places", "spot", "spots", "some", "the", "for", "with", "and", "near", "around", "top"]);
 
 /** Search one city's curated guide. Hard filters: city and kind. Then score by area, price, tags and keywords. */
-export async function searchCurated(q: SearchQuery): Promise<{ guide: CityGuide | null; results: Candidate[] }> {
+/**
+ * `exclude`: place ids (and lower-case names) already shown in this chat, left out so "more" gives new places.
+ * `matched` is how many fit before leaving those out.
+ */
+export async function searchCurated(q: SearchQuery, exclude: Set<string> = new Set()): Promise<{ guide: CityGuide | null; results: Candidate[]; matched: number }> {
   const guide = guideFor(q.city);
-  if (!guide) return { guide: null, results: [] };
+  if (!guide) return { guide: null, results: [], matched: 0 };
   let overrides: Record<string, PlaceOverride> = {};
   try {
     overrides = (await readOverrides()) as Record<string, PlaceOverride>;
@@ -132,7 +136,8 @@ export async function searchCurated(q: SearchQuery): Promise<{ guide: CityGuide 
   const specific = words.length > 0 || !!area;
   const kept = specific ? scored.filter((x) => x.matched) : scored;
   kept.sort((a, b) => b.score - a.score || a.order - b.order);
-  return { guide, results: kept.slice(0, MAX_CANDIDATES).map((x) => x.c) };
+  const fresh = kept.filter((x) => !exclude.has(x.c.id) && !exclude.has(x.c.name.toLowerCase()));
+  return { guide, results: fresh.slice(0, MAX_CANDIDATES).map((x) => x.c), matched: kept.length };
 }
 
 function curatedCandidate(guide: CityGuide, s: CuratedSection, p: CuratedPlace, kind: PlaceKind): Candidate {
@@ -295,7 +300,7 @@ const PRICE: Record<string, number> = {
 };
 
 /** General suggestions from Google Places (Text Search, New). Needs GOOGLE_MAPS_API_KEY; [] without it. */
-export async function searchGeneral(q: SearchQuery, limit: number): Promise<Candidate[]> {
+export async function searchGeneral(q: SearchQuery, limit: number, exclude: Set<string> = new Set()): Promise<Candidate[]> {
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key || limit <= 0) return [];
   const what = q.kind === "stay" ? "hotels" : q.kind === "food" ? "restaurants" : q.kind === "explore" ? "things to do" : "places";
@@ -309,7 +314,7 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
         "X-Goog-FieldMask":
           "places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.editorialSummary,places.primaryTypeDisplayName,places.shortFormattedAddress,places.types",
       },
-      body: JSON.stringify({ textQuery: text, pageSize: Math.min(10, limit + 3), languageCode: "en" }),
+      body: JSON.stringify({ textQuery: text, pageSize: Math.min(20, limit + 3 + exclude.size), languageCode: "en" }),
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`Places ${res.status}`);
@@ -329,6 +334,7 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
     const places: P[] = (await res.json()).places ?? [];
     return places
       .filter((p) => p.displayName?.text && (p.userRatingCount ?? 0) >= 20) // skip barely-reviewed listings
+      .filter((p) => !exclude.has(`g:${p.id}`) && !exclude.has(p.displayName!.text.toLowerCase())) // not already shown
       .slice(0, limit)
       .map((p) => {
         const name = p.displayName!.text;
