@@ -119,6 +119,8 @@ async function writeLog(row: Record<string, unknown>, log: CallLog) {
 
 export interface Understanding {
   action: "clarify" | "search" | "answer";
+  /** The person is asking about places already shown ("which is best?", "tell me more about these"). */
+  about_previous: boolean;
   message: string;
   options: string[];
   query: { city: string; kind: PlaceKind | "any"; area: string | null; max_price: number | null; tags: string[]; keywords: string[] };
@@ -129,9 +131,10 @@ const nullable = (t: string) => ({ anyOf: [{ type: t }, { type: "null" }] });
 const UNDERSTAND_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["action", "message", "options", "query"],
+  required: ["action", "about_previous", "message", "options", "query"],
   properties: {
     action: { type: "string", enum: ["clarify", "search", "answer"] },
+    about_previous: { type: "boolean" },
     message: { type: "string" },
     options: { type: "array", items: { type: "string" } },
     query: {
@@ -157,6 +160,8 @@ Read the conversation and choose one action.
 "clarify": ask ONE short question when the answer would clearly change which places to suggest (for example the area to stay in, budget, or what kind of food). Rules:
 - At most two clarifying questions in the whole conversation. If you have already asked two, or the person said "no preference" or gave enough detail, search instead.
 - Never ask about something they already told you, or about the city when the trip has one.
+- Never ask what they mean by "best", "good" or "worth it" — they want your judgement, so search and give it.
+- Don't ask when they're asking about places you've just shown.
 - message: the question, 12 words or fewer.
 - options: 2 to 4 short answers (3 words or fewer each), with "No preference" last.
 
@@ -167,9 +172,12 @@ Read the conversation and choose one action.
 - max_price: 1 (cheap) to 4 (luxury) if they gave a budget, otherwise null.
 - tags: any that apply from: kids, family, romantic, budget, luxury, vegetarian, vegan, late-night, outdoors, rainy-day, views, quiet, lively, local, classic, design.
 - keywords: specific things they want, e.g. "schnitzel", "rooftop", "natural wine", "pool". Short words, no filler.
+- about_previous: true when they're asking about places already shown ("which is the best?", "which is cheapest?", "tell me more about these"), so you should judge those same places rather than search again. Otherwise false.
 - message: an empty string. options: [].
 
-"answer": for anything that isn't finding places (a quick fact, a thank-you). message: at most two short sentences, then offer to find places. options: []. Fill query with the trip's city, kind "any", nulls and empty lists.
+"answer": for anything that isn't finding places (a quick fact, a thank-you). message: at most two short sentences, then offer to find places. options: []. about_previous: false. Fill query with the trip's city, kind "any", nulls and empty lists.
+
+For "clarify", about_previous is false.
 
 Use British spelling. Keep everything brief.`;
 
@@ -247,14 +255,15 @@ const PICK_SCHEMA = {
   },
 };
 
-const PICK_SYSTEM = `You are the trip assistant inside "wheretonext", a travel planner built around hand-picked City Guides. You are given what someone asked for and a list of candidate places found by search. Choose the places to show them.
+const PICK_SYSTEM = `You are the trip assistant inside "wheretonext", a travel planner built around hand-picked City Guides. You are given what someone asked for and a list of candidate places. Choose the places to show them and say a little about each.
 
 Rules:
 - Only use ids from the candidate list. Never suggest a place that isn't in it.
-- Candidates with source "curated" are our editors' picks. Choose every curated candidate that fits the request before any "general" one. Only use general candidates to fill gaps when the curated ones don't cover the request.
-- Choose up to 6 places, best fit first. Leave out places that don't fit (wrong area, budget or type). It's fine to return fewer, or none.
-- summary: 1–2 sentences, 30 words or fewer, saying why it suits this request. Base it only on the candidate's about, tagline, section and area. Do not invent facts (no prices, awards, dishes, amenities or opening hours that aren't stated). If "about" is empty, describe it plainly from its tagline, section and area.
-- intro: one short line, 12 words or fewer, e.g. "Three family-friendly stays near the Ringstrasse:". If nothing fits, say so briefly and suggest what to try instead, and return no cards.
+- Candidates with source "curated" are our editors' picks; "general" ones were found elsewhere. When places fit equally well, prefer curated ones. But judge on merit: if they ask for the best, the cheapest, or something specific, pick and order the places that genuinely fit best.
+- Show 4 or 5 places when that many fit (fewer only if fewer fit), best first.
+- When they ask which is best (or cheapest, quietest…), give a clear answer: order by your judgement and make the intro a one-line verdict naming your top pick and why, e.g. "Hotel Motto edges it — 4.7 on Google from 2,000 reviews and the best location.". Use the Google rating and review count, price, area and what you know about each place.
+- summary: 1–2 sentences, 30 words or fewer, saying why it suits this request. Use the candidate's details (about, tagline, area, rating, reviews, price). You may add what is widely known about a well-known place, but never state specific facts (prices, awards, amenities, opening hours) you're not sure of. Mention the Google rating when it helps the comparison.
+- intro: one short line, 15 words or fewer. If nothing fits, say so briefly, suggest what to try instead, and return no cards.
 - British spelling. No emoji.`;
 
 export async function pick(request: string, candidates: Candidate[], log: CallLog): Promise<Picks> {
@@ -266,6 +275,8 @@ export async function pick(request: string, candidates: Candidate[], log: CallLo
     section: c.section,
     area: c.area,
     price: c.price,
+    google_rating: c.rating ?? null,
+    google_reviews: c.reviews ?? null,
     about: c.about,
   }));
   const content = `Request: ${request}\n\nCandidates (JSON):\n${JSON.stringify(list)}`;

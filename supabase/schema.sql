@@ -451,3 +451,17 @@ create table if not exists public.assistant_calls (
 create index if not exists assistant_calls_created on public.assistant_calls (created_at desc);
 alter table public.assistant_calls enable row level security;
 grant all on public.assistant_calls to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Place facts for the assistant (also in supabase/005_place_facts.sql)
+-- ---------------------------------------------------------------------------
+create table if not exists public.place_facts (
+  query text primary key,      -- the place's Google search text (mapsQuery)
+  rating numeric(2, 1),
+  reviews integer,
+  price smallint,              -- 1–4
+  summary text,
+  updated_at timestamptz not null default now()
+);
+alter table public.place_facts enable row level security;
+grant all on public.place_facts to service_role;

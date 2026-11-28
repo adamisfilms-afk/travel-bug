@@ -2,6 +2,7 @@
 
 import { AirplaneTilt, ChartBar, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
 import { useAccountInfo } from "@/lib/auth";
+import { LOGO_GRADIENT } from "./AiLogo";
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -102,7 +103,7 @@ export function Sidebar() {
           dark ? "ring-offset-guide-bg" : "ring-offset-canvas",
           path === "/home" ? "ring-[1.5px] ring-accent-soft" : "hover:ring-[1.5px] hover:ring-[#bdb8a3]",
         )}
-        style={{ background: "radial-gradient(circle at 30% 25%, #f7e98b 0%, #c9e3a3 35%, #9fcde0 70%, #e9d6a5 100%)" }}
+        style={{ background: LOGO_GRADIENT }}
       />
       <nav className="contents md:flex md:mt-7 md:flex-col md:gap-4">
         {TOP.map((i) => (

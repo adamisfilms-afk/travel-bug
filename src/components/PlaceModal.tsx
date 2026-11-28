@@ -443,9 +443,12 @@ export function PlaceModal({
   EmptyIcon,
   onClose,
   readOnly,
+  general,
 }: {
   /** Shared itinerary pages: no sidebar offset, no add-to-trip or admin editing. */
   readOnly?: boolean;
+  /** A place that isn't in a City Guide (an assistant suggestion): no admin editing. */
+  general?: boolean;
   place: CuratedPlace;
   guide: CuratedGuide;
   kind: "food" | "explore";
@@ -537,7 +540,7 @@ export function PlaceModal({
       >
         {/* Phones: the buttons sit in their own row above the title; larger screens: top-right corner */}
         <div className="sticky top-0 z-10 -mx-5 px-5 py-2 bg-guide-ink flex items-center justify-end gap-2 sm:m-0 sm:p-0 sm:bg-transparent sm:absolute sm:top-4 sm:right-4">
-          {isAdmin && !readOnly && !editing && (
+          {isAdmin && !readOnly && !general && !editing && (
             <button
               type="button"
               onClick={() => setEditing(true)}
