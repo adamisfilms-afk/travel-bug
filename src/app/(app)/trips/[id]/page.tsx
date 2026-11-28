@@ -973,7 +973,7 @@ export default function PlannerPage() {
               </div>
             ) : (
               <div className="rounded-[10px] overflow-hidden dashed-accent h-[460px] lg:h-[calc(100vh-110px)]">
-                <Map points={mapPoints} legend highlightedId={mapPoints.find((p) => (p.ref ?? p.id) === hovered)?.id ?? null} />
+                <Map points={mapPoints} legend storageKey={`travel-bug:map-view:${id}`} highlightedId={mapPoints.find((p) => (p.ref ?? p.id) === hovered)?.id ?? null} />
               </div>
             )}
           </aside>
