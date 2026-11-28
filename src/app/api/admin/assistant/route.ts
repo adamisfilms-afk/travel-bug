@@ -116,8 +116,10 @@ export async function GET(req: Request) {
   for (const m of userMessages) if (m.created_at >= dayAgo && m.user_id) todayByUser.set(m.user_id, (todayByUser.get(m.user_id) ?? 0) + 1);
   const limit = Number(process.env.ASSISTANT_MESSAGES_PER_DAY ?? 10);
 
-  const sum = (f: (c: Call) => number) => calls.reduce((n, c) => n + (f(c) || 0), 0);
-  const ok = calls.filter((c) => c.status === "ok");
+  // AI calls only (the log also has "prices" steps: hotel price lookups, which cost no AI tokens)
+  const ai = calls.filter((c) => c.step !== "prices");
+  const sum = (f: (c: Call) => number) => ai.reduce((n, c) => n + (f(c) || 0), 0);
+  const ok = ai.filter((c) => c.status === "ok");
 
   return NextResponse.json({
     days,
@@ -126,7 +128,7 @@ export async function GET(req: Request) {
     limit,
     totals: {
       requests: requests.size,
-      calls: calls.length,
+      calls: ai.length,
       cost: totalCost,
       costPerRequest: requests.size ? totalCost / requests.size : 0,
       inputTokens: sum((c) => c.input_tokens),
@@ -134,8 +136,8 @@ export async function GET(req: Request) {
       cacheReadTokens: sum((c) => c.cache_read_tokens),
       cacheWriteTokens: sum((c) => c.cache_write_tokens),
       avgMs: ok.length ? Math.round(ok.reduce((n, c) => n + (c.duration_ms ?? 0), 0) / ok.length) : 0,
-      errors: calls.filter((c) => c.status === "error").length,
-      refusals: calls.filter((c) => c.status === "refused").length,
+      errors: ai.filter((c) => c.status === "error").length,
+      refusals: ai.filter((c) => c.status === "refused").length,
       users: byUser.size,
       userMessages: userMessages.length,
       usersAtLimitToday: [...todayByUser.values()].filter((n) => n >= limit).length,

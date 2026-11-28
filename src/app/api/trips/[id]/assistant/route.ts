@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { AssistantRefusal, assistantEnabled, pick, toSearchQuery, understand, type CallLog } from "@/lib/assistant/claude";
+import { AssistantRefusal, assistantEnabled, logStep, pick, toSearchQuery, understand, type CallLog } from "@/lib/assistant/claude";
 import { MIN_CURATED, addGoogleFacts, candidatesFromCards, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
 import type { AssistantCard, AssistantReply, ChatContent, ChatMessage } from "@/lib/assistant/types";
 import { hotelSearchLink, priceStays, type PriceContext } from "@/lib/assistant/prices";
@@ -19,7 +19,7 @@ import { supabaseServer } from "@/lib/supabase/server";
  * admins aren't limited.
  */
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 const LIMIT = Number(process.env.ASSISTANT_MESSAGES_PER_DAY ?? 10);
 const MAX_CARDS = 5;
@@ -175,17 +175,12 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
         ? `Our ${guide.city} guide doesn't cover this yet, but here are some recommendations I found elsewhere:`
         : `We don't have curated picks for ${q.city} yet, but here are some recommendations I found elsewhere:`;
   }
-  // Hotels: live prices on the trip's dates (one city search, cached), so it can weigh cost
+  // Hotels: live prices on the trip's dates (one city search, cached), so it can weigh cost.
+  // Google rating, reviews and price level for curated places (cached), so it can judge which is best.
   const priceCtx: PriceContext = { city: q.city, checkIn: trip.startDate, checkOut: trip.endDate, adults: Math.max(1, trip.travellers), currency };
   const stayCandidates = candidates.filter((c) => c.kind === "stay" && c.nightly == null);
-  // Google rating, reviews and price level for curated places (cached), so it can judge which is best
-  const [prices] = await Promise.all([
-    priceStays(
-      stayCandidates.map((c) => c.name),
-      priceCtx,
-    ),
-    addGoogleFacts(candidates),
-  ]);
+  const pricing = Date.now();
+  const [{ prices, report }] = await Promise.all([priceStays(stayCandidates.map((c) => c.name), priceCtx, 0, 20_000), addGoogleFacts(candidates)]);
   for (const c of stayCandidates) {
     const p = prices.get(c.name);
     if (p) Object.assign(c, { nightly: p.nightly, currency: p.currency });
@@ -226,13 +221,12 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
 
   // Hotels shown: price (looking up by name the few the city search missed) and a booking link
   const stays = shown.filter((c) => c.kind === "stay");
-  const shownPrices = await priceStays(
-    stays.map((c) => c.name),
-    priceCtx,
-    2,
-  );
+  const second = await priceStays(stays.map((c) => c.name), priceCtx, 2, 15_000);
+  // One log line per answer with hotels, so the admin page shows why prices are missing
+  if (stayCandidates.length || stays.length)
+    void logStep("prices", second.report.status === "ok" ? report.status : second.report.status, `${q.city}: ${report.note} | shown: ${second.report.note}`, { ...log, city: q.city }, Date.now() - pricing);
   for (const c of stays) {
-    const p = shownPrices.get(c.name);
+    const p = second.prices.get(c.name);
     c.nightly = p?.nightly ?? null;
     c.total = p?.total ?? null;
     c.currency = p?.currency ?? null;

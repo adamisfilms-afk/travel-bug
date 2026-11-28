@@ -307,7 +307,7 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
         "Content-Type": "application/json",
         "X-Goog-Api-Key": key,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.editorialSummary,places.primaryTypeDisplayName,places.shortFormattedAddress",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.priceLevel,places.rating,places.userRatingCount,places.editorialSummary,places.primaryTypeDisplayName,places.shortFormattedAddress,places.types",
       },
       body: JSON.stringify({ textQuery: text, pageSize: Math.min(10, limit + 3), languageCode: "en" }),
       cache: "no-store",
@@ -324,6 +324,7 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
       userRatingCount?: number;
       editorialSummary?: { text: string };
       primaryTypeDisplayName?: { text: string };
+      types?: string[];
     };
     const places: P[] = (await res.json()).places ?? [];
     return places
@@ -331,6 +332,15 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
       .slice(0, limit)
       .map((p) => {
         const name = p.displayName!.text;
+        // Google's place types decide what it is (a hotel is a stay even if the question said "places")
+        const t = p.types ?? [];
+        const kind: PlaceKind = t.includes("lodging")
+          ? "stay"
+          : t.some((x) => /restaurant|cafe|bar|bakery|food|meal/.test(x))
+            ? "food"
+            : q.kind === "any"
+              ? "explore"
+              : q.kind;
         const type = p.primaryTypeDisplayName?.text ?? (q.kind === "stay" ? "Hotel" : "");
         return {
           id: `g:${p.id}`,
@@ -339,12 +349,12 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
           tagline: type,
           area: (p.shortFormattedAddress ?? p.formattedAddress ?? "").split(",").slice(-2, -1)[0]?.trim() ?? "",
           section: type,
-          kind: q.kind === "any" ? "explore" : q.kind,
+          kind,
           price: p.priceLevel ? PRICE[p.priceLevel] ?? null : null,
           about: p.editorialSummary?.text ?? "",
           lat: p.location?.latitude ?? null,
           lng: p.location?.longitude ?? null,
-          category: q.kind === "food" ? "food" : q.kind === "stay" ? "other" : "sight",
+          category: kind === "food" ? "food" : kind === "stay" ? "other" : "sight",
           mapsQuery: `${name} ${p.formattedAddress ?? q.city}`,
           rating: p.rating ?? null,
           reviews: p.userRatingCount ?? null,

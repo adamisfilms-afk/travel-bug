@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlaceModal } from "@/components/PlaceModal";
 import { AddToTripButton } from "@/components/trips";
+import { addPlaceToTrip, isCuratedStay, removePlaceFromTrip, useTripsWithPlace } from "@/lib/tripPlaces";
 import { Map as GuideMap, type MapPoint } from "@/components/Map";
 import { useClickOutside } from "@/components/ui";
 import { useCuratedPlace, useOverrides } from "@/lib/curated/overrides";
@@ -78,10 +79,8 @@ function PlaceCard({
   const [visible, setVisible] = useState(!!cached);
   const [photo, setPhoto] = useState<Photo | null>(cached && cached !== "failed" ? cached : null);
   const [failed, setFailed] = useState(cached === "failed");
-  const activities = useStore((s) => s.activities);
-  const addActivity = useStore((s) => s.addActivity);
-  const removeActivity = useStore((s) => s.removeActivity);
-  const addedTo = activities.filter((a) => a.name === place.name).map((a) => a.tripId);
+  // Hotels save to the trip's Stays; everything else to Food / Explore
+  const addedTo = useTripsWithPlace(place.name);
 
   // Load the photo once the card is near the viewport
   useEffect(() => {
@@ -222,8 +221,10 @@ function PlaceCard({
           tone="guide"
           addedTo={addedTo}
           defaults={{ destination: guide.city }}
-          onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
-          onRemove={(tripId) => activities.filter((a) => a.tripId === tripId && a.name === place.name).forEach((a) => removeActivity(a.id))}
+          onAdd={(tripId) =>
+            addPlaceToTrip(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, area: place.neighbourhood, city: guide.city, stay: isCuratedStay(guide, basePlace.id) })
+          }
+          onRemove={(tripId) => removePlaceFromTrip(tripId, place.name)}
         />
       </div>
     </div>
