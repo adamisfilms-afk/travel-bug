@@ -424,10 +424,11 @@ function ContentEditor({ basePlace, place, onDone, onDeleted }: { basePlace: Cur
 // Modal
 // ---------------------------------------------------------------------------
 
-type InfoTab = "reviews" | "social" | "info";
+type InfoTab = "reviews" | "social" | "book" | "info";
 const INFO_TABS: { id: InfoTab; label: string }[] = [
   { id: "reviews", label: "Reviews" },
   { id: "social", label: "On social" },
+  { id: "book", label: "Book" },
   { id: "info", label: "Info" },
 ];
 
@@ -594,19 +595,8 @@ export function PlaceModal({
 
         {!editing && place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
 
-        {kind === "food" && !editing && (
-          <BookTable
-            placeName={place.name}
-            bookingUrl={place.bookingUrl}
-            website={d?.website}
-            phone={d?.phone}
-            reservable={d?.reservable}
-            guide={guide}
-          />
-        )}
-
-        <div role="tablist" aria-label="About this place" className="flex gap-6 md:gap-8 pt-1">
-          {INFO_TABS.map((t) => (
+        <div role="tablist" aria-label="About this place" className="flex gap-5 sm:gap-6 md:gap-8 pt-1">
+          {INFO_TABS.filter((t) => t.id !== "book" || kind === "food").map((t) => (
             <button
               key={t.id}
               role="tab"
@@ -700,6 +690,20 @@ export function PlaceModal({
           onAdd={(url) => saveExtra({ ...extra, [place.id]: [...(extra[place.id] ?? []), url] })}
           onRemove={(url) => saveExtra({ ...extra, [place.id]: (extra[place.id] ?? []).filter((u) => u !== url) })}
         />
+        )}
+
+        {infoTab === "book" && kind === "food" && (
+          <div role="tabpanel">
+            <BookTable
+              placeName={place.name}
+              bookingUrl={place.bookingUrl}
+              website={d?.website}
+              phone={d?.phone}
+              reservable={d?.reservable}
+              guide={guide}
+              loading={details === "loading"}
+            />
+          </div>
         )}
 
         {infoTab === "info" && (
