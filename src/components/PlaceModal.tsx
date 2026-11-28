@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useCuratedPlace, useIsAdmin, useOverrides, type PhotoItem } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
+import { BookTable } from "./BookTable";
 import { PhotoEditor } from "./PhotoEditor";
 import { AddToTripButton } from "./trips";
 
@@ -21,6 +22,8 @@ interface Details {
   mapsUrl: string | null;
   website: string | null;
   address?: string | null;
+  reservable?: boolean | null;
+  phone?: string | null;
   hours: string[] | null;
   summary: { text: string; disclosure: string; reviewsUrl: string | null; flagUrl: string | null } | null;
   reviews: { rating: number | null; when: string; text: string; author: string; authorUrl: string | null; authorPhoto: string | null; url: string | null }[];
@@ -591,6 +594,17 @@ export function PlaceModal({
 
         {!editing && place.description && <p className="text-[13px] leading-relaxed max-w-[560px]">{place.description}</p>}
 
+        {kind === "food" && !editing && (
+          <BookTable
+            placeName={place.name}
+            bookingUrl={place.bookingUrl}
+            website={d?.website}
+            phone={d?.phone}
+            reservable={d?.reservable}
+            guide={guide}
+          />
+        )}
+
         <div role="tablist" aria-label="About this place" className="flex gap-6 md:gap-8 pt-1">
           {INFO_TABS.map((t) => (
             <button
@@ -690,14 +704,14 @@ export function PlaceModal({
 
         {infoTab === "info" && (
           <section role="tabpanel" className="space-y-4 text-[13px]">
-            {place.bookingUrl && (
+            {place.bookingUrl && kind !== "food" && (
               <a
                 href={place.bookingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-guide-bg text-guide-ink text-[14px] hover:bg-accent"
               >
-                {kind === "food" ? "Book a table" : "Book tickets"} <ArrowSquareOut className="size-3.5" />
+                Book tickets <ArrowSquareOut className="size-3.5" />
               </a>
             )}
             {d?.address && (
