@@ -234,6 +234,27 @@ export async function skyscannerHotelsPage(p: HotelSearchParams): Promise<HotelP
   return { hotels, page, total, hasMore };
 }
 
+const hotelNorm = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\b(hotel|hotels|the|by|and|boutique|apartments?|suites?|spa|resort)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Same hotel? Exact or contained name, or most of the distinctive words in common. */
+export function sameHotel(a: string, b: string) {
+  const x = hotelNorm(a);
+  const y = hotelNorm(b);
+  if (!x || !y) return false;
+  if (x === y || (Math.min(x.length, y.length) >= 5 && (x.includes(y) || y.includes(x)))) return true;
+  const xs = new Set(x.split(" ").filter((w) => w.length > 2));
+  const ys = y.split(" ").filter((w) => w.length > 2);
+  const common = ys.filter((w) => xs.has(w)).length;
+  return common >= 2 && common / Math.min(xs.size, ys.length) >= 0.75;
+}
+
 export interface StayPriceCheck {
   price: number; // stay total
   bookingUrl?: string;
@@ -260,7 +281,7 @@ export async function refreshStayPrice(s: {
     adults: s.guests ?? 2,
     currency: s.currency,
   });
-  const match = hotels.find((h) => h.id === s.hotelId) ?? hotels.find((h) => h.name.toLowerCase() === s.name.toLowerCase());
+  const match = hotels.find((h) => h.id === s.hotelId) ?? hotels.find((h) => h.name.toLowerCase() === s.name.toLowerCase()) ?? hotels.find((h) => sameHotel(h.name, s.name));
   if (!match) return null;
   const nights = Math.max(1, Math.round((Date.parse(s.checkOut) - Date.parse(s.checkIn)) / 86_400_000));
   return {

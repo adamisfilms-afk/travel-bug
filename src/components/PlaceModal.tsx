@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { BookTable } from "./BookTable";
 import { PhotoEditor } from "./PhotoEditor";
 import { AddToTripButton } from "./trips";
+import { addPlaceToTrip, isCuratedStay, removePlaceFromTrip, useTripsWithPlace, type PlaceToAdd } from "@/lib/tripPlaces";
 
 // ---------------------------------------------------------------------------
 // Google details (session cache so reopening a place costs nothing)
@@ -444,7 +445,10 @@ export function PlaceModal({
   onClose,
   readOnly,
   general,
+  addAs,
 }: {
+  /** Extra details used when it's added to a trip (e.g. a hotel's live price from the assistant). */
+  addAs?: Partial<PlaceToAdd>;
   /** Shared itinerary pages: no sidebar offset, no add-to-trip or admin editing. */
   readOnly?: boolean;
   /** A place that isn't in a City Guide (an assistant suggestion): no admin editing. */
@@ -462,10 +466,9 @@ export function PlaceModal({
   const isAdmin = useIsAdmin();
   const details = useDetails(place.mapsQuery);
   const d = typeof details === "object" ? details : null;
-  const activities = useStore((s) => s.activities);
-  const addActivity = useStore((s) => s.addActivity);
-  const removeActivity = useStore((s) => s.removeActivity);
-  const addedTo = activities.filter((a) => a.name === place.name).map((a) => a.tripId);
+  // Hotels save to the trip's Stays; everything else to Food / Explore
+  const addedTo = useTripsWithPlace(place.name);
+  const stay = addAs?.stay ?? isCuratedStay(guide, basePlace.id);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   // Social posts: guide data + this browser's curated additions
@@ -555,8 +558,8 @@ export function PlaceModal({
             tone="dark"
             addedTo={addedTo}
             defaults={{ destination: guide.city }}
-            onAdd={(tripId) => addActivity(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, place: place.name })}
-            onRemove={(tripId) => activities.filter((a) => a.tripId === tripId && a.name === place.name).forEach((a) => removeActivity(a.id))}
+            onAdd={(tripId) => addPlaceToTrip(tripId, { name: place.name, category: place.category, lat: place.lat, lng: place.lng, area: place.neighbourhood, city: guide.city, ...addAs, stay })}
+            onRemove={(tripId) => removePlaceFromTrip(tripId, place.name)}
           />}
           <button ref={closeRef} type="button" aria-label="Close" onClick={onClose} className="grid place-items-center size-8 rounded-full hover:bg-line/50">
             <X weight="bold" className="size-4" />

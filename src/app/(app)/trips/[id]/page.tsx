@@ -221,6 +221,13 @@ function StayRowBody({ s }: { s: SavedStay }) {
           {dayMonth(s.checkIn)} - {dayMonth(s.checkOut)}
         </span>
       </div>
+      {!s.priceSaved && !s.priceCurrent ? (
+        // Saved from a City Guide or the assistant without a live price: the next price check looks it up
+        <>
+          <div className="w-[72px] text-right self-start leading-6 text-[13px] text-ink-muted">No price yet</div>
+          <div className="self-start h-6 flex items-center justify-end w-[86px]">{s.bookingUrl && <BookButton href={s.bookingUrl} currency={s.currency} />}</div>
+        </>
+      ) : (
       <PriceAndBook
         kind="stay"
         saved={s.priceSaved}
@@ -230,6 +237,7 @@ function StayRowBody({ s }: { s: SavedStay }) {
         // Partner prices are per night; show each partner's whole-stay price to match the row.
         options={s.bookingOptions?.map((o) => ({ ...o, price: o.total ?? (o.price != null ? Math.round(o.price * Math.max(1, nights)) : null) }))}
       />
+      )}
     </div>
   );
 }

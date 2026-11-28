@@ -85,10 +85,12 @@ export function StayDetails({ s }: { s: SavedStay }) {
         </p>
         {(s.roomType || s.provider) && <p className="text-ink-muted">{[s.roomType, s.provider && `via ${s.provider}`].filter(Boolean).join(" · ")}</p>}
         {!!s.amenities?.length && <p className="text-[12px] text-ink/70">{s.amenities.slice(0, 8).join(" • ")}</p>}
-        {!s.images && !s.stars && !s.rating && (
+        {!s.images && !s.stars && !s.rating && !!s.priceSaved && (
           <p className="text-[12px] text-ink-muted">Saved before hotel details were kept — save it again from Stays to see photos and ratings.</p>
         )}
-        <p className="text-[12px] text-ink-muted pt-1">Saved at {money(s.priceSaved, s.currency)} for the stay</p>
+        <p className="text-[12px] text-ink-muted pt-1">
+          {s.priceSaved ? `Saved at ${money(s.priceSaved, s.currency)} for the stay` : "No price yet — Refresh prices looks it up for your dates."}
+        </p>
       </div>
     </div>
   );

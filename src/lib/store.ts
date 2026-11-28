@@ -351,6 +351,8 @@ export const useStore = create<State>((set, get) => ({
         if (!p) return st;
         return {
           ...st,
+          // Saved without a price (from a City Guide or the assistant): its first price is the saved one
+          ...(st.priceSaved ? {} : { priceSaved: p.price! }),
           priceCurrent: p.price!,
           priceCheckedAt: checkedAt,
           bookingUrl: p.bookingUrl ?? st.bookingUrl,

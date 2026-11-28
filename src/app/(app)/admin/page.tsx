@@ -290,8 +290,8 @@ function Log({ d }: { d: Data }) {
                 <td className="py-2 px-1 text-right tabular-nums">{usd(c.cost)}</td>
                 <td className="py-2 px-1 text-right tabular-nums text-ink-muted">{c.ms != null ? `${(c.ms / 1000).toFixed(1)}s` : "—"}</td>
                 <td className="py-2 px-1">
-                  <span className={clsx("rounded-full px-2 py-0.5 text-[11px]", c.status === "ok" ? "bg-guide-active/60" : "bg-price-up/15 text-price-up")}>
-                    {c.status === "ok" ? "OK" : c.status === "refused" ? "Declined" : "Error"}
+                  <span className={clsx("rounded-full px-2 py-0.5 text-[11px]", c.status === "ok" ? "bg-guide-active/60" : c.status === "skipped" ? "bg-surface text-ink-muted" : "bg-price-up/15 text-price-up")}>
+                    {c.status === "ok" ? "OK" : c.status === "refused" ? "Declined" : c.status === "skipped" ? "Skipped" : "Error"}
                   </span>
                 </td>
               </tr>

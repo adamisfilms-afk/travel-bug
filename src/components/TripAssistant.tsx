@@ -13,7 +13,7 @@ import { useCuratedPlace } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { currencySymbol } from "@/lib/currency";
 import { useSettings } from "@/lib/settingsStore";
-import { useStore } from "@/lib/store";
+import { addPlaceToTrip, isCuratedStay, removePlaceFromTrip, useTripsWithPlace, type PlaceToAdd } from "@/lib/tripPlaces";
 import type { ActivityCategory, Trip } from "@/lib/types";
 
 interface ChatState {
@@ -90,6 +90,8 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
   const [error, setError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const asked = useRef(false);
+  // Replies that arrive while you're here type themselves out (older ones show in full)
+  const [typing, setTyping] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     const d = await prefetchChat(trip.id);
@@ -131,6 +133,8 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
         }
         const d = (await res!.json().catch(() => ({}))) as Partial<AssistantReply> & { error?: string };
         if (!res!.ok) throw Object.assign(new Error(d.error ?? "Something went wrong."), { remaining: d.remaining });
+        const reply = d.messages?.find((x) => x.role === "assistant");
+        if (reply) setTyping((s) => new Set(s).add(String(reply.id)));
         setMessages((m) => [...(m ?? []).filter((x) => x.id !== pending.id), ...(d.messages ?? [])]);
         if (d.remaining !== undefined) setRemaining(d.remaining);
       } catch (e) {
@@ -154,11 +158,12 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
     void send(initialAsk);
   }, [initialAsk, messages, send, onAsked]);
 
-  // Keep the latest message in view
-  useEffect(() => {
+  // Keep the latest message in view (also while a reply types out)
+  const toBottom = useCallback(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, busy]);
+  }, []);
+  useEffect(toBottom, [messages, busy, toBottom]);
 
   const clear = async () => {
     if (!confirm("Clear this trip's chat for everyone on the trip?")) return;
@@ -183,34 +188,23 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
               <p className="max-w-[85%] rounded-2xl rounded-br-md bg-surface-strong px-3.5 py-2 text-[14px] leading-snug whitespace-pre-wrap">{m.content.text}</p>
             </div>
           ) : (
-            <div key={m.id} className="flex gap-2.5">
-              <AiLogo className="size-6 mt-1" />
-              <div className="min-w-0 flex-1 space-y-2.5">
-                <p className="max-w-full sm:max-w-[75%] pt-1 text-[14px] leading-snug text-ink">{m.content.text}</p>
-                {m.content.options?.length ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {m.content.options.map((o) => (
-                      <button
-                        key={o}
-                        type="button"
-                        disabled={busy || i !== lastIndex || outOfMessages}
-                        onClick={() => void send(o)}
-                        className="h-8 px-3 rounded-full bg-guide-active/50 hover:bg-guide-active text-[13px] text-ink disabled:opacity-50 disabled:hover:bg-guide-active/50"
-                      >
-                        {o}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {m.content.cards?.length ? (
-                  <div className="space-y-5 pt-1">
-                    {m.content.cards.map((c) => (
-                      <PlaceCard key={c.id} card={c} trip={trip} />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <AssistantMessage key={m.id} m={m} trip={trip} animate={typing.has(String(m.id))} onTick={toBottom}>
+              {m.content.options?.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {m.content.options.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      disabled={busy || i !== lastIndex || outOfMessages}
+                      onClick={() => void send(o)}
+                      className="h-8 px-3 rounded-full bg-guide-active/50 hover:bg-guide-active text-[13px] text-ink disabled:opacity-50 disabled:hover:bg-guide-active/50"
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </AssistantMessage>
           ),
         )}
         {busy && <Thinking />}
@@ -282,6 +276,55 @@ function Welcome({ trip, onPick, disabled }: { trip: Trip; onPick: (q: string) =
   );
 }
 
+/** Characters revealed per frame while a reply types out (~250 a second). */
+const TYPE_STEP = 4;
+
+/**
+ * One assistant reply. A reply that has just arrived types itself out — the intro, then each
+ * place's text, with its card appearing once its text is written — then shows its answer chips.
+ */
+function AssistantMessage({ m, trip, animate, onTick, children }: { m: ChatMessage; trip: Trip; animate: boolean; onTick: () => void; children?: React.ReactNode }) {
+  const intro = m.content.text;
+  const cards = m.content.cards ?? [];
+  const lengths = [intro.length, ...cards.map((c) => c.name.length + 2 + c.summary.length)];
+  const total = lengths.reduce((a, b) => a + b, 0);
+  const [n, setN] = useState(() => (animate ? 0 : Infinity));
+  useEffect(() => {
+    if (!animate) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setN(Infinity);
+    const t = setInterval(() => {
+      setN((x) => {
+        const next = x + TYPE_STEP;
+        if (next >= total) clearInterval(t);
+        return next;
+      });
+      onTick();
+    }, 16);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animate]);
+
+  let offset = lengths[0];
+  return (
+    <div className="flex gap-2.5">
+      <AiLogo className="size-6 mt-1" />
+      <div className="min-w-0 flex-1 space-y-2.5">
+        <p className="max-w-full sm:max-w-[75%] pt-1 text-[14px] leading-snug text-ink">{n >= intro.length ? intro : intro.slice(0, n)}</p>
+        {cards.length ? (
+          <div className="space-y-5 pt-1">
+            {cards.map((c, i) => {
+              const reveal = n - offset;
+              offset += lengths[i + 1];
+              return reveal > 0 ? <PlaceCard key={c.id} card={c} trip={trip} reveal={reveal} /> : null;
+            })}
+          </div>
+        ) : null}
+        {n >= total && children}
+      </div>
+    </div>
+  );
+}
+
 function findCurated(card: AssistantCard): { place: CuratedPlace; guide: CityGuide } | null {
   if (card.source !== "curated") return null;
   const guide = CITY_GUIDES.find((g) => g.slug === card.guide);
@@ -293,7 +336,7 @@ function findCurated(card: AssistantCard): { place: CuratedPlace; guide: CityGui
  * A place in the chat: a wide photo with its name (serif) and details over it, like the City
  * Guide cards, and the assistant's summary underneath. The whole card opens the place view.
  */
-function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
+function PlaceCard({ card, trip, reveal = Infinity }: { card: AssistantCard; trip: Trip; reveal?: number }) {
   const hit = findCurated(card);
   const [open, setOpen] = useState(false);
   // General suggestions open in the same place view (Google photos, reviews and info), without a guide
@@ -312,10 +355,25 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
   const kind = hit ? kindOfPlace(hit.guide, hit.place) : card.category === "food" ? "food" : "explore";
   const place = useCuratedPlace(base);
   const photo = useCuratedCover(place, 800);
-  const activities = useStore((s) => s.activities);
-  const addActivity = useStore((s) => s.addActivity);
-  const removeActivity = useStore((s) => s.removeActivity);
-  const saved = activities.find((a) => a.tripId === trip.id && a.name.toLowerCase() === place.name.toLowerCase());
+  // Hotels save to the trip's Stays (with the live price when there is one); the rest to Food / Explore
+  const saved = useTripsWithPlace(place.name).includes(trip.id);
+  const addAs: Partial<PlaceToAdd> = {
+    stay: card.kind === "stay" || (hit ? isCuratedStay(hit.guide, hit.place.id) : false),
+    area: card.area,
+    city: guide.city,
+    nightly: card.nightly,
+    total: card.total,
+    currency: card.currency,
+    bookingUrl: card.link,
+    rating: card.rating,
+    reviews: card.reviews,
+    imageUrl: photo,
+  };
+  // While the reply types out: how much of "Name: summary" is showing, and the card once it's written
+  const name = place.name;
+  const shownName = name.slice(0, reveal);
+  const shownSummary = card.summary.slice(0, Math.max(0, reveal - name.length - 2));
+  const written = reveal >= name.length + 2 + card.summary.length;
   const level = card.price ?? place.priceLevel;
   // Hotels with a live price show it per night; everything else its price level ($–$$$$)
   const nightly = card.nightly && card.currency ? `${currencySymbol(card.currency)}${card.nightly.toLocaleString("en-GB")} / night` : null;
@@ -330,66 +388,71 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
       <p className="sm:max-w-[75%] text-[14px] leading-snug text-ink">
         {card.link ? (
           <a href={card.link} target="_blank" rel="noopener noreferrer sponsored" className="font-semibold underline decoration-ink/30 underline-offset-2 hover:decoration-ink">
-            {place.name}
+            {shownName}
           </a>
         ) : (
-          <b className="font-semibold">{place.name}</b>
+          <b className="font-semibold">{shownName}</b>
         )}
-        <b className="font-semibold">:</b> {card.summary}
+        {reveal > name.length && <b className="font-semibold">:</b>} {shownSummary}
       </p>
-      <div className="group relative w-full sm:w-1/2">
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={`Open ${place.name}`}
-          onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
-          className="rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
-        >
-          <div className="film-grain relative aspect-[2/1] overflow-hidden bg-guide-card">
-            {photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
-            ) : (
-              <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
-                {kind === "food" ? <ForkKnife weight="fill" className="size-10" /> : <MapPin weight="fill" className="size-10" />}
-              </span>
-            )}
-            <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
-            <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
-              <p className="font-serif text-[20px] leading-[1.1]">{place.name}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
-                <span className="truncate" title={totalNote}>
-                  {details}
+      {written && (
+        <div className="group relative w-full sm:w-1/2 animate-[fade-in_400ms_ease-out]">
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${place.name}`}
+            onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
+            className="rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
+          >
+            <div className="film-grain relative aspect-[16/9] overflow-hidden bg-guide-card">
+              {photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
+              ) : (
+                <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
+                  {kind === "food" ? <ForkKnife weight="fill" className="size-10" /> : <MapPin weight="fill" className="size-10" />}
                 </span>
-                {card.rating ? (
-                  <span className="shrink-0 inline-flex items-center gap-0.5" title={card.reviews ? `${card.reviews.toLocaleString("en-GB")} Google reviews` : "Google rating"}>
-                    · <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
+              )}
+              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
+              <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
+                <p className="font-serif text-[20px] leading-[1.1]">{place.name}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
+                  <span className="truncate" title={totalNote}>
+                    {details}
                   </span>
-                ) : null}
-              </p>
+                  {card.rating ? (
+                    <span className="shrink-0 inline-flex items-center gap-0.5" title={card.reviews ? `${card.reviews.toLocaleString("en-GB")} Google reviews` : "Google rating"}>
+                      · <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              saved ? removePlaceFromTrip(trip.id, place.name) : addPlaceToTrip(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, ...addAs })
+            }
+            title={saved ? "Remove from trip" : "Add to trip"}
+            aria-label={saved ? "Remove from trip" : "Add to trip"}
+            className={clsx(
+              "absolute top-2.5 right-2.5 grid place-items-center size-8 rounded-full shadow transition-colors",
+              saved ? "bg-guide-active text-ink" : "bg-guide-ink/90 text-ink hover:bg-white",
+            )}
+          >
+            {saved ? <Check weight="bold" className="size-4" /> : <Plus weight="bold" className="size-4" />}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => (saved ? removeActivity(saved.id) : addActivity(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, place: place.name }))}
-          title={saved ? "Remove from trip" : "Add to trip"}
-          aria-label={saved ? "Remove from trip" : "Add to trip"}
-          className={clsx(
-            "absolute top-2.5 right-2.5 grid place-items-center size-8 rounded-full shadow transition-colors",
-            saved ? "bg-guide-active text-ink" : "bg-guide-ink/90 text-ink hover:bg-white",
-          )}
-        >
-          {saved ? <Check weight="bold" className="size-4" /> : <Plus weight="bold" className="size-4" />}
-        </button>
-      </div>
+      )}
       {open && (
         <PlaceModal
           place={hit?.place ?? base}
           guide={guide}
           kind={kind}
           general={!hit}
+          addAs={addAs}
           curate={false}
           photoPick={hit?.place.photo}
           EmptyIcon={kind === "food" ? ForkKnife : MapPin}
