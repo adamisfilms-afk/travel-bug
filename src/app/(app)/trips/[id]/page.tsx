@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowClockwise, ArrowLeft, Check, ForkKnife, FunnelSimple, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, Check, Sparkle, ForkKnife, FunnelSimple, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { ShareTripButton, useOwnsTrip } from "@/components/ShareTripDialog";
+import { TripAssistant } from "@/components/TripAssistant";
 import { shareTrip } from "@/lib/share";
 import { useOverrides } from "@/lib/curated/overrides";
 import { LocationsInput, tripLocations } from "@/components/trips";
@@ -509,8 +510,9 @@ function usePriceRefresh(tripId: string | undefined) {
 }
 
 type PanelTab = "itinerary" | "map";
-type SavedTab = "flights" | "stays" | "food" | "explore";
+type SavedTab = "assistant" | "flights" | "stays" | "food" | "explore";
 const SAVED_TABS: { id: SavedTab; label: string }[] = [
+  { id: "assistant", label: "Assistant" },
   { id: "flights", label: "Flights" },
   { id: "stays", label: "Stays" },
   { id: "food", label: "Food" },
@@ -540,6 +542,18 @@ export default function PlannerPage() {
       /* ignore */
     }
   }, [id]);
+  // Arriving from the home page's prompt: /trips/<id>?tab=assistant&ask=<question>
+  const [initialAsk, setInitialAsk] = useState<string | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("tab") === "assistant") setSavedTabState("assistant");
+    if (q.get("ask")) setInitialAsk(q.get("ask"));
+  }, [id]);
+  const clearAsk = useCallback(() => {
+    setInitialAsk(null);
+    // Drop ?ask from the address so a reload doesn't ask again
+    window.history.replaceState(null, "", `${window.location.pathname}?tab=assistant`);
+  }, []);
   const setSavedTab = (t: SavedTab) => {
     setSavedTabState(t);
     try {
@@ -752,7 +766,14 @@ export default function PlannerPage() {
                         savedTab === t.id ? "text-ink underline decoration-accent decoration-[1.5px] underline-offset-[6px]" : "text-ink-muted hover:text-ink",
                       )}
                     >
-                      {t.label}
+                      {t.id === "assistant" ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Sparkle weight="fill" className="size-4 text-accent-ink" />
+                          <span className="sr-only md:not-sr-only">{t.label}</span>
+                        </span>
+                      ) : (
+                        t.label
+                      )}
                     </button>
                   );
                 })}
@@ -768,6 +789,12 @@ export default function PlannerPage() {
                 </Link>
               )}
             </div>
+
+            {savedTab === "assistant" && (
+              <section role="tabpanel" aria-label="Assistant">
+                <TripAssistant trip={trip} initialAsk={initialAsk} onAsked={clearAsk} />
+              </section>
+            )}
 
             {savedTab === "flights" && (
               <section role="tabpanel" aria-label="Flights" className="space-y-3">

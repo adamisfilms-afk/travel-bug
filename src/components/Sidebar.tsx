@@ -1,6 +1,7 @@
 "use client";
 
-import { AirplaneTilt, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
+import { AirplaneTilt, ChartBar, GearSix, ListChecks, MapPin, type IconProps } from "@phosphor-icons/react";
+import { useAccountInfo } from "@/lib/auth";
 import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -78,6 +79,7 @@ function NavItem({ href, label, icon }: (typeof TOP)[number]) {
 
 export function Sidebar() {
   const path = usePathname();
+  const account = useAccountInfo();
   // City Guides has its own dark theme
   const dark = path === "/guides" || path.startsWith("/guides/");
   return (
@@ -108,6 +110,7 @@ export function Sidebar() {
         ))}
       </nav>
       <nav className="contents md:flex md:mt-auto md:flex-col md:gap-4">
+        {account.isAdmin && <NavItem href="/admin" label="Admin" icon={{ Icon: ChartBar, viewBox: 256 }} />}
         {BOTTOM.map((i) => (
           <NavItem key={i.href} {...i} />
         ))}
