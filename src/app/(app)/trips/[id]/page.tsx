@@ -224,7 +224,7 @@ function StayRowBody({ s }: { s: SavedStay }) {
       {!s.priceSaved && !s.priceCurrent ? (
         // Saved from a City Guide or the assistant without a live price: the next price check looks it up
         <>
-          <div className="w-[72px] text-right self-start leading-6 text-[13px] text-ink-muted">No price yet</div>
+          <div className="w-[72px] text-right self-start leading-6 text-[15px] text-ink" aria-label="No price yet">—</div>
           <div className="self-start h-6 flex items-center justify-end w-[86px]">{s.bookingUrl && <BookButton href={s.bookingUrl} currency={s.currency} />}</div>
         </>
       ) : (
@@ -733,7 +733,8 @@ export default function PlannerPage() {
   return (
     <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
       <div className="space-y-8">
-        <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {/* Desktop: the buttons on the right line up with the trip dates beside the title */}
+        <header className="flex flex-wrap items-center md:items-end gap-x-6 gap-y-3">
           <div className="flex items-start md:items-center gap-3 min-w-0">
             <Link href="/trips" aria-label="Back to your trips" className="p-1.5 -ml-1.5 rounded-full hover:bg-surface">
               <ArrowLeft className="size-5" />
@@ -744,7 +745,7 @@ export default function PlannerPage() {
               <span className="text-[14px] md:text-[15px] text-ink-muted whitespace-nowrap">{rangeLabel(trip.startDate, trip.endDate)}</span>
             </div>
           </div>
-          <div className="w-full md:w-auto md:ml-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-muted">
+          <div className="w-full md:w-auto md:ml-auto md:-mb-[3px] flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-muted">
             {priceStatus === "checking" && <span>Checking latest prices…</span>}
             {priceStatus === "done" && <span>Prices up to date</span>}
             {priceStatus === "error" && <span className="text-price-up">Couldn&apos;t refresh prices</span>}
@@ -798,16 +799,6 @@ export default function PlannerPage() {
                   );
                 })}
               </div>
-              {savedTab === "flights" && (
-                <Link href={`/flights?trip=${trip.id}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  Find flights
-                </Link>
-              )}
-              {savedTab === "stays" && (
-                <Link href={`/stays?trip=${trip.id}&q=${encodeURIComponent(trip.destination)}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  Find stays
-                </Link>
-              )}
             </div>
 
             {savedTab === "assistant" && (
