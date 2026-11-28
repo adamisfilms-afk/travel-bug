@@ -224,7 +224,7 @@ function StayRowBody({ s }: { s: SavedStay }) {
       {!s.priceSaved && !s.priceCurrent ? (
         // Saved from a City Guide or the assistant without a live price: the next price check looks it up
         <>
-          <div className="w-[72px] text-right self-start leading-6 text-[13px] text-ink-muted">No price yet</div>
+          <div className="w-[72px] text-right self-start leading-6 text-[15px] text-ink" aria-label="No price yet">—</div>
           <div className="self-start h-6 flex items-center justify-end w-[86px]">{s.bookingUrl && <BookButton href={s.bookingUrl} currency={s.currency} />}</div>
         </>
       ) : (
@@ -799,16 +799,6 @@ export default function PlannerPage() {
                   );
                 })}
               </div>
-              {savedTab === "flights" && (
-                <Link href={`/flights?trip=${trip.id}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  Find flights
-                </Link>
-              )}
-              {savedTab === "stays" && (
-                <Link href={`/stays?trip=${trip.id}&q=${encodeURIComponent(trip.destination)}`} className="text-accent-ink underline underline-offset-4 text-[14px]">
-                  Find stays
-                </Link>
-              )}
             </div>
 
             {savedTab === "assistant" && (
