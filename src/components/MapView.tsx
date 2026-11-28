@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 
 export interface MapPoint {
@@ -105,16 +105,106 @@ const TILES = MAPBOX_TOKEN
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     };
 
-function FitBounds({ points }: { points: MapPoint[] }) {
+type SavedView = { lat: number; lng: number; zoom: number };
+
+function readView(key?: string): SavedView | null {
+  if (!key) return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? "null");
+    return v && Number.isFinite(v.lat) && Number.isFinite(v.lng) && Number.isFinite(v.zoom) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Frames the points. With `storageKey`, the view you pan/zoom to is remembered (in this browser)
+ * and restored next time instead of re-framing; "Show all" frames every point again.
+ */
+function FitBounds({ points, storageKey }: { points: MapPoint[]; storageKey?: string }) {
   const map = useMap();
   const key = points.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
+  const kept = useRef<boolean>(false); // a saved view is in use: don't re-frame when points change
+  const auto = useRef(false); // the current move is ours (framing), not the user's
+  const [showAll, setShowAll] = useState(false);
+
+  // Our own moves (framing, restoring) aren't saved; if one doesn't actually move the map, stop ignoring after a moment
+  const ours = useCallback(() => {
+    auto.current = true;
+    setTimeout(() => (auto.current = false), 800);
+  }, []);
+  const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
+    if (button.current) L.DomEvent.disableClickPropagation(button.current); // clicking it mustn't drag the map
+  });
+
+  const frame = useCallback(() => {
     if (!points.length) return;
+    ours();
     if (points.length === 1) map.setView([points[0].lat, points[0].lng], 13);
     else map.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 14 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, map]);
-  return null;
+
+  // Restore the saved view once
+  useEffect(() => {
+    const v = readView(storageKey);
+    if (!v) return;
+    kept.current = true;
+    setShowAll(true);
+    ours();
+    map.setView([v.lat, v.lng], v.zoom, { animate: false });
+  }, [map, storageKey, ours]);
+
+  // Frame the points (unless you've moved the map yourself)
+  useEffect(() => {
+    if (!kept.current) frame();
+  }, [frame]);
+
+  // Remember where you leave it
+  useEffect(() => {
+    if (!storageKey) return;
+    const onMoveEnd = () => {
+      if (auto.current) {
+        auto.current = false;
+        return;
+      }
+      const c = map.getCenter();
+      kept.current = true;
+      setShowAll(true);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() }));
+      } catch {
+        /* storage unavailable */
+      }
+    };
+    map.on("moveend", onMoveEnd);
+    return () => {
+      map.off("moveend", onMoveEnd);
+    };
+  }, [map, storageKey]);
+
+  if (!storageKey || !showAll || points.length < 1) return null;
+  return (
+    <button
+      ref={button}
+      type="button"
+      onClick={() => {
+        try {
+          localStorage.removeItem(storageKey);
+        } catch {
+          /* ignore */
+        }
+        kept.current = false;
+        setShowAll(false);
+        frame();
+      }}
+      className="absolute right-2 top-2 z-[500] h-8 px-3 rounded-full bg-white/95 shadow text-[12px] text-ink hover:bg-white"
+      title="Zoom to show every place"
+    >
+      Show all
+    </button>
+  );
 }
 
 /** Clears hover when the pointer leaves the map (covers fast exits that skip a marker's mouseout). */
@@ -137,7 +227,10 @@ export default function MapView({
   highlightedId,
   legend,
   greyscale,
+  storageKey,
 }: {
+  /** Remember the view (pan and zoom) under this key in localStorage, e.g. per trip. */
+  storageKey?: string;
   points: MapPoint[];
   /** Draw a dashed line through the points in order. */
   route?: boolean;
@@ -202,7 +295,7 @@ export default function MapView({
           },
         }}
       />
-      <FitBounds points={points} />
+      <FitBounds points={points} storageKey={storageKey} />
       <HoverReset onLeave={onPointHover ? () => onPointHover(null) : undefined} />
       {route && routeLine.length > 1 && <Polyline positions={routeLine} pathOptions={{ color: GREEN, weight: 2, dashArray: "4 6" }} />}
       {points.map((p) => (

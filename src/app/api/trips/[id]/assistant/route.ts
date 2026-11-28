@@ -110,14 +110,20 @@ export async function POST(req: Request, ctx: Ctx) {
     .single();
   if (insertError) return NextResponse.json({ error: friendly(insertError.message) }, { status: 500 });
 
-  const { data: recent } = await sb.from("trip_messages").select("id, role, content, created_at").eq("trip_id", id).order("created_at", { ascending: false }).limit(HISTORY);
+  // Recent messages for the model, and every place already shown in this chat (so "more" never repeats)
+  const [{ data: recent }, { data: answers }] = await Promise.all([
+    sb.from("trip_messages").select("id, role, content, created_at").eq("trip_id", id).order("created_at", { ascending: false }).limit(HISTORY),
+    sb.from("trip_messages").select("content").eq("trip_id", id).eq("role", "assistant").order("created_at", { ascending: false }).limit(100),
+  ]);
   const history = ((recent ?? []) as ChatMessage[]).reverse();
+  const shown = new Set<string>();
+  for (const a of (answers ?? []) as { content: ChatContent }[]) for (const c of a.content?.cards ?? []) shown.add(c.id).add(c.name.toLowerCase());
 
   const log: CallLog = { userId: user.id, tripId: id, requestId: randomUUID() };
   const cities = (trip.locations?.length ? trip.locations : [trip.destination]) as string[];
   let content: ChatContent;
   try {
-    content = await reply(history, { name: trip.name, cities, startDate: trip.start_date, endDate: trip.end_date, travellers: trip.travellers }, currency, log);
+    content = await reply(history, { name: trip.name, cities, startDate: trip.start_date, endDate: trip.end_date, travellers: trip.travellers }, currency, shown, log);
   } catch (e) {
     console.error("[assistant]", e);
     content =
@@ -134,7 +140,7 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 
 /** Understand → (clarify | answer | search curated → maybe general → pick). */
-async function reply(history: ChatMessage[], trip: Parameters<typeof understand>[1], currency: string, log: CallLog): Promise<ChatContent> {
+async function reply(history: ChatMessage[], trip: Parameters<typeof understand>[1], currency: string, alreadyShown: Set<string>, log: CallLog): Promise<ChatContent> {
   const u = await understand(history, trip, log);
   if (u.action === "clarify" && u.options.length) return { text: u.message, options: u.options };
   // Safety net: a request for places is always searched, even if the model chose to reply in words
@@ -144,10 +150,12 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
   const q = toSearchQuery(u);
   const previous = history.findLast((m) => m.role === "assistant" && m.content.cards?.length)?.content.cards ?? [];
 
-  // What they asked for, in their words since the last set of results
-  const lastResults = history.findLastIndex((m) => m.role === "assistant" && m.content.cards?.length);
-  // (follow-ups about shown places also get the original request, for context)
-  const request = (u.about_previous ? history.filter((m) => m.role === "user").slice(-4) : history.slice(lastResults + 1).filter((m) => m.role === "user")).map((m) => m.content.text).join(" · ");
+  // What they asked for, in their words: the last few messages, so "four more" keeps the original request's details
+  const request = history
+    .filter((m) => m.role === "user")
+    .slice(-4)
+    .map((m) => m.content.text)
+    .join(" · ");
 
   let candidates: Candidate[];
   let curatedCount = 0;
@@ -157,23 +165,27 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
     // "Which is best?": judge the places already shown
     candidates = await candidatesFromCards(previous);
   } else {
-    // 1. Curated guides first, always
-    const { guide, results: curated } = await searchCurated(q);
+    // 1. Curated guides first, always (leaving out places already shown in this chat)
+    const { guide, results: curated, matched } = await searchCurated(q, alreadyShown);
     // 2. General suggestions when the guides are thin (or there's no guide for this city)
-    const general = curated.length < MIN_CURATED ? await searchGeneral(q, MAX_CARDS + 2 - curated.length) : [];
+    const general = curated.length < MIN_CURATED ? await searchGeneral(q, MAX_CARDS + 2 - curated.length, alreadyShown) : [];
     candidates = [...curated, ...general];
     curatedCount = curated.length;
     generalCount = general.length;
     if (!candidates.length)
       return {
-        text: guide
-          ? `Nothing in our ${guide.city} guide matches that yet — try a different area or budget.`
-          : `We don't have a ${q.city} guide yet, and I couldn't find suggestions right now — try again shortly.`,
+        text: matched
+          ? "I've shown you everything I found for that — try a different area, budget or type."
+          : guide
+            ? `Nothing in our ${guide.city} guide matches that yet — try a different area or budget.`
+            : `We don't have a ${q.city} guide yet, and I couldn't find suggestions right now — try again shortly.`,
       };
     if (!curated.length)
-      fixedIntro = guide
-        ? `Our ${guide.city} guide doesn't cover this yet, but here are some recommendations I found elsewhere:`
-        : `We don't have curated picks for ${q.city} yet, but here are some recommendations I found elsewhere:`;
+      fixedIntro = matched
+        ? `That's all our ${guide?.city ?? q.city} guide picks for this — here are more I found elsewhere:`
+        : guide
+          ? `Our ${guide.city} guide doesn't cover this yet, but here are some recommendations I found elsewhere:`
+          : `We don't have curated picks for ${q.city} yet, but here are some recommendations I found elsewhere:`;
   }
   // Hotels: live prices on the trip's dates (one city search, cached), so it can weigh cost.
   // Google rating, reviews and price level for curated places (cached), so it can judge which is best.
