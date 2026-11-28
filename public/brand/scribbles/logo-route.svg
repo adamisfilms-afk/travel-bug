@@ -1,7 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Logo: a wandering route that loops once and arrives at the globe. Takes the colour of the text around it (currentColor). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 100" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Logo: a wandering route, a piece of string that loops once. Takes the colour of the text around it (currentColor). -->
   <path d="M6 70 C34 72 44 34 74 34 C102 34 98 78 76 68 C56 59 86 22 122 38 C140 46 150 54 166 52" stroke-width="4.2"/>
-  <path d="M197 22 C214 21 226 34 225 50 C224 66 212 78 196 77 C180 76 169 64 170 48 C171 34 182 23 195 22" stroke-width="4.2"/>
-  <path d="M195 23 C185 35 185 64 197 76 C207 64 207 35 196 23" stroke-width="3.4"/>
-  <path d="M171 51 C187 55 208 55 224 49" stroke-width="3.2"/>
 </svg>

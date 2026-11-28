@@ -74,15 +74,12 @@ export function ScribbleIcon({ name, className }: SvgProps & { name: ScribbleIco
   );
 }
 
-/** The logo mark: a wandering route that loops once and arrives at the globe. */
+/** The logo mark: a wandering route — a piece of string that loops once. */
 export function LogoMark({ className, title }: SvgProps) {
   return (
-    <svg viewBox="0 0 230 100" className={className} role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true} overflow="visible">
+    <svg viewBox="0 0 172 100" className={className} role={title ? "img" : undefined} aria-label={title} aria-hidden={title ? undefined : true} overflow="visible">
       <g {...ink}>
         <path d="M6 70 C34 72 44 34 74 34 C102 34 98 78 76 68 C56 59 86 22 122 38 C140 46 150 54 166 52" strokeWidth={4.2} />
-        <path d="M197 22 C214 21 226 34 225 50 C224 66 212 78 196 77 C180 76 169 64 170 48 C171 34 182 23 195 22" strokeWidth={4.2} />
-        <path d="M195 23 C185 35 185 64 197 76 C207 64 207 35 196 23" strokeWidth={3.4} />
-        <path d="M171 51 C187 55 208 55 224 49" strokeWidth={3.2} />
       </g>
     </svg>
   );
@@ -146,7 +143,7 @@ export function ScribbleBullet({ className }: SvgProps) {
   );
 }
 
-/** The full logo: the route-to-globe mark and "where to next" in handwriting (Caveat). */
+/** The full logo: the route mark and "where to next" in handwriting (Caveat). */
 export function Wordmark({ className, mark = true }: { className?: string; mark?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-[0.35em] font-hand font-semibold leading-none whitespace-nowrap ${className ?? ""}`}>
