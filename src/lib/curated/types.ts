@@ -40,6 +40,8 @@ export interface CuratedPlace {
   social?: string[];
   /** Your own / licensed photos — shown first (card + carousel), before Google's. */
   images?: CuratedImage[];
+  /** Optional labels the trip assistant can match, e.g. ["kids", "romantic", "late-night", "vegetarian"]. */
+  tags?: string[];
   /** Admin-curated, ordered photo list (from data/curated-overrides.json); replaces the automatic photos. */
   photos?: ({ kind: "google"; name: string } | { kind: "url"; src: string })[];
 }

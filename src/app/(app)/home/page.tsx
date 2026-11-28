@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
+import { ArrowRight, Check, MagnifyingGlass, Plus, Sparkle, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import { useCuratedCover } from "@/lib/curated/cover";
 import { applyOverride, useOverrides } from "@/lib/curated/overrides";
 import type { CuratedPlace } from "@/lib/curated/types";
 import { addDays, daysBetween, eachDay, toDay } from "@/lib/format";
+import { AIRPORTS } from "@/lib/airports";
 import { firstName, useAccountInfo } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import type { Trip } from "@/lib/types";
@@ -45,6 +46,56 @@ function parsePrompt(text: string): { places: string[]; month: number | null } {
   return { places: [...new Set(places)], month };
 }
 
+/**
+ * The city (or country) a question is about: "Hotels in tokyo that are suitable for kids" → "Tokyo".
+ * Looks for places we know (guides, airports' cities and countries, your trips), then for "in <place>".
+ */
+function questionPlace(text: string, trips: Trip[]): string | null {
+  const hit = knownPlacesIn(text, trips)[0];
+  if (hit) {
+    const g = matchCityGuides(hit)[0];
+    return g?.city ?? AIRPORTS.find((a) => a.city?.toLowerCase() === hit.toLowerCase())?.city ?? hit.replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+  }
+  const t = ` ${text.toLowerCase().replace(/[?!.,]/g, " ")} `;
+  const m = t.match(/\b(?:in|to|around|near|visiting)\s+([a-z][a-z' -]{1,30}?)(?=\s+(?:that|for|with|which|who|near|during|on|under|over|this|next|and|where|in)\b|\s*$)/);
+  return m ? m[1].trim().replace(/\b\p{L}/gu, (c) => c.toUpperCase()) : null;
+}
+
+/** Places we know (guide cities, airports' cities and countries, your trips) named in the text, longest first. */
+function knownPlacesIn(text: string, trips: Trip[]): string[] {
+  const t = ` ${text.toLowerCase().replace(/[?!.,]/g, " ")} `;
+  const known = [
+    ...CITY_GUIDES.flatMap((g) => [g.city, ...g.aliases]),
+    ...AIRPORTS.flatMap((a) => [a.city, a.country]),
+    ...trips.flatMap((tr) => tripLocations(tr)),
+  ].filter((k): k is string => !!k && k.length > 2);
+  return [...new Set(known)].sort((a, b) => b.length - a.length).filter((k) => t.includes(` ${k.toLowerCase()} `));
+}
+
+/** Whether the prompt is a question for the assistant rather than just a place ("Vienna in March"). */
+function isQuestion(text: string, place: string | null, trips: Trip[]): boolean {
+  if (text.includes("?")) return true;
+  let rest = ` ${text.toLowerCase()} `;
+  for (const k of [...knownPlacesIn(text, trips), ...(place ? [place] : [])]) rest = rest.split(k.toLowerCase()).join(" ");
+  rest = rest.replace(/\b(in|to|the|a|an|and|trip|weekend|holiday|for|of|at|on|my|our|plan|planning|days?|nights?|week|\d+)\b/g, " ");
+  rest = rest.replace(new RegExp(`\\b(${MONTHS.join("|")}|${SHORT_MONTHS.join("|")})\\b`, "g"), " ");
+  return rest.split(/\s+/).filter((w) => w.length > 2).length >= 1;
+}
+
+/** A trip that covers this place (city, or a city in this country), soonest upcoming first. */
+function tripFor(place: string, trips: Trip[]): Trip | null {
+  const p = place.toLowerCase();
+  const countryOf = (city: string) => AIRPORTS.find((a) => a.city?.toLowerCase() === city.toLowerCase())?.country?.toLowerCase();
+  const today = toDay(new Date());
+  const matches = trips.filter((t) =>
+    tripLocations(t).some((l) => {
+      const L = l.toLowerCase();
+      return L.includes(p) || p.includes(L) || countryOf(l) === p || countryOf(place) === L;
+    }),
+  );
+  return matches.sort((a, b) => Number(a.endDate < today) - Number(b.endDate < today) || a.startDate.localeCompare(b.startDate))[0] ?? null;
+}
+
 function monthDates(month: number): { startDate: string; endDate: string } {
   const now = new Date();
   const year = month < now.getMonth() ? now.getFullYear() + 1 : now.getFullYear();
@@ -54,6 +105,8 @@ function monthDates(month: number): { startDate: string; endDate: string } {
 
 function PromptBar({ trips, onPlan }: { trips: Trip[]; onPlan: (defaults: Partial<Trip>) => void }) {
   const router = useRouter();
+  const createTrip = useStore((s) => s.createTrip);
+  const account = useAccountInfo();
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
@@ -65,6 +118,33 @@ function PromptBar({ trips, onPlan }: { trips: Trip[]; onPlan: (defaults: Partia
     if (!q) return [];
     const { places, month } = parsePrompt(q);
     const out: Action[] = [];
+    // A question ("Hotels in Tokyo suitable for kids"): open or start the trip and ask its assistant
+    const place = questionPlace(q, trips);
+    if (place && account.enabled && isQuestion(q, place, trips)) {
+      const existing = tripFor(place, trips);
+      out.push({
+        key: "ask",
+        label: (
+          <>
+            <Sparkle weight="fill" className="inline size-3.5 -mt-0.5 mr-1.5 text-accent-ink" />
+            Ask: <b>{q}</b>
+          </>
+        ),
+        hint: existing ? `In your ${existing.name} trip` : `Starts a ${place} trip`,
+        run: () => {
+          const trip =
+            existing ??
+            createTrip({
+              name: place,
+              destination: place,
+              locations: [place],
+              ...(month != null ? monthDates(month) : { startDate: addDays(toDay(new Date()), 30), endDate: addDays(toDay(new Date()), 34) }),
+              travellers: 2,
+            });
+          router.push(`/trips/${trip.id}?tab=assistant&ask=${encodeURIComponent(q)}`);
+        },
+      });
+    }
     const guides = new Map<string, CityGuide>();
     for (const p of places) {
       const g = matchCityGuides(p)[0];
@@ -90,7 +170,7 @@ function PromptBar({ trips, onPlan }: { trips: Trip[]; onPlan: (defaults: Partia
         run: () => onPlan({ locations: places, destination: places[0], ...(month != null ? monthDates(month) : {}) }),
       });
     return out;
-  }, [text, trips, router, onPlan]);
+  }, [text, trips, router, onPlan, createTrip, account.enabled]);
 
   const run = (a: Action) => {
     setOpen(false);
