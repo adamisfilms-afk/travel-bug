@@ -12,8 +12,9 @@ const LINKS = [
 export function MarketingNav() {
   return (
     <header className="absolute inset-x-3 sm:inset-x-6 lg:inset-x-[4%] top-3 sm:top-5 lg:top-7 z-20">
-      <nav className="grid grid-cols-[auto_1fr_auto] items-center gap-4 h-12 lg:h-[54px] rounded-full bg-guide-ink/95 text-guide-bg backdrop-blur-sm px-5 sm:px-7 lg:px-9 shadow-sm">
-        <Link href="/" aria-label={BRAND} className="text-[25px] lg:text-[30px]">
+      <nav className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-4 h-12 lg:h-[54px] rounded-full bg-guide-ink/95 text-guide-bg backdrop-blur-sm px-5 sm:px-7 lg:px-9 shadow-sm">
+        {/* Block-level and centred, so the logo sits in the middle of the bar (not on the text baseline) */}
+        <Link href="/" aria-label={BRAND} className="justify-self-start flex items-center h-full text-[25px] lg:text-[30px] leading-none">
           <Wordmark />
         </Link>
         <ul className="hidden md:flex items-center justify-center gap-3 lg:gap-[clamp(0.75rem,2.2vw,2.5rem)] text-[14px] lg:text-[16px]">
@@ -25,7 +26,7 @@ export function MarketingNav() {
             </li>
           ))}
         </ul>
-        <Link href="/login" className="col-start-3 inline-flex items-center h-8 lg:h-9 px-3.5 lg:px-4 -mr-3.5 lg:-mr-4 rounded-full text-[14px] lg:text-[16px] transition-colors hover:bg-white/70">
+        <Link href="/login" className="col-start-3 justify-self-end inline-flex items-center h-8 lg:h-9 px-3.5 lg:px-4 -mr-3.5 lg:-mr-4 rounded-full text-[14px] lg:text-[16px] transition-colors hover:bg-white/70">
           Log in
         </Link>
       </nav>
