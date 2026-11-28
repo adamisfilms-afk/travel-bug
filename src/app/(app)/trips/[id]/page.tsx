@@ -33,6 +33,7 @@ import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { ShareTripButton, useOwnsTrip } from "@/components/ShareTripDialog";
 import { AiLogo } from "@/components/AiLogo";
+import { FIT_GAP, useFitHeight } from "@/lib/useFitHeight";
 import { prefetchChat, TripAssistant } from "@/components/TripAssistant";
 import { useAccountInfo } from "@/lib/auth";
 import { shareTrip } from "@/lib/share";
@@ -552,6 +553,10 @@ export default function PlannerPage() {
       /* ignore */
     }
   }, [id]);
+  // Desktop (side by side): the itinerary and map are as tall as the assistant chat — they fill the screen below their top
+  const [itineraryRef, itineraryFit] = useFitHeight<HTMLDivElement>(1024);
+  const [mapRef, mapFit] = useFitHeight<HTMLDivElement>(1024);
+
   // Load the assistant chat in the background as soon as the planner opens, so the tab opens instantly
   const account = useAccountInfo();
   useEffect(() => {
@@ -957,13 +962,13 @@ export default function PlannerPage() {
               )}
             </div>
             {tab === "itinerary" ? (
-              <div className="rounded-[10px] dashed-accent px-5 py-5 lg:max-h-[calc(100vh-110px)] overflow-y-auto no-scrollbar divide-y divide-line/70">
+              <div ref={itineraryRef} style={itineraryFit} className={`rounded-[10px] dashed-accent px-5 py-5 lg:max-h-[calc(100vh-110px)] overflow-y-auto no-scrollbar divide-y divide-line/70 ${FIT_GAP}`}>
                 {days.map((d) => (
                   <DaySection key={d} day={d} items={byDay[d] ?? []} lookup={lookup} />
                 ))}
               </div>
             ) : (
-              <div className="rounded-[10px] overflow-hidden dashed-accent h-[460px] lg:h-[calc(100vh-110px)]">
+              <div ref={mapRef} style={mapFit} className={`rounded-[10px] overflow-hidden dashed-accent h-[460px] lg:h-[calc(100vh-110px)] ${FIT_GAP}`}>
                 <Map points={mapPoints} legend storageKey={`travel-bug:map-view:${id}`} highlightedId={mapPoints.find((p) => (p.ref ?? p.id) === hovered)?.id ?? null} />
               </div>
             )}
