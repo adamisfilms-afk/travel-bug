@@ -23,6 +23,9 @@ const FIELDS = [
   "websiteUri",
   "regularOpeningHours.weekdayDescriptions",
   "photos",
+  "reservable",
+  "nationalPhoneNumber",
+  "internationalPhoneNumber",
 ].map((f) => `places.${f}`);
 
 const PRICE: Record<string, number> = {
@@ -68,6 +71,8 @@ export async function GET(req: Request) {
         priceLevel: p.priceLevel != null ? PRICE[p.priceLevel] ?? null : null,
         mapsUrl: p.googleMapsUri ?? null,
         website: p.websiteUri ?? null,
+        reservable: typeof p.reservable === "boolean" ? p.reservable : null,
+        phone: p.internationalPhoneNumber ?? p.nationalPhoneNumber ?? null,
         hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
         summary: p.reviewSummary?.text?.text
           ? {
