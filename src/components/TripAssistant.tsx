@@ -326,7 +326,7 @@ function AssistantMessage({ m, trip, animate, onTick, children }: { m: ChatMessa
     <div className="flex gap-2.5">
       <AiLogo className="size-6 mt-1" />
       <div className="min-w-0 flex-1 space-y-2.5">
-        <p className="pt-1 text-[14px] leading-snug text-ink">{n >= intro.length ? intro : intro.slice(0, n)}</p>
+        <p className="sm:max-w-[85%] pt-1 text-[14px] leading-snug text-ink">{n >= intro.length ? intro : intro.slice(0, n)}</p>
         {cards.length ? (
           <div className="space-y-5 pt-1">
             {cards.map((c, i) => {
@@ -402,7 +402,7 @@ function PlaceCard({ card, trip, reveal = Infinity }: { card: AssistantCard; tri
 
   return (
     <div className="space-y-2">
-      <p className="text-[14px] leading-snug text-ink">
+      <p className="sm:max-w-[85%] text-[14px] leading-snug text-ink">
         {card.link ? (
           <a href={card.link} target="_blank" rel="noopener noreferrer sponsored" className="font-semibold underline decoration-ink/30 underline-offset-2 hover:decoration-ink">
             {shownName}
