@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowClockwise, ArrowLeft, Check, Sparkle, ForkKnife, FunnelSimple, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowLeft, Check, ForkKnife, FunnelSimple, LinkSimple, MapPin as MapPinIcon, CaretDown, DotsSixVertical, PencilSimple, Plus, Trash, X } from "@phosphor-icons/react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { ShareTripButton, useOwnsTrip } from "@/components/ShareTripDialog";
+import { AiLogo } from "@/components/AiLogo";
 import { TripAssistant } from "@/components/TripAssistant";
 import { shareTrip } from "@/lib/share";
 import { useOverrides } from "@/lib/curated/overrides";
@@ -751,8 +752,8 @@ export default function PlannerPage() {
         <div className="grid gap-8 xl:gap-12 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_minmax(400px,0.65fr)]">
           <div className="min-w-0">
             {/* Flights / Stays / Things to do as tabs, like Itinerary / Map on the right */}
-            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-              <div role="tablist" aria-label="Saved items" className="flex items-baseline gap-4 md:gap-5">
+            <div className="mb-5 min-h-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+              <div role="tablist" aria-label="Saved items" className="flex items-center gap-4 md:gap-5">
                 {SAVED_TABS.map((t) => {
                   return (
                     <button
@@ -760,6 +761,8 @@ export default function PlannerPage() {
                       role="tab"
                       type="button"
                       aria-selected={savedTab === t.id}
+                      aria-label={t.id === "assistant" ? "Trip assistant" : undefined}
+                      title={t.id === "assistant" ? "Trip assistant" : undefined}
                       onClick={() => setSavedTab(t.id)}
                       className={clsx(
                         "text-[17px] md:text-[20px] leading-tight transition-colors whitespace-nowrap",
@@ -767,10 +770,12 @@ export default function PlannerPage() {
                       )}
                     >
                       {t.id === "assistant" ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Sparkle weight="fill" className="size-4 text-accent-ink" />
-                          <span className="sr-only md:not-sr-only">{t.label}</span>
-                        </span>
+                        <AiLogo
+                          className={clsx(
+                            "block size-[22px] md:size-6 transition-opacity",
+                            savedTab === "assistant" ? "opacity-100" : "opacity-40 hover:opacity-75",
+                          )}
+                        />
                       ) : (
                         t.label
                       )}
@@ -899,8 +904,8 @@ export default function PlannerPage() {
           </div>
 
           <aside className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-            <div className="mb-5 flex items-center gap-4 md:gap-5">
-              <div role="tablist" aria-label="Itinerary or map" className="flex items-baseline gap-4 md:gap-5">
+            <div className="mb-5 min-h-8 flex items-center gap-4 md:gap-5">
+              <div role="tablist" aria-label="Itinerary or map" className="flex items-center gap-4 md:gap-5">
                 {(["itinerary", "map"] as const).map((t) => (
                   <button
                     key={t}

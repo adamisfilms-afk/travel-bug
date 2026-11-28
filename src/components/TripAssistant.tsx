@@ -1,15 +1,16 @@
 "use client";
 
-import { ArrowUp, Check, ForkKnife, MapPin, Plus, Sparkle, Star, Trash } from "@phosphor-icons/react";
+import { ArrowUp, Check, ForkKnife, MapPin, Plus, Star, Trash } from "@phosphor-icons/react";
 import clsx from "clsx";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AiLogo } from "@/components/AiLogo";
 import { PlaceModal } from "@/components/PlaceModal";
 import type { AssistantCard, AssistantReply, ChatMessage } from "@/lib/assistant/types";
 import { useAccountInfo } from "@/lib/auth";
 import { CITY_GUIDES, kindOfPlace, type CityGuide } from "@/lib/curated/city-guides";
 import { useCuratedCover } from "@/lib/curated/cover";
 import { useCuratedPlace } from "@/lib/curated/overrides";
-import type { CuratedPlace } from "@/lib/curated/types";
+import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
 import { useStore } from "@/lib/store";
 import type { ActivityCategory, Trip } from "@/lib/types";
 
@@ -112,7 +113,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
   const outOfMessages = remaining === 0;
 
   return (
-    <div className="flex flex-col rounded-[10px] dashed-accent h-[min(640px,calc(100svh-220px))] lg:h-[calc(100vh-180px)] min-h-[420px]">
+    <div className="flex flex-col rounded-[10px] dashed-accent h-[min(640px,calc(100svh-220px))] lg:h-[calc(100vh-110px)] min-h-[420px]">
       <div ref={listRef} className="flex-1 overflow-y-auto no-scrollbar px-4 md:px-5 py-4 space-y-4">
         {messages === null && <div className="h-10 w-2/3 rounded-xl bg-surface animate-pulse" />}
         {messages?.length === 0 && !busy && <Welcome trip={trip} onPick={(q) => void send(q)} disabled={!enabled || outOfMessages} />}
@@ -122,39 +123,39 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
               <p className="max-w-[85%] rounded-2xl rounded-br-md bg-surface-strong px-3.5 py-2 text-[14px] leading-snug whitespace-pre-wrap">{m.content.text}</p>
             </div>
           ) : (
-            <div key={m.id} className="space-y-2.5">
-              <p className="flex gap-2 text-[14px] leading-snug">
-                <Sparkle weight="fill" className="size-4 mt-0.5 shrink-0 text-accent-ink" />
-                <span>{m.content.text}</span>
-              </p>
-              {m.content.options?.length ? (
-                <div className="flex flex-wrap gap-1.5 pl-6">
-                  {m.content.options.map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      disabled={busy || i !== lastIndex || outOfMessages}
-                      onClick={() => void send(o)}
-                      className="h-8 px-3 rounded-full bg-guide-active/50 hover:bg-guide-active text-[13px] text-ink disabled:opacity-50 disabled:hover:bg-guide-active/50"
-                    >
-                      {o}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {m.content.cards?.length ? (
-                <div className="space-y-2">
-                  {m.content.cards.map((c) => (
-                    <PlaceCard key={c.id} card={c} trip={trip} />
-                  ))}
-                </div>
-              ) : null}
+            <div key={m.id} className="flex gap-2.5">
+              <AiLogo className="size-6 mt-1" />
+              <div className="min-w-0 flex-1 space-y-2.5">
+                <p className="w-fit max-w-full sm:max-w-[75%] rounded-2xl rounded-tl-md bg-ink text-guide-ink px-3.5 py-2 text-[14px] leading-snug">{m.content.text}</p>
+                {m.content.options?.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {m.content.options.map((o) => (
+                      <button
+                        key={o}
+                        type="button"
+                        disabled={busy || i !== lastIndex || outOfMessages}
+                        onClick={() => void send(o)}
+                        className="h-8 px-3 rounded-full bg-guide-active/50 hover:bg-guide-active text-[13px] text-ink disabled:opacity-50 disabled:hover:bg-guide-active/50"
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {m.content.cards?.length ? (
+                  <div className="w-full sm:w-3/4 space-y-2.5">
+                    {m.content.cards.map((c) => (
+                      <PlaceCard key={c.id} card={c} trip={trip} />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ),
         )}
         {busy && (
-          <p className="flex items-center gap-2 text-[13px] text-ink-muted">
-            <Sparkle weight="fill" className="size-4 text-accent-ink animate-pulse" /> Looking through the guides…
+          <p className="flex items-center gap-2.5 text-[13px] text-ink-muted" role="status">
+            <AiLogo thinking className="size-6" /> Looking through the guides…
           </p>
         )}
       </div>
@@ -209,7 +210,7 @@ function Welcome({ trip, onPick, disabled }: { trip: Trip; onPick: (q: string) =
   const ideas = [`Where should we stay in ${city}?`, `Best dinner spots in ${city}`, `Things to do in ${city} on a rainy day`];
   return (
     <div className="py-6 text-center space-y-4">
-      <Sparkle weight="fill" className="size-7 mx-auto text-accent-ink" />
+      <AiLogo className="size-10 mx-auto block" />
       <div>
         <p className="font-serif text-[22px] leading-tight">Ask about {city}</p>
         <p className="mt-1 text-[13px] text-ink-muted">Places to eat, stay and see — from our City Guides first.</p>
@@ -225,8 +226,6 @@ function Welcome({ trip, onPick, disabled }: { trip: Trip; onPick: (q: string) =
   );
 }
 
-const PRICE = ["", "$", "$$", "$$$", "$$$$"];
-
 function findCurated(card: AssistantCard): { place: CuratedPlace; guide: CityGuide } | null {
   if (card.source !== "curated") return null;
   const guide = CITY_GUIDES.find((g) => g.slug === card.guide);
@@ -234,11 +233,14 @@ function findCurated(card: AssistantCard): { place: CuratedPlace; guide: CityGui
   return guide && place ? { guide, place } : null;
 }
 
-/** A compact horizontal card: photo, name, details, summary, add-to-trip. */
+/**
+ * A place in the chat: a wide photo with its name (serif) and details over it, like the City
+ * Guide cards, and the assistant's summary underneath. The whole card opens the place view.
+ */
 function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
   const hit = findCurated(card);
   const [open, setOpen] = useState(false);
-  // For photos: curated places use their curated cover; general suggestions their Google listing
+  // General suggestions open in the same place view (Google photos, reviews and info), without a guide
   const base: CuratedPlace = hit?.place ?? {
     id: card.id,
     name: card.name,
@@ -248,76 +250,76 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
     lat: card.lat ?? 0,
     lng: card.lng ?? 0,
     category: card.category as ActivityCategory,
+    ...(card.price ? { priceLevel: card.price } : {}),
   };
+  const guide: CuratedGuide = hit?.guide ?? { slug: "assistant", city: trip.destination, country: "", aliases: [], intro: "", sections: [] };
+  const kind = hit ? kindOfPlace(hit.guide, hit.place) : card.category === "food" ? "food" : "explore";
   const place = useCuratedPlace(base);
-  const photo = useCuratedCover(place, 240);
+  const photo = useCuratedCover(place, 800);
   const activities = useStore((s) => s.activities);
   const addActivity = useStore((s) => s.addActivity);
   const removeActivity = useStore((s) => s.removeActivity);
   const saved = activities.find((a) => a.tripId === trip.id && a.name.toLowerCase() === place.name.toLowerCase());
-  const details = [place.tagline, place.neighbourhood, card.price ? PRICE[card.price] : null].filter(Boolean).join(" · ");
+  const price = card.price ?? place.priceLevel;
+  const details = [place.tagline, place.neighbourhood, price ? "$".repeat(price) : null].filter(Boolean).join(" · ");
 
   return (
-    <div className="flex gap-3 rounded-xl bg-surface p-2.5 pr-3">
+    <div className="group relative">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${place.name}`}
+        onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
+        className="rounded-2xl overflow-hidden bg-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
+      >
+        <div className="film-grain relative aspect-[2/1] sm:aspect-[3/1] overflow-hidden bg-guide-card">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
+          ) : (
+            <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
+              {kind === "food" ? <ForkKnife weight="fill" className="size-10" /> : <MapPin weight="fill" className="size-10" />}
+            </span>
+          )}
+          <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
+            <p className="font-serif text-[21px] md:text-[23px] leading-[1.1]">{place.name}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
+              <span className="truncate">{details}</span>
+              {card.rating ? (
+                <span className="shrink-0 inline-flex items-center gap-0.5" title={card.reviews ? `${card.reviews.toLocaleString("en-GB")} Google reviews` : "Google rating"}>
+                  · <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
+                </span>
+              ) : null}
+            </p>
+          </div>
+        </div>
+        <p className="px-4 py-2.5 text-[13px] leading-snug text-guide-ink/90">{card.summary}</p>
+      </div>
       <button
         type="button"
-        onClick={() => (hit ? setOpen(true) : window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(card.mapsQuery ?? card.name)}`, "_blank", "noopener"))}
-        className="relative size-[72px] shrink-0 overflow-hidden rounded-lg bg-surface-strong"
-        aria-label={`Open ${place.name}`}
-      >
-        {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" className="size-full object-cover" />
-        ) : (
-          <span className="grid size-full place-items-center text-ink/30">{card.category === "food" ? <ForkKnife className="size-5" /> : <MapPin className="size-5" />}</span>
+        onClick={() =>
+          saved ? removeActivity(saved.id) : addActivity(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, place: place.name })
+        }
+        title={saved ? "Remove from trip" : "Add to trip"}
+        aria-label={saved ? "Remove from trip" : "Add to trip"}
+        className={clsx(
+          "absolute top-2.5 right-2.5 grid place-items-center size-8 rounded-full shadow transition-colors",
+          saved ? "bg-guide-active text-ink" : "bg-guide-ink/90 text-ink hover:bg-white",
         )}
+      >
+        {saved ? <Check weight="bold" className="size-4" /> : <Plus weight="bold" className="size-4" />}
       </button>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <button type="button" onClick={() => (hit ? setOpen(true) : undefined)} className={clsx("min-w-0 flex-1 text-left", hit && "hover:underline underline-offset-2")}>
-            <span className="block text-[15px] font-medium leading-tight truncate">{place.name}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              saved ? removeActivity(saved.id) : addActivity(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, place: place.name })
-            }
-            title={saved ? "Remove from trip" : "Add to trip"}
-            aria-label={saved ? "Remove from trip" : "Add to trip"}
-            className={clsx(
-              "grid place-items-center size-7 shrink-0 rounded-full transition-colors",
-              saved ? "bg-guide-active text-ink" : "bg-accent text-white hover:bg-accent-hover",
-            )}
-          >
-            {saved ? <Check weight="bold" className="size-3.5" /> : <Plus weight="bold" className="size-3.5" />}
-          </button>
-        </div>
-        <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-muted min-w-0">
-          <span
-            className={clsx(
-              "shrink-0 rounded-full px-1.5 py-px text-[10px] uppercase tracking-wider",
-              card.source === "curated" ? "bg-guide-active text-ink" : "border border-ink/15 text-ink-muted",
-            )}
-          >
-            {card.source === "curated" ? "Curated" : "Suggestion"}
-          </span>
-          <span className="truncate">{details}</span>
-          {card.rating ? (
-            <span className="shrink-0 inline-flex items-center gap-0.5">
-              <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
-            </span>
-          ) : null}
-        </p>
-        <p className="mt-1 text-[13px] leading-snug text-ink/85 line-clamp-3 md:line-clamp-2">{card.summary}</p>
-      </div>
-      {open && hit && (
+      {open && (
         <PlaceModal
-          place={hit.place}
-          guide={hit.guide}
-          kind={kindOfPlace(hit.guide, hit.place)}
+          place={hit?.place ?? base}
+          guide={guide}
+          kind={kind}
+          general={!hit}
           curate={false}
-          photoPick={hit.place.photo}
-          EmptyIcon={kindOfPlace(hit.guide, hit.place) === "food" ? ForkKnife : MapPin}
+          photoPick={hit?.place.photo}
+          EmptyIcon={kind === "food" ? ForkKnife : MapPin}
           onClose={() => setOpen(false)}
         />
       )}

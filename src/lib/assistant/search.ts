@@ -3,12 +3,15 @@ import "server-only";
 import { CITY_GUIDES, kindOfPlace, matchCityGuides, type CityGuide } from "@/lib/curated/city-guides";
 import type { PlaceOverride } from "@/lib/curated/overrides";
 import { readOverrides } from "@/lib/curated/overrides-server";
-import type { CuratedPlace } from "@/lib/curated/types";
+import type { CuratedPlace, CuratedSection } from "@/lib/curated/types";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import type { AssistantCard } from "./types";
 
 /**
  * Retrieval for the trip assistant. Plain code, no AI: the curated City Guides are searched
  * first, every time; general suggestions from Google are only looked up when the guides have
- * fewer than MIN_CURATED matches.
+ * fewer than MIN_CURATED matches. Candidates are then given their Google rating, review count
+ * and price level (cached in place_facts) so the assistant can say which might be best.
  */
 
 export type PlaceKind = "food" | "explore" | "stay";
@@ -40,12 +43,13 @@ export interface Candidate {
   guide?: string;
   mapsQuery?: string;
   rating?: number | null;
+  reviews?: number | null;
 }
 
 /** Fewer curated matches than this → top up with general suggestions. */
-export const MIN_CURATED = 3;
+export const MIN_CURATED = 4;
 /** At most this many candidates are sent to the model (keeps cost down). */
-const MAX_CANDIDATES = 15;
+const MAX_CANDIDATES = 10;
 
 const norm = (s: string) =>
   s
@@ -117,27 +121,7 @@ export async function searchCurated(q: SearchQuery): Promise<{ guide: CityGuide 
       const lift = tagWords.filter((w) => hay.includes(w)).length * 0.5;
       if (p.description) score += 0.5; // a write-up gives a better summary
 
-      scored.push({
-        score: score + lift,
-        matched: score >= 1,
-        order,
-        c: {
-          id: p.id,
-          source: "curated",
-          name: p.name,
-          tagline: p.tagline,
-          area: p.neighbourhood,
-          section: s.title,
-          kind,
-          price: p.priceLevel ?? null,
-          about: (p.description ?? "").slice(0, 320),
-          lat: p.lat,
-          lng: p.lng,
-          category: p.category,
-          guide: guide.slug,
-          mapsQuery: p.mapsQuery,
-        },
-      });
+      scored.push({ score: score + lift, matched: score >= 1, order, c: curatedCandidate(guide, s, p, kind) });
     }
   }
   // When the request names things (keywords, tags, area), keep only places that match at least one;
@@ -146,6 +130,156 @@ export async function searchCurated(q: SearchQuery): Promise<{ guide: CityGuide 
   const kept = specific ? scored.filter((x) => x.matched) : scored;
   kept.sort((a, b) => b.score - a.score || a.order - b.order);
   return { guide, results: kept.slice(0, MAX_CANDIDATES).map((x) => x.c) };
+}
+
+function curatedCandidate(guide: CityGuide, s: CuratedSection, p: CuratedPlace, kind: PlaceKind): Candidate {
+  return {
+    id: p.id,
+    source: "curated",
+    name: p.name,
+    tagline: p.tagline,
+    area: p.neighbourhood,
+    section: s.title,
+    kind,
+    price: p.priceLevel ?? null,
+    about: (p.description ?? "").slice(0, 320),
+    lat: p.lat,
+    lng: p.lng,
+    category: p.category,
+    guide: guide.slug,
+    mapsQuery: p.mapsQuery,
+  };
+}
+
+/** The places shown in an earlier answer, as candidates again (for "which is best?", "tell me more"). */
+export async function candidatesFromCards(cards: AssistantCard[]): Promise<Candidate[]> {
+  let overrides: Record<string, PlaceOverride> = {};
+  try {
+    overrides = (await readOverrides()) as Record<string, PlaceOverride>;
+  } catch {
+    /* use the guide as written */
+  }
+  return cards.map((card) => {
+    if (card.source === "curated") {
+      const guide = CITY_GUIDES.find((g) => g.slug === card.guide);
+      for (const s of guide?.sections ?? []) {
+        const raw = s.places.find((x) => x.id === card.id);
+        if (raw && guide) return curatedCandidate(guide, s, applyOverride(raw, overrides[raw.id]), kindOf(guide, raw, s.title));
+      }
+    }
+    return {
+      id: card.id,
+      source: card.source,
+      name: card.name,
+      tagline: card.tagline,
+      area: card.area,
+      section: card.tagline,
+      kind: card.category === "food" ? "food" : card.category === "other" ? "stay" : "explore",
+      price: card.price,
+      about: card.summary,
+      lat: card.lat,
+      lng: card.lng,
+      category: card.category,
+      guide: card.guide,
+      mapsQuery: card.mapsQuery,
+      rating: card.rating ?? null,
+      reviews: card.reviews ?? null,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Google facts (rating, reviews, price level) for curated places, cached
+// ---------------------------------------------------------------------------
+
+interface Facts {
+  rating: number | null;
+  reviews: number | null;
+  price: number | null;
+  summary: string | null;
+}
+const FACTS_DAYS = 30;
+const g = globalThis as unknown as { __placeFacts?: Map<string, { at: number; f: Facts }> };
+const memo = (g.__placeFacts ??= new Map());
+let factsTable = true; // set false if place_facts hasn't been created (005_place_facts.sql)
+
+/**
+ * Give curated candidates their Google rating, review count and price level, so the assistant can
+ * say which might be best and cards can show a price. Looked up once per place, then cached for
+ * 30 days (in memory and in the place_facts table), so the Google cost is mostly one-off.
+ */
+export async function addGoogleFacts(cands: Candidate[]): Promise<void> {
+  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const need = cands.filter((c) => c.source === "curated" && c.mapsQuery && c.rating == null);
+  if (!need.length) return;
+  const fresh = Date.now() - FACTS_DAYS * 86_400_000;
+  const facts = new Map<string, Facts>();
+  for (const c of need) {
+    const hit = memo.get(c.mapsQuery!);
+    if (hit && hit.at > fresh) facts.set(c.mapsQuery!, hit.f);
+  }
+  const admin = supabaseAdmin();
+  let missing = need.filter((c) => !facts.has(c.mapsQuery!));
+  if (missing.length && admin && factsTable) {
+    const { data, error } = await admin
+      .from("place_facts")
+      .select("query, rating, reviews, price, summary, updated_at")
+      .in("query", missing.map((c) => c.mapsQuery!));
+    if (error) factsTable = !/place_facts|does not exist|schema cache/i.test(error.message);
+    for (const r of data ?? []) {
+      if (new Date(r.updated_at).getTime() < fresh) continue;
+      const f = { rating: r.rating, reviews: r.reviews, price: r.price, summary: r.summary };
+      facts.set(r.query, f);
+      memo.set(r.query, { at: new Date(r.updated_at).getTime(), f });
+    }
+    missing = missing.filter((c) => !facts.has(c.mapsQuery!));
+  }
+  if (missing.length && key) {
+    const looked = await Promise.all(missing.map(async (c) => [c.mapsQuery!, await lookupFacts(c.mapsQuery!, key)] as const));
+    const rows = [];
+    for (const [q, f] of looked) {
+      if (!f) continue;
+      facts.set(q, f);
+      memo.set(q, { at: Date.now(), f });
+      rows.push({ query: q, ...f, updated_at: new Date().toISOString() });
+    }
+    if (rows.length && admin && factsTable) await admin.from("place_facts").upsert(rows);
+  }
+  for (const c of need) {
+    const f = facts.get(c.mapsQuery!);
+    if (!f) continue;
+    c.rating = f.rating;
+    c.reviews = f.reviews;
+    c.price ??= f.price;
+    if (!c.about && f.summary) c.about = f.summary;
+  }
+}
+
+async function lookupFacts(query: string, key: string): Promise<Facts | null> {
+  try {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "places.rating,places.userRatingCount,places.priceLevel,places.editorialSummary",
+      },
+      body: JSON.stringify({ textQuery: query, pageSize: 1, languageCode: "en" }),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Places ${res.status}`);
+    const p = (await res.json()).places?.[0];
+    if (!p) return { rating: null, reviews: null, price: null, summary: null };
+    return {
+      rating: p.rating ?? null,
+      reviews: p.userRatingCount ?? null,
+      price: p.priceLevel ? PRICE[p.priceLevel] ?? null : null,
+      summary: p.editorialSummary?.text ?? null,
+    };
+  } catch (e) {
+    console.error("[assistant] facts", e);
+    return null;
+  }
 }
 
 const PRICE: Record<string, number> = {
@@ -202,12 +336,13 @@ export async function searchGeneral(q: SearchQuery, limit: number): Promise<Cand
           section: type,
           kind: q.kind === "any" ? "explore" : q.kind,
           price: p.priceLevel ? PRICE[p.priceLevel] ?? null : null,
-          about: [p.editorialSummary?.text, p.rating ? `Google rating ${p.rating} (${p.userRatingCount} reviews)` : ""].filter(Boolean).join(". "),
+          about: p.editorialSummary?.text ?? "",
           lat: p.location?.latitude ?? null,
           lng: p.location?.longitude ?? null,
           category: q.kind === "food" ? "food" : q.kind === "stay" ? "other" : "sight",
           mapsQuery: `${name} ${p.formattedAddress ?? q.city}`,
           rating: p.rating ?? null,
+          reviews: p.userRatingCount ?? null,
         };
       });
   } catch (e) {

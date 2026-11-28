@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { AssistantRefusal, assistantEnabled, pick, toSearchQuery, understand, type CallLog } from "@/lib/assistant/claude";
-import { CURATED_CITIES, MIN_CURATED, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
+import { CURATED_CITIES, MIN_CURATED, addGoogleFacts, candidatesFromCards, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
 import type { AssistantCard, AssistantReply, ChatContent, ChatMessage } from "@/lib/assistant/types";
 import { isAdminUser, supabaseServer } from "@/lib/supabase/server";
 
@@ -20,7 +20,7 @@ import { isAdminUser, supabaseServer } from "@/lib/supabase/server";
 export const maxDuration = 60;
 
 const LIMIT = Number(process.env.ASSISTANT_MESSAGES_PER_DAY ?? 10);
-const MAX_CARDS = 6;
+const MAX_CARDS = 5;
 const HISTORY = 12;
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -117,27 +117,47 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
   if (u.action !== "search") return { text: u.message || "What are you looking for — somewhere to eat, stay or see?" };
 
   const q = toSearchQuery(u);
-  // 1. Curated guides first, always
-  const { guide, results: curated } = await searchCurated(q);
-  // 2. General suggestions only when the guides are thin
-  const general = curated.length < MIN_CURATED ? await searchGeneral(q, MAX_CARDS - curated.length) : [];
-  const candidates: Candidate[] = [...curated, ...general];
-  if (!candidates.length)
-    return {
-      text: guide
-        ? `Nothing in our ${guide.city} guide matches that yet — try a different area or budget.`
-        : `We don't have a ${q.city} guide yet, and I couldn't find suggestions right now — try again shortly.`,
-    };
+  const previous = history.findLast((m) => m.role === "assistant" && m.content.cards?.length)?.content.cards ?? [];
 
   // What they asked for, in their words since the last set of results
   const lastResults = history.findLastIndex((m) => m.role === "assistant" && m.content.cards?.length);
-  const request = history
-    .slice(lastResults + 1)
-    .filter((m) => m.role === "user")
+  // (follow-ups about shown places also get the original request, for context)
+  const request = (u.about_previous ? history.filter((m) => m.role === "user").slice(-4) : history.slice(lastResults + 1).filter((m) => m.role === "user"))
     .map((m) => m.content.text)
     .join(" · ");
 
-  const picks = await pick(`${request}\n(Search: ${JSON.stringify(q)})`, candidates, { ...log, city: q.city, query: request, curated: curated.length, general: general.length });
+  let candidates: Candidate[];
+  let curatedCount = 0;
+  let generalCount = 0;
+  let fixedIntro: string | null = null;
+  if (u.about_previous && previous.length) {
+    // "Which is best?": judge the places already shown
+    candidates = await candidatesFromCards(previous);
+  } else {
+    // 1. Curated guides first, always
+    const { guide, results: curated } = await searchCurated(q);
+    // 2. General suggestions when the guides are thin (or there's no guide for this city)
+    const general = curated.length < MIN_CURATED ? await searchGeneral(q, MAX_CARDS + 2 - curated.length) : [];
+    candidates = [...curated, ...general];
+    curatedCount = curated.length;
+    generalCount = general.length;
+    if (!candidates.length)
+      return {
+        text: guide
+          ? `Nothing in our ${guide.city} guide matches that yet — try a different area or budget.`
+          : `We don't have a ${q.city} guide yet, and I couldn't find suggestions right now — try again shortly.`,
+      };
+    if (!curated.length)
+      fixedIntro = guide
+        ? `Our ${guide.city} guide doesn't cover this yet, but here are some recommendations I found elsewhere:`
+        : `We don't have curated picks for ${q.city} yet, but here are some recommendations I found elsewhere:`;
+  }
+  // Google rating, reviews and price for curated places (cached), so it can judge which is best
+  await addGoogleFacts(candidates);
+
+  const note = u.about_previous ? "\n(They're asking about the places already shown — judge those.)" : "";
+  const picks = await pick(`${request}${note}\n(Search: ${JSON.stringify(q)})`, candidates, { ...log, city: q.city, query: request, curated: curatedCount, general: generalCount });
+  if (fixedIntro && picks.cards.length) picks.intro = fixedIntro;
 
   // 3. Only places the search actually returned; details from our data, not the model
   const byId = new Map(candidates.map((c) => [c.id, c]));
@@ -161,10 +181,10 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
       guide: c.guide,
       mapsQuery: c.mapsQuery,
       rating: c.rating ?? null,
+      reviews: c.reviews ?? null,
     });
   }
-  // Curated picks always first
-  cards.sort((a, b) => Number(a.source === "general") - Number(b.source === "general"));
+  // The model's order stands (best first); curated places are preferred inside the prompt
   const shown = cards.slice(0, MAX_CARDS);
   if (!shown.length) return { text: picks.intro || "None of those quite fit — try a different area or budget." };
   return { text: picks.intro, cards: shown };

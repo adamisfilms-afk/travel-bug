@@ -21,6 +21,8 @@ export interface AssistantCard {
   /** Google search text for its photo (general suggestions). */
   mapsQuery?: string;
   rating?: number | null;
+  /** Number of Google reviews behind the rating. */
+  reviews?: number | null;
 }
 
 export interface ChatContent {
