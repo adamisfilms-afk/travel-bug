@@ -772,8 +772,8 @@ export default function PlannerPage() {
                       {t.id === "assistant" ? (
                         <AiLogo
                           className={clsx(
-                            "block size-[22px] md:size-6 transition-opacity",
-                            savedTab === "assistant" ? "opacity-100" : "opacity-40 hover:opacity-75",
+                            "block size-[22px] md:size-6 translate-y-[2px] transition-shadow",
+                            savedTab === "assistant" ? "ring-[1.5px] ring-ink ring-offset-2 ring-offset-canvas" : "hover:ring-[1.5px] hover:ring-ink/30 hover:ring-offset-2 hover:ring-offset-canvas",
                           )}
                         />
                       ) : (

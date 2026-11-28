@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { AssistantRefusal, assistantEnabled, pick, toSearchQuery, understand, type CallLog } from "@/lib/assistant/claude";
-import { CURATED_CITIES, MIN_CURATED, addGoogleFacts, candidatesFromCards, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
+import { MIN_CURATED, addGoogleFacts, candidatesFromCards, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
 import type { AssistantCard, AssistantReply, ChatContent, ChatMessage } from "@/lib/assistant/types";
 import { isAdminUser, supabaseServer } from "@/lib/supabase/server";
 
@@ -22,6 +22,9 @@ export const maxDuration = 60;
 const LIMIT = Number(process.env.ASSISTANT_MESSAGES_PER_DAY ?? 10);
 const MAX_CARDS = 5;
 const HISTORY = 12;
+
+/** Words that mean someone is asking for places (so it should always be a search). */
+const WANTS_PLACES = /\b(hotels?|stay|stays|staying|accommodation|apartments?|hostels?|airbnb|restaurants?|eat|eating|food|dinner|lunch|breakfast|brunch|caf[eé]s?|coffee|bars?|drinks?|pubs?|things to do|see|visit|museums?|sights?|galler(y|ies)|shops?|shopping|recommend\w*|suggest\w*|where)\b/i;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -112,8 +115,10 @@ export async function POST(req: Request, ctx: Ctx) {
 
 /** Understand → (clarify | answer | search curated → maybe general → pick). */
 async function reply(history: ChatMessage[], trip: Parameters<typeof understand>[1], log: CallLog): Promise<ChatContent> {
-  const u = await understand(history, trip, CURATED_CITIES, log);
+  const u = await understand(history, trip, log);
   if (u.action === "clarify" && u.options.length) return { text: u.message, options: u.options };
+  // Safety net: a request for places is always searched, even if the model chose to reply in words
+  if (u.action === "answer" && WANTS_PLACES.test(history.at(-1)?.content.text ?? "")) u.action = "search";
   if (u.action !== "search") return { text: u.message || "What are you looking for — somewhere to eat, stay or see?" };
 
   const q = toSearchQuery(u);

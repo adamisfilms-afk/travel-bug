@@ -165,7 +165,7 @@ Read the conversation and choose one action.
 - message: the question, 12 words or fewer.
 - options: 2 to 4 short answers (3 words or fewer each), with "No preference" last.
 
-"search": find places. Fill query:
+"search": find places. This works for ANY city or country, whether or not we have a City Guide for it: the search looks in our guides first and finds recommendations elsewhere when we don't cover a place. So never decline a request for places, and never say you can't suggest somewhere because there's no guide — just search. Fill query:
 - city: the city they mean. Default to the trip's main destination; use another trip city or a city they name if that's what they asked about.
 - kind: food, stay, explore, or any.
 - area: a neighbourhood or district they want, otherwise null.
@@ -175,7 +175,7 @@ Read the conversation and choose one action.
 - about_previous: true when they're asking about places already shown ("which is the best?", "which is cheapest?", "tell me more about these"), so you should judge those same places rather than search again. Otherwise false.
 - message: an empty string. options: [].
 
-"answer": for anything that isn't finding places (a quick fact, a thank-you). message: at most two short sentences, then offer to find places. options: []. about_previous: false. Fill query with the trip's city, kind "any", nulls and empty lists.
+"answer": only for things that aren't about finding places (a quick fact, a thank-you). Never use it to turn down a request for places. message: at most two short sentences, then offer to find places. options: []. about_previous: false. Still fill query with your best guess at a search (city, kind…).
 
 For "clarify", about_previous is false.
 
@@ -206,15 +206,15 @@ export interface TripContext {
   travellers: number;
 }
 
-const tripLine = (t: TripContext, curatedCities: string[]) =>
-  `Trip: "${t.name}" — ${t.cities.join(", ") || "no city yet"}, ${t.startDate} to ${t.endDate}, ${t.travellers} traveller${t.travellers === 1 ? "" : "s"}. Cities with curated guides: ${curatedCities.join(", ")}.`;
+const tripLine = (t: TripContext) =>
+  `Trip: "${t.name}" — ${t.cities.join(", ") || "no city yet"}, ${t.startDate} to ${t.endDate}, ${t.travellers} traveller${t.travellers === 1 ? "" : "s"}.`;
 
-export async function understand(history: ChatMessage[], trip: TripContext, curatedCities: string[], log: CallLog): Promise<Understanding> {
+export async function understand(history: ChatMessage[], trip: TripContext, log: CallLog): Promise<Understanding> {
   const msgs = transcript(history);
   const last = msgs[msgs.length - 1];
   if (!last || last.role !== "user") throw new Error("The conversation must end with a message from the person.");
   // Trip details go with the latest message (they can change), so the instructions above stay cacheable
-  last.content = `${tripLine(trip, curatedCities)}\n\n${last.content as string}`;
+  last.content = `${tripLine(trip)}\n\n${last.content as string}`;
   const r = await callJSON<Understanding>("understand", UNDERSTAND_SYSTEM, msgs, UNDERSTAND_SCHEMA, { ...log, query: history.at(-1)?.content.text });
   // Belt and braces on top of the schema
   r.options = (r.options ?? []).map((o) => o.trim()).filter(Boolean).slice(0, 4);
