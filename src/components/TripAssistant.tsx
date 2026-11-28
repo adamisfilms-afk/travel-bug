@@ -126,7 +126,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
             <div key={m.id} className="flex gap-2.5">
               <AiLogo className="size-6 mt-1" />
               <div className="min-w-0 flex-1 space-y-2.5">
-                <p className="w-fit max-w-full sm:max-w-[75%] rounded-2xl rounded-tl-md bg-ink text-guide-ink px-3.5 py-2 text-[14px] leading-snug">{m.content.text}</p>
+                <p className="max-w-full sm:max-w-[75%] pt-1 text-[14px] leading-snug text-ink">{m.content.text}</p>
                 {m.content.options?.length ? (
                   <div className="flex flex-wrap gap-1.5">
                     {m.content.options.map((o) => (
@@ -143,7 +143,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
                   </div>
                 ) : null}
                 {m.content.cards?.length ? (
-                  <div className="w-full sm:w-3/4 space-y-2.5">
+                  <div className="w-full sm:w-1/2 space-y-4">
                     {m.content.cards.map((c) => (
                       <PlaceCard key={c.id} card={c} trip={trip} />
                     ))}
@@ -271,9 +271,9 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
         aria-label={`Open ${place.name}`}
         onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
-        className="rounded-2xl overflow-hidden bg-ink cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
+        className="rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
       >
-        <div className="film-grain relative aspect-[2/1] sm:aspect-[3/1] overflow-hidden bg-guide-card">
+        <div className="film-grain relative aspect-[2/1] overflow-hidden bg-guide-card">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
@@ -284,7 +284,7 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
           )}
           <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
-            <p className="font-serif text-[21px] md:text-[23px] leading-[1.1]">{place.name}</p>
+            <p className="font-serif text-[20px] leading-[1.1]">{place.name}</p>
             <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
               <span className="truncate">{details}</span>
               {card.rating ? (
@@ -295,8 +295,8 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
             </p>
           </div>
         </div>
-        <p className="px-4 py-2.5 text-[13px] leading-snug text-guide-ink/90">{card.summary}</p>
       </div>
+      <p className="mt-1.5 px-0.5 text-[13px] leading-snug text-ink/85">{card.summary}</p>
       <button
         type="button"
         onClick={() =>
