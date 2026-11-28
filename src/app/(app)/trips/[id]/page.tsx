@@ -33,7 +33,8 @@ import { PlaceModal } from "@/components/PlaceModal";
 import { FlightDetails, StayDetails } from "@/components/tripDetails";
 import { ShareTripButton, useOwnsTrip } from "@/components/ShareTripDialog";
 import { AiLogo } from "@/components/AiLogo";
-import { TripAssistant } from "@/components/TripAssistant";
+import { prefetchChat, TripAssistant } from "@/components/TripAssistant";
+import { useAccountInfo } from "@/lib/auth";
 import { shareTrip } from "@/lib/share";
 import { useOverrides } from "@/lib/curated/overrides";
 import { LocationsInput, tripLocations } from "@/components/trips";
@@ -543,6 +544,12 @@ export default function PlannerPage() {
       /* ignore */
     }
   }, [id]);
+  // Load the assistant chat in the background as soon as the planner opens, so the tab opens instantly
+  const account = useAccountInfo();
+  useEffect(() => {
+    if (account.enabled && account.id && id) void prefetchChat(id);
+  }, [account.enabled, account.id, id]);
+
   // Arriving from the home page's prompt: /trips/<id>?tab=assistant&ask=<question>
   const [initialAsk, setInitialAsk] = useState<string | null>(null);
   useEffect(() => {

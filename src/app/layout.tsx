@@ -11,7 +11,7 @@ const playfair = Playfair_Display({ subsets: ["latin", "latin-ext"], variable: "
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#e7e3d2" };
 
 export const metadata: Metadata = {
-  title: BRAND,
+  title: "Wheretonext | Your travel OS",
   description: "Curated places to eat and explore, plus flights, stays and your itinerary, all in one place.",
 };
 

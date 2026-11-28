@@ -11,8 +11,66 @@ import { CITY_GUIDES, kindOfPlace, type CityGuide } from "@/lib/curated/city-gui
 import { useCuratedCover } from "@/lib/curated/cover";
 import { useCuratedPlace } from "@/lib/curated/overrides";
 import type { CuratedGuide, CuratedPlace } from "@/lib/curated/types";
+import { currencySymbol } from "@/lib/currency";
+import { useSettings } from "@/lib/settingsStore";
 import { useStore } from "@/lib/store";
 import type { ActivityCategory, Trip } from "@/lib/types";
+
+interface ChatState {
+  messages: ChatMessage[];
+  remaining: number | null;
+  limit: number;
+  enabled: boolean;
+}
+
+/** Chats already loaded this session, by trip — shown instantly when the tab opens, then refreshed. */
+const chats = new Map<string, ChatState>();
+const inflight = new Map<string, Promise<ChatState | { error: string }>>();
+
+/** Load a trip's chat (shared by the planner's prefetch and the tab, so it's fetched once). */
+export function prefetchChat(tripId: string): Promise<ChatState | { error: string }> {
+  const running = inflight.get(tripId);
+  if (running) return running;
+  const p = fetch(`/api/trips/${encodeURIComponent(tripId)}/assistant`)
+    .then(async (res) => {
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: (d.error as string) ?? "Couldn't load the chat." };
+      const state: ChatState = { messages: d.messages ?? [], remaining: d.remaining ?? null, limit: d.limit ?? 10, enabled: d.enabled !== false };
+      chats.set(tripId, state);
+      return state;
+    })
+    .catch(() => ({ error: "Couldn't load the chat." }))
+    .finally(() => inflight.delete(tripId));
+  inflight.set(tripId, p);
+  return p;
+}
+
+/** Shown in turn while a reply is on its way. */
+const THINKING = [
+  "Reading your question…",
+  "Looking through our City Guides…",
+  "Checking ratings and reviews…",
+  "Comparing prices for your dates…",
+  "Weighing up the options…",
+  "Picking the best fits…",
+  "Nearly there…",
+];
+
+function Thinking() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => Math.min(n + 1, THINKING.length - 1)), 1900);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <p className="flex items-center gap-2.5 text-[13px] text-ink-muted" role="status">
+      <AiLogo thinking className="size-6" />
+      <span key={i} className="animate-[fade-in_300ms_ease-out]">
+        {THINKING[i]}
+      </span>
+    </p>
+  );
+}
 
 /**
  * The planner's Assistant tab: a chat saved with the trip. It asks a short question or two,
@@ -21,10 +79,12 @@ import type { ActivityCategory, Trip } from "@/lib/types";
  */
 export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initialAsk?: string | null; onAsked?: () => void }) {
   const account = useAccountInfo();
-  const [messages, setMessages] = useState<ChatMessage[] | null>(null);
-  const [remaining, setRemaining] = useState<number | null>(null);
-  const [limit, setLimit] = useState(10);
-  const [enabled, setEnabled] = useState(true);
+  const currency = useSettings((s) => s.currency);
+  const cached = chats.get(trip.id);
+  const [messages, setMessages] = useState<ChatMessage[] | null>(cached?.messages ?? null);
+  const [remaining, setRemaining] = useState<number | null>(cached?.remaining ?? null);
+  const [limit, setLimit] = useState(cached?.limit ?? 10);
+  const [enabled, setEnabled] = useState(cached?.enabled ?? true);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,17 +92,21 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
   const asked = useRef(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/assistant`);
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMessages([]);
-      return setError(d.error ?? "Couldn't load the chat.");
+    const d = await prefetchChat(trip.id);
+    if ("error" in d) {
+      setMessages((m) => m ?? []);
+      return setError(d.error);
     }
-    setMessages(d.messages ?? []);
-    setRemaining(d.remaining ?? null);
-    setLimit(d.limit ?? 10);
-    setEnabled(d.enabled !== false);
+    setMessages(d.messages);
+    setRemaining(d.remaining);
+    setLimit(d.limit);
+    setEnabled(d.enabled);
   }, [trip.id]);
+
+  // Keep the session cache current, so reopening the tab is instant
+  useEffect(() => {
+    if (messages) chats.set(trip.id, { messages: messages.filter((m) => !String(m.id).startsWith("pending-")), remaining, limit, enabled });
+  }, [trip.id, messages, remaining, limit, enabled]);
 
   useEffect(() => {
     if (account.enabled && account.id) void load();
@@ -61,11 +125,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
         // A brand-new trip may still be saving: retry once if it isn't found yet
         let res: Response | null = null;
         for (let attempt = 0; attempt < 3; attempt++) {
-          res = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/assistant`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ text: t }),
-          });
+          res = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/assistant`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: t, currency }) });
           if (res.status !== 404) break;
           await new Promise((r) => setTimeout(r, 1200));
         }
@@ -83,7 +143,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
         setBusy(false);
       }
     },
-    [busy, trip.id],
+    [busy, trip.id, currency],
   );
 
   // A question typed on the home page: ask it once the chat has loaded
@@ -143,7 +203,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
                   </div>
                 ) : null}
                 {m.content.cards?.length ? (
-                  <div className="w-full sm:w-1/2 space-y-4">
+                  <div className="space-y-5 pt-1">
                     {m.content.cards.map((c) => (
                       <PlaceCard key={c.id} card={c} trip={trip} />
                     ))}
@@ -153,11 +213,7 @@ export function TripAssistant({ trip, initialAsk, onAsked }: { trip: Trip; initi
             </div>
           ),
         )}
-        {busy && (
-          <p className="flex items-center gap-2.5 text-[13px] text-ink-muted" role="status">
-            <AiLogo thinking className="size-6" /> Looking through the guides…
-          </p>
-        )}
+        {busy && <Thinking />}
       </div>
 
       <form
@@ -260,57 +316,74 @@ function PlaceCard({ card, trip }: { card: AssistantCard; trip: Trip }) {
   const addActivity = useStore((s) => s.addActivity);
   const removeActivity = useStore((s) => s.removeActivity);
   const saved = activities.find((a) => a.tripId === trip.id && a.name.toLowerCase() === place.name.toLowerCase());
-  const price = card.price ?? place.priceLevel;
-  const details = [place.tagline, place.neighbourhood, price ? "$".repeat(price) : null].filter(Boolean).join(" · ");
+  const level = card.price ?? place.priceLevel;
+  // Hotels with a live price show it per night; everything else its price level ($–$$$$)
+  const nightly = card.nightly && card.currency ? `${currencySymbol(card.currency)}${card.nightly.toLocaleString("en-GB")} / night` : null;
+  const details = [place.tagline, place.neighbourhood, nightly ?? (level ? "$".repeat(level) : null)].filter(Boolean).join(" · ");
+  const totalNote =
+    card.total && card.currency && card.nights
+      ? `${currencySymbol(card.currency)}${card.total.toLocaleString("en-GB")} for ${card.nights} night${card.nights === 1 ? "" : "s"} on your dates`
+      : undefined;
 
   return (
-    <div className="group relative">
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${place.name}`}
-        onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
-        className="rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
-      >
-        <div className="film-grain relative aspect-[2/1] overflow-hidden bg-guide-card">
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
-          ) : (
-            <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
-              {kind === "food" ? <ForkKnife weight="fill" className="size-10" /> : <MapPin weight="fill" className="size-10" />}
-            </span>
-          )}
-          <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
-            <p className="font-serif text-[20px] leading-[1.1]">{place.name}</p>
-            <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
-              <span className="truncate">{details}</span>
-              {card.rating ? (
-                <span className="shrink-0 inline-flex items-center gap-0.5" title={card.reviews ? `${card.reviews.toLocaleString("en-GB")} Google reviews` : "Google rating"}>
-                  · <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
+    <div className="space-y-2">
+      <p className="sm:max-w-[75%] text-[14px] leading-snug text-ink">
+        {card.link ? (
+          <a href={card.link} target="_blank" rel="noopener noreferrer sponsored" className="font-semibold underline decoration-ink/30 underline-offset-2 hover:decoration-ink">
+            {place.name}
+          </a>
+        ) : (
+          <b className="font-semibold">{place.name}</b>
+        )}
+        <b className="font-semibold">:</b> {card.summary}
+      </p>
+      <div className="group relative w-full sm:w-1/2">
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Open ${place.name}`}
+          onClick={(e) => !(e.target as HTMLElement).closest("button") && setOpen(true)}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), setOpen(true))}
+          className="rounded-2xl overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-guide-active transition-shadow hover:shadow-md"
+        >
+          <div className="film-grain relative aspect-[2/1] overflow-hidden bg-guide-card">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photo} alt="" className="absolute inset-0 size-full object-cover film-photo transition-transform duration-500 group-hover:scale-[1.04]" />
+            ) : (
+              <span className="absolute inset-0 grid place-items-center text-guide-ink/15">
+                {kind === "food" ? <ForkKnife weight="fill" className="size-10" /> : <MapPin weight="fill" className="size-10" />}
+              </span>
+            )}
+            <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" aria-hidden />
+            <div className="absolute inset-x-0 bottom-0 px-4 pb-3 text-guide-ink">
+              <p className="font-serif text-[20px] leading-[1.1]">{place.name}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-[12px] text-guide-ink/85 min-w-0">
+                <span className="truncate" title={totalNote}>
+                  {details}
                 </span>
-              ) : null}
-            </p>
+                {card.rating ? (
+                  <span className="shrink-0 inline-flex items-center gap-0.5" title={card.reviews ? `${card.reviews.toLocaleString("en-GB")} Google reviews` : "Google rating"}>
+                    · <Star weight="fill" className="size-3" /> {card.rating.toFixed(1)}
+                  </span>
+                ) : null}
+              </p>
+            </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => (saved ? removeActivity(saved.id) : addActivity(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, place: place.name }))}
+          title={saved ? "Remove from trip" : "Add to trip"}
+          aria-label={saved ? "Remove from trip" : "Add to trip"}
+          className={clsx(
+            "absolute top-2.5 right-2.5 grid place-items-center size-8 rounded-full shadow transition-colors",
+            saved ? "bg-guide-active text-ink" : "bg-guide-ink/90 text-ink hover:bg-white",
+          )}
+        >
+          {saved ? <Check weight="bold" className="size-4" /> : <Plus weight="bold" className="size-4" />}
+        </button>
       </div>
-      <p className="mt-1.5 px-0.5 text-[13px] leading-snug text-ink/85">{card.summary}</p>
-      <button
-        type="button"
-        onClick={() =>
-          saved ? removeActivity(saved.id) : addActivity(trip.id, { name: place.name, category: card.category as ActivityCategory, lat: card.lat, lng: card.lng, place: place.name })
-        }
-        title={saved ? "Remove from trip" : "Add to trip"}
-        aria-label={saved ? "Remove from trip" : "Add to trip"}
-        className={clsx(
-          "absolute top-2.5 right-2.5 grid place-items-center size-8 rounded-full shadow transition-colors",
-          saved ? "bg-guide-active text-ink" : "bg-guide-ink/90 text-ink hover:bg-white",
-        )}
-      >
-        {saved ? <Check weight="bold" className="size-4" /> : <Plus weight="bold" className="size-4" />}
-      </button>
       {open && (
         <PlaceModal
           place={hit?.place ?? base}

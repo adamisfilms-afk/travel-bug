@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { AssistantRefusal, assistantEnabled, pick, toSearchQuery, understand, type CallLog } from "@/lib/assistant/claude";
 import { MIN_CURATED, addGoogleFacts, candidatesFromCards, searchCurated, searchGeneral, type Candidate } from "@/lib/assistant/search";
 import type { AssistantCard, AssistantReply, ChatContent, ChatMessage } from "@/lib/assistant/types";
-import { isAdminUser, supabaseServer } from "@/lib/supabase/server";
+import { hotelSearchLink, priceStays, type PriceContext } from "@/lib/assistant/prices";
+import { DEFAULT_CURRENCY, isCurrency } from "@/lib/currency";
+import { supabaseServer } from "@/lib/supabase/server";
 
 /**
  * The trip assistant's chat, saved with the trip (everyone on the trip sees it).
@@ -24,11 +26,15 @@ const MAX_CARDS = 5;
 const HISTORY = 12;
 
 /** Words that mean someone is asking for places (so it should always be a search). */
-const WANTS_PLACES = /\b(hotels?|stay|stays|staying|accommodation|apartments?|hostels?|airbnb|restaurants?|eat|eating|food|dinner|lunch|breakfast|brunch|caf[eé]s?|coffee|bars?|drinks?|pubs?|things to do|see|visit|museums?|sights?|galler(y|ies)|shops?|shopping|recommend\w*|suggest\w*|where)\b/i;
+const WANTS_PLACES =
+  /\b(hotels?|stay|stays|staying|accommodation|apartments?|hostels?|airbnb|restaurants?|eat|eating|food|dinner|lunch|breakfast|brunch|caf[eé]s?|coffee|bars?|drinks?|pubs?|things to do|see|visit|museums?|sights?|galler(y|ies)|shops?|shopping|recommend\w*|suggest\w*|where)\b/i;
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function session(ctx: Ctx) {
+const TRIP_COLUMNS = "id, name, destination, locations, start_date, end_date, travellers";
+
+/** The signed-in user (one auth round trip). */
+async function signedIn(ctx: Ctx) {
   const { id } = await ctx.params;
   const sb = await supabaseServer();
   if (!sb) return { error: NextResponse.json({ error: "The assistant needs accounts switched on." }, { status: 400 }) };
@@ -36,16 +42,19 @@ async function session(ctx: Ctx) {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return { error: NextResponse.json({ error: "Log in to use the assistant." }, { status: 401 }) };
-  // Row-level security: only finds the trip if you're on it
-  const { data: trip } = await sb.from("trips").select("id, name, destination, locations, start_date, end_date, travellers").eq("id", id).maybeSingle();
-  if (!trip) return { error: NextResponse.json({ error: "Trip not found (it may still be saving — try again in a moment)." }, { status: 404 }) };
-  return { sb, user, trip, id };
+  return { sb, user, id };
 }
 
+const tripNotFound = () => NextResponse.json({ error: "Trip not found (it may still be saving — try again in a moment)." }, { status: 404 });
+
+/** Messages left today (null = not limited: admins). Profile and count are read in parallel. */
 async function remaining(sb: SupabaseClient, user: User): Promise<number | null> {
-  if (await isAdminUser(user)) return null;
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
-  const { count } = await sb.from("trip_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("role", "user").gte("created_at", since);
+  const [{ data: profile }, { count }] = await Promise.all([
+    sb.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    sb.from("trip_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("role", "user").gte("created_at", since),
+  ]);
+  if (profile?.is_admin) return null;
   return Math.max(0, LIMIT - (count ?? 0));
 }
 
@@ -55,16 +64,22 @@ function friendly(msg: string) {
 }
 
 export async function GET(_req: Request, ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await signedIn(ctx);
   if ("error" in s) return s.error;
-  const { data, error } = await s.sb.from("trip_messages").select("id, role, content, created_at, user_id").eq("trip_id", s.id).order("created_at").limit(200);
+  // Everything at once: trip access check, the chat and today's allowance
+  const [{ data: trip }, { data, error }, left] = await Promise.all([
+    s.sb.from("trips").select("id").eq("id", s.id).maybeSingle(),
+    s.sb.from("trip_messages").select("id, role, content, created_at, user_id").eq("trip_id", s.id).order("created_at").limit(200),
+    remaining(s.sb, s.user),
+  ]);
+  if (!trip) return tripNotFound();
   if (error) return NextResponse.json({ error: friendly(error.message) }, { status: 500 });
-  const body: AssistantReply = { messages: (data ?? []) as ChatMessage[], remaining: await remaining(s.sb, s.user), limit: LIMIT };
+  const body: AssistantReply = { messages: (data ?? []) as ChatMessage[], remaining: left, limit: LIMIT };
   return NextResponse.json({ ...body, enabled: assistantEnabled() });
 }
 
 export async function DELETE(_req: Request, ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await signedIn(ctx);
   if ("error" in s) return s.error;
   const { error } = await s.sb.from("trip_messages").delete().eq("trip_id", s.id);
   if (error) return NextResponse.json({ error: friendly(error.message) }, { status: 500 });
@@ -72,20 +87,27 @@ export async function DELETE(_req: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await signedIn(ctx);
   if ("error" in s) return s.error;
-  const { sb, user, trip, id } = s;
+  const { sb, user, id } = s;
   if (!assistantEnabled()) return NextResponse.json({ error: "The assistant isn't switched on yet (ANTHROPIC_API_KEY is missing)." }, { status: 503 });
 
   const body = await req.json().catch(() => null);
-  const text = String(body?.text ?? "").trim().slice(0, 500);
+  const text = String(body?.text ?? "")
+    .trim()
+    .slice(0, 500);
   if (!text) return NextResponse.json({ error: "Type a message." }, { status: 400 });
+  const currency = isCurrency(body?.currency) ? (body.currency as string) : DEFAULT_CURRENCY;
 
-  const left = await remaining(sb, user);
-  if (left === 0)
-    return NextResponse.json({ error: `You've used your ${LIMIT} assistant messages for today — more tomorrow.`, remaining: 0, limit: LIMIT }, { status: 429 });
+  const [{ data: trip }, left] = await Promise.all([sb.from("trips").select(TRIP_COLUMNS).eq("id", id).maybeSingle(), remaining(sb, user)]);
+  if (!trip) return tripNotFound();
+  if (left === 0) return NextResponse.json({ error: `You've used your ${LIMIT} assistant messages for today — more tomorrow.`, remaining: 0, limit: LIMIT }, { status: 429 });
 
-  const { data: mine, error: insertError } = await sb.from("trip_messages").insert({ trip_id: id, user_id: user.id, role: "user", content: { text } }).select("id, role, content, created_at, user_id").single();
+  const { data: mine, error: insertError } = await sb
+    .from("trip_messages")
+    .insert({ trip_id: id, user_id: user.id, role: "user", content: { text } })
+    .select("id, role, content, created_at, user_id")
+    .single();
   if (insertError) return NextResponse.json({ error: friendly(insertError.message) }, { status: 500 });
 
   const { data: recent } = await sb.from("trip_messages").select("id, role, content, created_at").eq("trip_id", id).order("created_at", { ascending: false }).limit(HISTORY);
@@ -95,13 +117,11 @@ export async function POST(req: Request, ctx: Ctx) {
   const cities = (trip.locations?.length ? trip.locations : [trip.destination]) as string[];
   let content: ChatContent;
   try {
-    content = await reply(history, { name: trip.name, cities, startDate: trip.start_date, endDate: trip.end_date, travellers: trip.travellers }, log);
+    content = await reply(history, { name: trip.name, cities, startDate: trip.start_date, endDate: trip.end_date, travellers: trip.travellers }, currency, log);
   } catch (e) {
     console.error("[assistant]", e);
     content =
-      e instanceof AssistantRefusal
-        ? { text: "Sorry — I can't help with that one. Ask me about places to eat, stay or see." }
-        : { text: "Something went wrong on my side — try asking again." };
+      e instanceof AssistantRefusal ? { text: "Sorry — I can't help with that one. Ask me about places to eat, stay or see." } : { text: "Something went wrong on my side — try asking again." };
   }
 
   const { data: theirs } = await sb.from("trip_messages").insert({ trip_id: id, user_id: user.id, role: "assistant", content }).select("id, role, content, created_at, user_id").single();
@@ -114,7 +134,7 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 
 /** Understand → (clarify | answer | search curated → maybe general → pick). */
-async function reply(history: ChatMessage[], trip: Parameters<typeof understand>[1], log: CallLog): Promise<ChatContent> {
+async function reply(history: ChatMessage[], trip: Parameters<typeof understand>[1], currency: string, log: CallLog): Promise<ChatContent> {
   const u = await understand(history, trip, log);
   if (u.action === "clarify" && u.options.length) return { text: u.message, options: u.options };
   // Safety net: a request for places is always searched, even if the model chose to reply in words
@@ -127,9 +147,7 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
   // What they asked for, in their words since the last set of results
   const lastResults = history.findLastIndex((m) => m.role === "assistant" && m.content.cards?.length);
   // (follow-ups about shown places also get the original request, for context)
-  const request = (u.about_previous ? history.filter((m) => m.role === "user").slice(-4) : history.slice(lastResults + 1).filter((m) => m.role === "user"))
-    .map((m) => m.content.text)
-    .join(" · ");
+  const request = (u.about_previous ? history.filter((m) => m.role === "user").slice(-4) : history.slice(lastResults + 1).filter((m) => m.role === "user")).map((m) => m.content.text).join(" · ");
 
   let candidates: Candidate[];
   let curatedCount = 0;
@@ -157,8 +175,21 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
         ? `Our ${guide.city} guide doesn't cover this yet, but here are some recommendations I found elsewhere:`
         : `We don't have curated picks for ${q.city} yet, but here are some recommendations I found elsewhere:`;
   }
-  // Google rating, reviews and price for curated places (cached), so it can judge which is best
-  await addGoogleFacts(candidates);
+  // Hotels: live prices on the trip's dates (one city search, cached), so it can weigh cost
+  const priceCtx: PriceContext = { city: q.city, checkIn: trip.startDate, checkOut: trip.endDate, adults: Math.max(1, trip.travellers), currency };
+  const stayCandidates = candidates.filter((c) => c.kind === "stay" && c.nightly == null);
+  // Google rating, reviews and price level for curated places (cached), so it can judge which is best
+  const [prices] = await Promise.all([
+    priceStays(
+      stayCandidates.map((c) => c.name),
+      priceCtx,
+    ),
+    addGoogleFacts(candidates),
+  ]);
+  for (const c of stayCandidates) {
+    const p = prices.get(c.name);
+    if (p) Object.assign(c, { nightly: p.nightly, currency: p.currency });
+  }
 
   const note = u.about_previous ? "\n(They're asking about the places already shown — judge those.)" : "";
   const picks = await pick(`${request}${note}\n(Search: ${JSON.stringify(q)})`, candidates, { ...log, city: q.city, query: request, curated: curatedCount, general: generalCount });
@@ -187,10 +218,27 @@ async function reply(history: ChatMessage[], trip: Parameters<typeof understand>
       mapsQuery: c.mapsQuery,
       rating: c.rating ?? null,
       reviews: c.reviews ?? null,
+      kind: c.kind,
     });
   }
   // The model's order stands (best first); curated places are preferred inside the prompt
   const shown = cards.slice(0, MAX_CARDS);
+
+  // Hotels shown: price (looking up by name the few the city search missed) and a booking link
+  const stays = shown.filter((c) => c.kind === "stay");
+  const shownPrices = await priceStays(
+    stays.map((c) => c.name),
+    priceCtx,
+    2,
+  );
+  for (const c of stays) {
+    const p = shownPrices.get(c.name);
+    c.nightly = p?.nightly ?? null;
+    c.total = p?.total ?? null;
+    c.currency = p?.currency ?? null;
+    c.nights = p?.nights ?? null;
+    c.link = p?.link ?? hotelSearchLink(c.name, q.city);
+  }
   if (!shown.length) return { text: picks.intro || "None of those quite fit — try a different area or budget." };
   return { text: picks.intro, cards: shown };
 }

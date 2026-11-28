@@ -44,6 +44,9 @@ export interface Candidate {
   mapsQuery?: string;
   rating?: number | null;
   reviews?: number | null;
+  /** Hotels: live price per night on the trip's dates (see prices.ts). */
+  nightly?: number | null;
+  currency?: string | null;
 }
 
 /** Fewer curated matches than this → top up with general suggestions. */
@@ -164,7 +167,7 @@ export async function candidatesFromCards(cards: AssistantCard[]): Promise<Candi
       const guide = CITY_GUIDES.find((g) => g.slug === card.guide);
       for (const s of guide?.sections ?? []) {
         const raw = s.places.find((x) => x.id === card.id);
-        if (raw && guide) return curatedCandidate(guide, s, applyOverride(raw, overrides[raw.id]), kindOf(guide, raw, s.title));
+        if (raw && guide) return { ...curatedCandidate(guide, s, applyOverride(raw, overrides[raw.id]), kindOf(guide, raw, s.title)), nightly: card.nightly ?? null, currency: card.currency ?? null };
       }
     }
     return {
@@ -174,7 +177,7 @@ export async function candidatesFromCards(cards: AssistantCard[]): Promise<Candi
       tagline: card.tagline,
       area: card.area,
       section: card.tagline,
-      kind: card.category === "food" ? "food" : card.category === "other" ? "stay" : "explore",
+      kind: card.kind ?? (card.category === "food" ? "food" : card.category === "other" ? "stay" : "explore"),
       price: card.price,
       about: card.summary,
       lat: card.lat,
@@ -184,6 +187,8 @@ export async function candidatesFromCards(cards: AssistantCard[]): Promise<Candi
       mapsQuery: card.mapsQuery,
       rating: card.rating ?? null,
       reviews: card.reviews ?? null,
+      nightly: card.nightly ?? null,
+      currency: card.currency ?? null,
     };
   });
 }

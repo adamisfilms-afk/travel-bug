@@ -23,6 +23,14 @@ export interface AssistantCard {
   rating?: number | null;
   /** Number of Google reviews behind the rating. */
   reviews?: number | null;
+  kind?: "food" | "explore" | "stay";
+  /** Hotels: live price per night on the trip's dates, and the stay total, in `currency`. */
+  nightly?: number | null;
+  total?: number | null;
+  currency?: string | null;
+  nights?: number | null;
+  /** Hotels: where to book (Skyscanner, through the affiliate link when one is set). */
+  link?: string | null;
 }
 
 export interface ChatContent {
