@@ -28,6 +28,7 @@ export function BookTable({
   phone,
   reservable,
   guide,
+  loading,
 }: {
   placeName: string;
   bookingUrl?: string | null;
@@ -35,6 +36,8 @@ export function BookTable({
   phone?: string | null;
   reservable?: boolean | null;
   guide: CuratedGuide;
+  /** Google details still loading (website/phone not known yet). */
+  loading?: boolean;
 }) {
   // Defaults from your next trip to this city (its start date and number of travellers)
   const trips = useStore((s) => s.trips);
@@ -79,81 +82,86 @@ export function BookTable({
   const looking = !bookingUrl && !!website && discovered === null;
   const walkIn = reservable === false && !link;
 
-  const go = link ? bookingLink(link, { date, time, party }) : website;
   const when = new Date(`${date}T12:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
-  return (
-    <section className="rounded-2xl bg-black/[0.04] p-4 sm:p-5 space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h3 className="font-serif text-[21px] leading-tight">Book a table</h3>
-        {trip && <span className="text-[12px] text-ink-muted">For your {trip.name} trip</span>}
+  if (loading || looking)
+    return (
+      <div className="space-y-3">
+        <div className="h-10 w-56 rounded-full bg-black/5 animate-pulse" />
+        <p className="text-[12px] text-ink-muted">Looking for their booking page…</p>
       </div>
+    );
 
-      {walkIn ? (
-        <p className="text-[14px] text-ink-muted">Google lists {placeName} as walk-in only — no reservations needed.</p>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-2">
-            <label className="flex items-center gap-1.5">
-              <CalendarBlank className="size-4 text-ink-muted" />
-              <input type="date" aria-label="Date" value={date} min={today} onChange={(e) => setDate(e.target.value)} className={field} />
-            </label>
-            <label className="flex items-center gap-1.5">
-              <Clock className="size-4 text-ink-muted" />
-              <select aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} className={field}>
-                {TIMES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-1.5">
-              <Users className="size-4 text-ink-muted" />
-              <select aria-label="People" value={party} onChange={(e) => setParty(Number(e.target.value))} className={field}>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n} {n === 1 ? "person" : "people"}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+  if (walkIn) return <p className="text-[14px] text-ink-muted">Google lists {placeName} as walk-in only — no reservations needed.</p>;
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {go ? (
-              <a
-                href={go}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover"
-              >
-                {provider ? (prefill ? `Find a table on ${provider.name}` : `Book on ${provider.name}`) : "Book on their website"}
-                <ArrowSquareOut className="size-4" />
-              </a>
-            ) : looking ? (
-              <span className="h-10 w-48 rounded-full bg-black/5 animate-pulse" />
-            ) : null}
-            {phone && (
-              <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 text-[14px] underline underline-offset-2">
-                <Phone className="size-4" /> Call {phone}
-              </a>
-            )}
-          </div>
+  const callLink = phone && (
+    <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 text-[14px] underline underline-offset-2">
+      <Phone className="size-4" /> Call {phone}
+    </a>
+  );
+  const button = (label: string, href: string) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-accent text-white text-[14px] hover:bg-accent-hover">
+      {label}
+      <ArrowSquareOut className="size-4" />
+    </a>
+  );
 
-          <p className="text-[12px] text-ink-muted">
-            {looking
-              ? "Looking for their booking page…"
-              : prefill
-                ? `Opens ${provider!.name} for ${when} at ${time}, ${party} ${party === 1 ? "person" : "people"} — you'll see what's available there.`
-                : provider
-                  ? `Bookings are on ${provider.name} — choose ${when}, ${time} for ${party} there.`
-                  : go
-                    ? "We couldn't find an online booking system — their website may have one, or call them."
-                    : phone
-                      ? "No online booking found — call to reserve."
-                      : "No online booking found for this place."}
-          </p>
-        </>
-      )}
-    </section>
+  // Booking systems that open on a chosen slot: pick date, time and party size here
+  if (link && prefill)
+    return (
+      <div className="space-y-3 text-[14px]">
+        {trip && <p className="text-[12px] text-ink-muted">Set for your {trip.name} trip</p>}
+        <div className="flex flex-wrap gap-2">
+          <label className="flex items-center gap-1.5">
+            <CalendarBlank className="size-4 text-ink-muted" />
+            <input type="date" aria-label="Date" value={date} min={today} onChange={(e) => setDate(e.target.value)} className={field} />
+          </label>
+          <label className="flex items-center gap-1.5">
+            <Clock className="size-4 text-ink-muted" />
+            <select aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} className={field}>
+              {TIMES.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <Users className="size-4 text-ink-muted" />
+            <select aria-label="People" value={party} onChange={(e) => setParty(Number(e.target.value))} className={field}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? "person" : "people"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {button(`Find a table on ${provider!.name}`, bookingLink(link, { date, time, party }))}
+          {callLink}
+        </div>
+        <p className="text-[12px] text-ink-muted">
+          Opens {provider!.name} for {when} at {time}, {party} {party === 1 ? "person" : "people"} — you&apos;ll see what&apos;s available there.
+        </p>
+      </div>
+    );
+
+  // Everything else (other booking systems, their own website, phone): just the way to book
+  const href = link ?? website;
+  return (
+    <div className="space-y-3 text-[14px]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {href && button(provider ? `Book on ${provider.name}` : "Book on their website", href)}
+        {callLink}
+      </div>
+      <p className="text-[12px] text-ink-muted">
+        {provider
+          ? `Reservations are taken through ${provider.name}.`
+          : href
+            ? `${placeName} takes bookings on their own website${phone ? " or by phone" : ""}.`
+            : phone
+              ? "Call to reserve a table."
+              : "We couldn't find a way to book online."}
+      </p>
+    </div>
   );
 }
