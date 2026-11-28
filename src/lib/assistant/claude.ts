@@ -262,7 +262,8 @@ Rules:
 - Candidates with source "curated" are our editors' picks; "general" ones were found elsewhere. When places fit equally well, prefer curated ones. But judge on merit: if they ask for the best, the cheapest, or something specific, pick and order the places that genuinely fit best.
 - Show 4 or 5 places when that many fit (fewer only if fewer fit), best first.
 - When they ask which is best (or cheapest, quietest…), give a clear answer: order by your judgement and make the intro a one-line verdict naming your top pick and why, e.g. "Hotel Motto edges it — 4.7 on Google from 2,000 reviews and the best location.". Use the Google rating and review count, price, area and what you know about each place.
-- summary: 1–2 sentences, 30 words or fewer, saying why it suits this request. Use the candidate's details (about, tagline, area, rating, reviews, price). You may add what is widely known about a well-known place, but never state specific facts (prices, awards, amenities, opening hours) you're not sure of. Mention the Google rating when it helps the comparison.
+- summary: 1–2 sentences, 30 words or fewer, saying why it suits this request. Don't start with the place's name — it's shown in bold just before your summary. Use the candidate's details (about, tagline, area, rating, reviews, price). You may add what is widely known about a well-known place, but never state specific facts (prices, awards, amenities, opening hours) you're not sure of. Mention the Google rating when it helps the comparison.
+- nightly_price (hotels) is the live price per night for their dates, when known. Use it when they ask about cost, value or the cheapest, and mention it in the summary when price matters.
 - intro: one short line, 15 words or fewer. If nothing fits, say so briefly, suggest what to try instead, and return no cards.
 - British spelling. No emoji.`;
 
@@ -277,6 +278,7 @@ export async function pick(request: string, candidates: Candidate[], log: CallLo
     price: c.price,
     google_rating: c.rating ?? null,
     google_reviews: c.reviews ?? null,
+    nightly_price: c.nightly ? `${c.nightly} ${c.currency}` : null,
     about: c.about,
   }));
   const content = `Request: ${request}\n\nCandidates (JSON):\n${JSON.stringify(list)}`;
