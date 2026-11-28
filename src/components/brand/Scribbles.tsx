@@ -151,7 +151,8 @@ export function Wordmark({ className, mark = true }: { className?: string; mark?
   return (
     <span className={`inline-flex items-center gap-[0.35em] font-hand font-semibold leading-none whitespace-nowrap ${className ?? ""}`}>
       {mark && <LogoMark className="h-[1.3em] w-auto shrink-0 -my-[0.15em]" />}
-      <span>where to next</span>
+      {/* Caveat's letters sit low in their line: lift them so they centre with the mark */}
+      <span className="-translate-y-[0.12em]">where to next</span>
     </span>
   );
 }
